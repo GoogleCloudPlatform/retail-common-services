@@ -107,6 +107,17 @@ public class GrpcClient {
         MoreExecutors.directExecutor());
   }
 
+  ListenableFuture<Session> getSession(Context ctx, GetSessionRequest request) {
+    Preconditions.checkNotNull(ctx);
+    Preconditions.checkNotNull(request);
+
+    return Futures.catchingAsync(
+        getFutureStub(ctx, credentials).getSession(request),
+        Exception.class,
+        new ExceptionConverter<Session>(),
+        MoreExecutors.directExecutor());
+  }
+
   ListenableFuture<Empty> deleteSession(Context ctx, DeleteSessionRequest request) {
     Preconditions.checkNotNull(ctx);
     Preconditions.checkNotNull(request);

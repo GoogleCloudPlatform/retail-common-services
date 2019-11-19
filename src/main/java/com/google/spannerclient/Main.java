@@ -48,7 +48,7 @@ class Main {
               + "' "
               + "ORDER BY Timestamp ASC";
 
-      final SpannerAsyncClient client = new SpannerAsyncClient(database, credentials, 1);
+      final SpannerAsyncClient client = new SpannerAsyncClient(database, credentials, 2);
       final ListenableFuture<RowCursor> resultSetListenableFuture = client.executeSql(sql);
 
       Futures.addCallback(

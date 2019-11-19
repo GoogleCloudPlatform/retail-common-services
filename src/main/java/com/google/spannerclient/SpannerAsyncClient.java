@@ -25,34 +25,36 @@ import io.grpc.ManagedChannel;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLException;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
 public class SpannerAsyncClient {
-  private static final int DEFAULT_POOL_SIZE = 75;
+  private static final int DEFAULT_POOL_SIZE = 20;
+  private static final int DEFAULT_POLLER_SIZE = 4;
   private static final String DEFAULT_TARGET = "spanner.googleapis.com";
 
-  //private final String database;
-  //private final GoogleCredentials credentials;
   private final ManagedChannel channel;
   private final GrpcClient client;
   private final SessionPool sessionPool;
-  //private final CreateSessionRequest createSessionRequest;
+  private final CreateSessionRequest createSessionRequest;
   private final BatchCreateSessionsRequest batchCreateSessionRequest;
+  private final ScheduledExecutorService scheduler;
+  private final ScheduledFuture<?> poller;
 
   public SpannerAsyncClient(String database, GoogleCredentials credentials) {
     Preconditions.checkNotNull(database);
     Preconditions.checkNotNull(credentials);
 
-    //this.database = database;
-    //this.credentials = credentials;
     this.channel = buildChannel();
     this.client = new GrpcClient(channel, credentials);
     this.sessionPool = new SessionPool(DEFAULT_POOL_SIZE);
-    //this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(database).build();
+    this.scheduler = Executors.newScheduledThreadPool(DEFAULT_POLLER_SIZE);
+    this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(database).build();
     this.batchCreateSessionRequest =
         BatchCreateSessionsRequest.newBuilder()
             .setDatabase(database)
@@ -60,6 +62,7 @@ public class SpannerAsyncClient {
             .build();
 
     buildSessionPool();
+    this.poller = startSessionPoller();
   }
 
   public SpannerAsyncClient(String database, GoogleCredentials credentials, int poolSize) {
@@ -67,12 +70,11 @@ public class SpannerAsyncClient {
     Preconditions.checkNotNull(credentials);
     Preconditions.checkArgument(poolSize > 0);
 
-    //this.database = database;
-    //this.credentials = credentials;
     this.channel = buildChannel();
     this.client = new GrpcClient(channel, credentials);
     this.sessionPool = new SessionPool(poolSize);
-    //this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(database).build();
+    this.scheduler = Executors.newScheduledThreadPool(DEFAULT_POLLER_SIZE);
+    this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(database).build();
     this.batchCreateSessionRequest =
         BatchCreateSessionsRequest.newBuilder()
             .setDatabase(database)
@@ -80,6 +82,7 @@ public class SpannerAsyncClient {
             .build();
 
     buildSessionPool();
+    this.poller = startSessionPoller();
   }
 
   private ManagedChannel buildChannel() {
@@ -88,6 +91,7 @@ public class SpannerAsyncClient {
           .sslContext(GrpcSslContexts.forClient().build())
           .build();
     } catch (SSLException e) {
+      // TODO(xjdr): Do something better here
       e.printStackTrace();
     }
 
@@ -122,8 +126,60 @@ public class SpannerAsyncClient {
     try {
       lock.await(30, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
+      // TODO(xjdr): Do something better here
       e.printStackTrace();
     }
+  }
+
+  ScheduledFuture<?> startSessionPoller() {
+    return scheduler.scheduleAtFixedRate(
+            () -> {
+              List<Session> pendingSessions = new ArrayList<>();
+              sessionPool
+                  .getSessionList()
+                  .forEach(
+                      session -> {
+                        pendingSessions.add(session);
+                        ListenableFuture<Session> getSessionFuture =
+                            client.getSession(
+                                Context.getDefault(),
+                                GetSessionRequest.newBuilder().setName(session.getName()).build());
+                        Futures.addCallback(
+                            getSessionFuture,
+                            new FutureCallback<Session>() {
+                              @Override
+                              public void onSuccess(@Nullable Session session_) {
+                                pendingSessions.remove(session_);
+                              }
+
+                              @Override
+                              public void onFailure(Throwable t) {}
+                            },
+                            MoreExecutors.directExecutor());
+                      });
+
+              pendingSessions.forEach(
+                  s -> {
+                    sessionPool.removeSession(s);
+                    ListenableFuture<Session> sf =
+                        client.createSession(Context.getDefault(), createSessionRequest);
+                    Futures.addCallback(
+                        sf,
+                        new FutureCallback<Session>() {
+                          @Override
+                          public void onSuccess(@Nullable Session session) {
+                            sessionPool.addSession(session);
+                          }
+
+                          @Override
+                          public void onFailure(Throwable t) {}
+                        },
+                        MoreExecutors.directExecutor());
+                  });
+            },
+            30,
+            30,
+            TimeUnit.SECONDS);
   }
 
   ListenableFuture<RowCursor> executeSql(String sql) {
@@ -220,7 +276,6 @@ public class SpannerAsyncClient {
     Preconditions.checkNotNull(sql);
 
     final Optional<Session> sessionOptional = sessionPool.getSession();
-    final SettableFuture<RowCursor> resultSetFuture = SettableFuture.create();
 
     if (sessionOptional.isPresent()) {
       final Session session = sessionOptional.get();
@@ -257,7 +312,6 @@ public class SpannerAsyncClient {
     Preconditions.checkNotNull(sql);
 
     final Optional<Session> sessionOptional = sessionPool.getSession();
-    final SettableFuture<RowCursor> resultSetFuture = SettableFuture.create();
 
     if (sessionOptional.isPresent()) {
       final Session session = sessionOptional.get();
@@ -302,6 +356,8 @@ public class SpannerAsyncClient {
   }
 
   void close() throws InterruptedException {
+    poller.cancel(true);
+    scheduler.shutdownNow();
     final CountDownLatch lock = new CountDownLatch(sessionPool.getMaxPoolSize());
     sessionPool
         .getSessionList()

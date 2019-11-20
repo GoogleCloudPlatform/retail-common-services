@@ -1,0 +1,11 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - functions
+  - deploy
+  - base-price-archiver
+  - --runtime=go111
+  - --entry-point=Archiver
+  - --trigger-topic=baseprice
+  - --service-account=$_SERVICE_ACCOUNT
+  - --source=functions/archiver/.

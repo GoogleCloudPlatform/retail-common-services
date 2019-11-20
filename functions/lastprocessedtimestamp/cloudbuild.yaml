@@ -1,0 +1,11 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+  - functions
+  - deploy
+  - lastprocessedtimestamp
+  - --runtime=go111
+  - --entry-point=LastProcessedTimestamp
+  - --trigger-topic=updates
+  - --service-account=$_SERVICE_ACCOUNT
+  - --source=functions/lastprocessedtimestamp/.

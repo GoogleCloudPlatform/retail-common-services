@@ -1,0 +1,10 @@
+{
+	"name": "Cloud Shell ++",
+	"dockerFile": "Dockerfile",
+	"extensions": [
+		"ms-vscode.go",
+		"vscjava.vscode-java-pack",
+		"vscode-org-mode.org-mode",
+		"zxh404.vscode-proto3"
+	]
+}

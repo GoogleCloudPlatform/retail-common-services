@@ -157,7 +157,7 @@ public class GrpcClient {
     return asyncStub
         .withCallCredentials(MoreCallCredentials.from(credentials))
         .withDeadlineAfter(
-            TimeUnit.MILLISECONDS.convert(timeout.getNano(), TimeUnit.NANOSECONDS),
+            TimeUnit.MILLISECONDS.convert(timeout.toNanos(), TimeUnit.NANOSECONDS),
             TimeUnit.MILLISECONDS);
   }
 
@@ -170,7 +170,7 @@ public class GrpcClient {
     return futureStub
         .withCallCredentials(MoreCallCredentials.from(credentials))
         .withDeadlineAfter(
-            TimeUnit.MILLISECONDS.convert(timeout.getNano(), TimeUnit.NANOSECONDS),
+            TimeUnit.MILLISECONDS.convert(timeout.toNanos(), TimeUnit.NANOSECONDS),
             TimeUnit.MILLISECONDS);
   }
 

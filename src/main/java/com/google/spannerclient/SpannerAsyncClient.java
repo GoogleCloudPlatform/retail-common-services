@@ -118,6 +118,7 @@ public class SpannerAsyncClient {
 
           @Override
           public void onFailure(Throwable t) {
+            // TODO(xjdr): Throw or do something else here
             // Error
             lock.countDown();
           }
@@ -133,42 +134,23 @@ public class SpannerAsyncClient {
 
   ScheduledFuture<?> startSessionPoller() {
     return scheduler.scheduleAtFixedRate(
-            () -> {
-              List<Session> pendingSessions = new ArrayList<>();
-              sessionPool
-                  .getSessionList()
-                  .forEach(
-                      session -> {
-                        pendingSessions.add(session);
-                        ListenableFuture<Session> getSessionFuture =
-                            client.getSession(
-                                Context.getDefault(),
-                                GetSessionRequest.newBuilder().setName(session.getName()).build());
-                        Futures.addCallback(
-                            getSessionFuture,
-                            new FutureCallback<Session>() {
-                              @Override
-                              public void onSuccess(@Nullable Session session_) {
-                                pendingSessions.remove(session_);
-                              }
-
-                              @Override
-                              public void onFailure(Throwable t) {}
-                            },
-                            MoreExecutors.directExecutor());
-                      });
-
-              pendingSessions.forEach(
-                  s -> {
-                    sessionPool.removeSession(s);
-                    ListenableFuture<Session> sf =
-                        client.createSession(Context.getDefault(), createSessionRequest);
+        () -> {
+          List<Session> pendingSessions = new ArrayList<>();
+          sessionPool
+              .getSessionList()
+              .forEach(
+                  session -> {
+                    pendingSessions.add(session);
+                    ListenableFuture<Session> getSessionFuture =
+                        client.getSession(
+                            Context.getDefault(),
+                            GetSessionRequest.newBuilder().setName(session.getName()).build());
                     Futures.addCallback(
-                        sf,
+                        getSessionFuture,
                         new FutureCallback<Session>() {
                           @Override
-                          public void onSuccess(@Nullable Session session) {
-                            sessionPool.addSession(session);
+                          public void onSuccess(@Nullable Session session_) {
+                            pendingSessions.remove(session_);
                           }
 
                           @Override
@@ -176,10 +158,29 @@ public class SpannerAsyncClient {
                         },
                         MoreExecutors.directExecutor());
                   });
-            },
-            30,
-            30,
-            TimeUnit.SECONDS);
+
+          pendingSessions.forEach(
+              s -> {
+                sessionPool.removeSession(s);
+                ListenableFuture<Session> sf =
+                    client.createSession(Context.getDefault(), createSessionRequest);
+                Futures.addCallback(
+                    sf,
+                    new FutureCallback<Session>() {
+                      @Override
+                      public void onSuccess(@Nullable Session session) {
+                        sessionPool.addSession(session);
+                      }
+
+                      @Override
+                      public void onFailure(Throwable t) {}
+                    },
+                    MoreExecutors.directExecutor());
+              });
+        },
+        30,
+        30,
+        TimeUnit.SECONDS);
   }
 
   ListenableFuture<RowCursor> executeSql(String sql) {

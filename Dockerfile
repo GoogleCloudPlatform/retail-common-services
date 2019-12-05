@@ -16,8 +16,8 @@ FROM gradle:latest AS build-env
 ADD . /app
 WORKDIR /app
 USER root
-RUN ./gradlew build && \
-  mv build/libs/spannerclient-1.0-SNAPSHOT.jar app.jar
+RUN ./gradlew spannerClientTest && \
+  mv build/libs/Main-fat-5.5.1-uber.jar app.jar
 
 FROM gcr.io/distroless/java
 COPY --from=build-env /app/app.jar /app/app.jar

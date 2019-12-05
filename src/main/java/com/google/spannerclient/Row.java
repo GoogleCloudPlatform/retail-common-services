@@ -26,6 +26,7 @@ import com.google.protobuf.Value;
 import com.google.spanner.v1.StructType;
 import com.google.spanner.v1.Type;
 import com.google.spanner.v1.TypeCode;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Row implements RowBase {
@@ -53,6 +54,7 @@ public class Row implements RowBase {
    */
   @Override
   public Type getType() {
+    // TODO(xjdr): Is this even needed?
     return null;
   }
 
@@ -352,7 +354,19 @@ public class Row implements RowBase {
    */
   @Override
   public boolean[] getBooleanArray(int columnIndex) {
-    return new boolean[0];
+    final List<Boolean> bl = getBooleanList(columnIndex);
+    final boolean[] ba = new boolean[bl.size()];
+    final int[] i = new int[1];
+
+    i[0] = 0;
+
+    bl.forEach(
+        x -> {
+          ba[i[0]] = x;
+          i[0]++;
+        });
+
+    return ba;
   }
 
   /**
@@ -364,7 +378,19 @@ public class Row implements RowBase {
    */
   @Override
   public boolean[] getBooleanArray(String columnName) {
-    return new boolean[0];
+    final List<Boolean> bl = getBooleanList(columnName);
+    final boolean[] ba = new boolean[bl.size()];
+    final int[] i = new int[1];
+
+    i[0] = 0;
+
+    bl.forEach(
+        x -> {
+          ba[i[0]] = x;
+          i[0]++;
+        });
+
+    return ba;
   }
 
   /**
@@ -374,7 +400,22 @@ public class Row implements RowBase {
    */
   @Override
   public List<Boolean> getBooleanList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+    final List<Boolean> booleanList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.BOOL_VALUE));
+              booleanList.add(v.getBoolValue());
+            });
+
+    return booleanList;
   }
 
   /**
@@ -384,7 +425,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<Boolean> getBooleanList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Boolean> booleanList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.BOOL_VALUE));
+              booleanList.add(v.getBoolValue());
+            });
+
+    return booleanList;
   }
 
   /**
@@ -396,7 +454,19 @@ public class Row implements RowBase {
    */
   @Override
   public long[] getLongArray(int columnIndex) {
-    return new long[0];
+    final List<Long> ll = getLongList(columnIndex);
+    final long[] la = new long[ll.size()];
+    final int[] i = new int[1];
+
+    i[0] = 0;
+
+    ll.forEach(
+        x -> {
+          la[i[0]] = x;
+          i[0]++;
+        });
+
+    return la;
   }
 
   /**
@@ -408,7 +478,19 @@ public class Row implements RowBase {
    */
   @Override
   public long[] getLongArray(String columnName) {
-    return new long[0];
+    final List<Long> ll = getLongList(columnName);
+    final long[] la = new long[ll.size()];
+    final int[] i = new int[1];
+
+    i[0] = 0;
+
+    ll.forEach(
+        x -> {
+          la[i[0]] = x;
+          i[0]++;
+        });
+
+    return la;
   }
 
   /**
@@ -418,7 +500,23 @@ public class Row implements RowBase {
    */
   @Override
   public List<Long> getLongList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Long> longList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              longList.add(Longs.tryParse(v.getStringValue()));
+            });
+
+    return longList;
   }
 
   /**
@@ -428,7 +526,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<Long> getLongList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Long> longList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              longList.add(Longs.tryParse(v.getStringValue()));
+            });
+
+    return longList;
   }
 
   /**
@@ -440,7 +555,19 @@ public class Row implements RowBase {
    */
   @Override
   public double[] getDoubleArray(int columnIndex) {
-    return new double[0];
+    final List<Double> dl = getDoubleList(columnIndex);
+    final double[] da = new double[dl.size()];
+    final int[] i = new int[1];
+
+    i[0] = 0;
+
+    dl.forEach(
+        x -> {
+          da[i[0]] = x;
+          i[0]++;
+        });
+
+    return da;
   }
 
   /**
@@ -452,7 +579,19 @@ public class Row implements RowBase {
    */
   @Override
   public double[] getDoubleArray(String columnName) {
-    return new double[0];
+    final List<Double> dl = getDoubleList(columnName);
+    final double[] da = new double[dl.size()];
+    final int[] i = new int[1];
+
+    i[0] = 0;
+
+    dl.forEach(
+        x -> {
+          da[i[0]] = x;
+          i[0]++;
+        });
+
+    return da;
   }
 
   /**
@@ -462,7 +601,23 @@ public class Row implements RowBase {
    */
   @Override
   public List<Double> getDoubleList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Double> doubleList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              doubleList.add(Doubles.tryParse(v.getStringValue()));
+            });
+
+    return doubleList;
   }
 
   /**
@@ -472,7 +627,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<Double> getDoubleList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Double> doubleList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              doubleList.add(Doubles.tryParse(v.getStringValue()));
+            });
+
+    return doubleList;
   }
 
   /**
@@ -482,7 +654,23 @@ public class Row implements RowBase {
    */
   @Override
   public List<String> getStringList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<String> stringList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              stringList.add(v.getStringValue());
+            });
+
+    return stringList;
   }
 
   /**
@@ -492,7 +680,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<String> getStringList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<String> stringList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              stringList.add(v.getStringValue());
+            });
+
+    return stringList;
   }
 
   /**
@@ -502,7 +707,23 @@ public class Row implements RowBase {
    */
   @Override
   public List<ByteArray> getBytesList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<ByteArray> baList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              baList.add(ByteArray.copyFrom(v.getStringValue()));
+            });
+
+    return baList;
   }
 
   /**
@@ -512,7 +733,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<ByteArray> getBytesList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<ByteArray> baList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              baList.add(ByteArray.copyFrom(v.getStringValue()));
+            });
+
+    return baList;
   }
 
   /**
@@ -522,7 +760,23 @@ public class Row implements RowBase {
    */
   @Override
   public List<Timestamp> getTimestampList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Timestamp> timestampList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              timestampList.add(Timestamp.parseTimestamp(v.getStringValue()));
+            });
+
+    return timestampList;
   }
 
   /**
@@ -532,7 +786,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<Timestamp> getTimestampList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Timestamp> timestampList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              timestampList.add(Timestamp.parseTimestamp(v.getStringValue()));
+            });
+
+    return timestampList;
   }
 
   /**
@@ -542,7 +813,23 @@ public class Row implements RowBase {
    */
   @Override
   public List<Date> getDateList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Date> dateList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              dateList.add(Date.parseDate(v.getStringValue()));
+            });
+
+    return dateList;
   }
 
   /**
@@ -552,7 +839,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<Date> getDateList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Date> dateList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              dateList.add(Date.parseDate(v.getStringValue()));
+            });
+
+    return dateList;
   }
 
   /**
@@ -562,7 +866,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<Row> getRowList(int columnIndex) {
-    return null;
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Row> rowList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              // TODO(xjdr): Finish the impl here
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              // rowList.add(Row.of());
+            });
+
+    return rowList;
   }
 
   /**
@@ -572,6 +893,24 @@ public class Row implements RowBase {
    */
   @Override
   public List<Row> getRowList(String columnName) {
-    return null;
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.ARRAY));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.LIST_VALUE));
+
+    final List<Row> rowList = new ArrayList<>();
+
+    values
+        .get(columnIndex)
+        .getListValue()
+        .getValuesList()
+        .forEach(
+            v -> {
+              // TODO(xjdr): Finish the impl here
+              Preconditions.checkState(v.getKindCase().equals(Value.KindCase.STRING_VALUE));
+              // rowList.add(Row.of());
+            });
+
+    return rowList;
   }
 }

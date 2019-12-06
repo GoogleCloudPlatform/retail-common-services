@@ -35,15 +35,15 @@ import java.util.List;
 public class Row implements RowBase {
 
   private final ImmutableList<StructType.Field> fields;
-  private final List<Value> values;
+  private final ImmutableList<Value> values;
 
-  public Row(ImmutableList<StructType.Field> fields, List<Value> values) {
+  public Row(ImmutableList<StructType.Field> fields, ImmutableList<Value> values) {
 
     this.fields = fields;
     this.values = values;
   }
 
-  public static Row of(ImmutableList<StructType.Field> fields, List<Value> values) {
+  public static Row of(ImmutableList<StructType.Field> fields, ImmutableList<Value> values) {
     Preconditions.checkNotNull(fields);
     Preconditions.checkNotNull(values);
 

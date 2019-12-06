@@ -21,6 +21,7 @@ import com.google.cloud.Timestamp;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ListValue;
+import com.google.protobuf.MessageLite;
 import com.google.spanner.v1.StructType;
 import com.google.spanner.v1.Type;
 import com.google.spanner.v1.TypeCode;
@@ -73,6 +74,34 @@ public class RowCursor implements RowBase, AutoCloseable {
   public String getString(String columnName) {
     final int columnIndex = getColumnIndex(columnName);
     return getCurrentRow().getString(columnIndex);
+  }
+
+  /**
+   * Parse the column value into a protocol message of the given type.
+   *
+   * @throws IllegalStateException if parsing failed state check
+   * @throws UninitializedMessageException if the parsed proto is not initialized
+   * @throws NullPointerException if the column value is null
+   * @throws IllegalArgumentException if given class is not a protocol message type
+   * @param columnIndex
+   */
+  @Override
+  public <T extends MessageLite> T getProto(int columnIndex, Class<T> clazz) {
+    return getCurrentRow().getProto(columnIndex, clazz);
+  }
+
+  /**
+   * Parse the column value into a protocol message of the given type.
+   *
+   * @throws IllegalStateException if parsing failed state check
+   * @throws UninitializedMessageException if the parsed proto is not initialized
+   * @throws NullPointerException if the column value is null
+   * @throws IllegalArgumentException if given class is not a protocol message type
+   * @param columnName
+   */
+  @Override
+  public <T extends MessageLite> T getProto(String columnName, Class<T> clazz) {
+    return getCurrentRow().getProto(columnName, clazz);
   }
 
   /**

@@ -18,6 +18,7 @@ package com.google.spannerclient;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
+import com.google.protobuf.MessageLite;
 import com.google.spanner.v1.Type;
 import java.util.List;
 
@@ -131,6 +132,28 @@ public interface RowBase {
    * com.google.spanner.v1.TypeCode#STRING}.
    */
   String getString(String columnName);
+
+  /**
+   * Parse the column value into a protocol message of the given type.
+   *
+   * @throws IllegalStateException if parsing failed state check
+   * @throws UninitializedMessageException if the parsed proto is not initialized
+   * @throws NullPointerException if the column value is null
+   * @throws IllegalArgumentException if given class is not a protocol message type
+   * @param columnIndex
+   */
+  <T extends MessageLite> T getProto(int columnIndex, Class<T> clazz);
+
+  /**
+   * Parse the column value into a protocol message of the given type.
+   *
+   * @throws IllegalStateException if parsing failed state check
+   * @throws UninitializedMessageException if the parsed proto is not initialized
+   * @throws NullPointerException if the column value is null
+   * @throws IllegalArgumentException if given class is not a protocol message type
+   * @param columnName
+   */
+  <T extends MessageLite> T getProto(String columnName, Class<T> clazz);
 
   /**
    * Returns the value of a non-{@code NULL} column with type {@link

@@ -34,7 +34,8 @@ class Main {
 
     try {
       final GoogleCredentials credentials =
-          GoogleCredentials.fromStream(new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
+          GoogleCredentials.fromStream(
+                  new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
 
       final String database = "projects/{project_id}/instances/test-db/databases/test";

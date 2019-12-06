@@ -22,10 +22,13 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
+import com.google.protobuf.MessageLite;
 import com.google.protobuf.Value;
 import com.google.spanner.v1.StructType;
 import com.google.spanner.v1.Type;
 import com.google.spanner.v1.TypeCode;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -221,6 +224,61 @@ public class Row implements RowBase {
         values.get(columnIndex).getKindCase().equals(Value.KindCase.STRING_VALUE));
 
     return Doubles.tryParse(values.get(columnIndex).getStringValue());
+  }
+
+  /**
+   * Parse the column value into a protocol message of the given type.
+   *
+   * @throws IllegalStateException if parsing failed state check
+   * @throws UninitializedMessageException if the parsed proto is not initialized
+   * @throws NullPointerException if the column value is null
+   * @throws IllegalArgumentException if given class is not a protocol message type
+   * @param columnIndex
+   */
+  @Override
+  public <T extends MessageLite> T getProto(int columnIndex, Class<T> clazz) {
+    Preconditions.checkState(columnIndex <= values.size() - 1);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.STRING));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.STRING_VALUE));
+
+    try {
+      final Method m = clazz.getMethod("getDefaultInstance");
+      final T t = (T) m.invoke(null);
+      final MessageLite.Builder messageBuilder = t.newBuilderForType();
+
+      return clazz.cast(messageBuilder.build());
+    } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+      throw new IllegalArgumentException("Invalid proto class " + clazz.getCanonicalName(), e);
+    }
+  }
+
+  /**
+   * Parse the column value into a protocol message of the given type.
+   *
+   * @throws IllegalStateException if parsing failed state check
+   * @throws UninitializedMessageException if the parsed proto is not initialized
+   * @throws NullPointerException if the column value is null
+   * @throws IllegalArgumentException if given class is not a protocol message type
+   * @param columnName
+   */
+  @Override
+  public <T extends MessageLite> T getProto(String columnName, Class<T> clazz) {
+    final int columnIndex = getColumnIndex(columnName);
+    Preconditions.checkState(columnIndex <= values.size() - 1);
+    Preconditions.checkState(fields.get(columnIndex).getType().getCode().equals(TypeCode.STRING));
+    Preconditions.checkState(
+        values.get(columnIndex).getKindCase().equals(Value.KindCase.STRING_VALUE));
+
+    try {
+      final Method m = clazz.getMethod("getDefaultInstance");
+      final T t = (T) m.invoke(null);
+      final MessageLite.Builder messageBuilder = t.newBuilderForType();
+
+      return clazz.cast(messageBuilder.build());
+    } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
+      throw new IllegalArgumentException("Invalid proto class " + clazz.getCanonicalName(), e);
+    }
   }
 
   /**

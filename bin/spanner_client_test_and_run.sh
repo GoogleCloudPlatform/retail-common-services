@@ -2,4 +2,4 @@
 
 set -ef
 
-docker build -t google/spanner-client . && docker run google/spanner-client
+docker build -t google/spanner-client . && docker run google/spanner-client $*

@@ -47,3 +47,4 @@ MANIFEST
 # Environment changes
 secrets/
 gen/
+bin/main/

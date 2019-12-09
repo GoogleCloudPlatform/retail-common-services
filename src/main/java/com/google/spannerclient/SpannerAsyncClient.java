@@ -40,7 +40,8 @@ public class SpannerAsyncClient {
 
   private final ManagedChannel channel;
   private final GrpcClient client;
-  private final SessionPool sessionPool;
+  //  private final SessionPool sessionPool;
+  private final ConcurrentRingBuffer<SessionContext> sessionPool;
   private final CreateSessionRequest createSessionRequest;
   private final BatchCreateSessionsRequest batchCreateSessionRequest;
   private final ScheduledExecutorService scheduler;
@@ -52,7 +53,8 @@ public class SpannerAsyncClient {
 
     this.channel = buildChannel();
     this.client = new GrpcClient(channel, credentials);
-    this.sessionPool = new SessionPool(DEFAULT_POOL_SIZE);
+    //    this.sessionPool = new SessionPool(DEFAULT_POOL_SIZE);
+    this.sessionPool = new ConcurrentRingBuffer<SessionContext>(DEFAULT_POOL_SIZE);
     this.scheduler = Executors.newScheduledThreadPool(DEFAULT_POLLER_SIZE);
     this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(database).build();
     this.batchCreateSessionRequest =
@@ -72,7 +74,8 @@ public class SpannerAsyncClient {
 
     this.channel = buildChannel();
     this.client = new GrpcClient(channel, credentials);
-    this.sessionPool = new SessionPool(poolSize);
+    //    this.sessionPool = new SessionPool(poolSize);
+    this.sessionPool = new ConcurrentRingBuffer<SessionContext>(DEFAULT_POOL_SIZE);
     this.scheduler = Executors.newScheduledThreadPool(DEFAULT_POLLER_SIZE);
     this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(database).build();
     this.batchCreateSessionRequest =
@@ -99,7 +102,7 @@ public class SpannerAsyncClient {
   }
 
   private void buildSessionPool() {
-    final CountDownLatch lock = new CountDownLatch(sessionPool.getMaxPoolSize());
+    final CountDownLatch lock = new CountDownLatch(sessionPool.size());
 
     ListenableFuture<BatchCreateSessionsResponse> batchCreateSessionsResponseFuture =
         client.batchCreateSession(Context.getDefault(), batchCreateSessionRequest);
@@ -112,7 +115,12 @@ public class SpannerAsyncClient {
               @NullableDecl BatchCreateSessionsResponse batchCreateSessionsResponse) {
             Preconditions.checkNotNull(batchCreateSessionsResponse);
 
-            batchCreateSessionsResponse.getSessionList().forEach(sessionPool::addSession);
+            batchCreateSessionsResponse
+                .getSessionList()
+                .forEach(
+                    s -> {
+                      sessionPool.tryPut(new SessionContext(s));
+                    });
             lock.countDown();
           }
 
@@ -161,7 +169,7 @@ public class SpannerAsyncClient {
 
           pendingSessions.forEach(
               s -> {
-                sessionPool.removeSession(s);
+                // sessionPool.removeSession(s);
                 ListenableFuture<Session> sf =
                     client.createSession(Context.getDefault(), createSessionRequest);
                 Futures.addCallback(
@@ -169,7 +177,7 @@ public class SpannerAsyncClient {
                     new FutureCallback<Session>() {
                       @Override
                       public void onSuccess(@Nullable Session session) {
-                        sessionPool.addSession(session);
+                        sessionPool.tryPut(new SessionContext(session));
                       }
 
                       @Override
@@ -186,11 +194,14 @@ public class SpannerAsyncClient {
   ListenableFuture<RowCursor> executeSql(String sql) {
     Preconditions.checkNotNull(sql);
 
-    final Optional<Session> sessionOptional = sessionPool.getSession();
+    final Optional<SessionContext> sessionOptional = sessionPool.tryGet();
     final SettableFuture<RowCursor> resultSetFuture = SettableFuture.create();
 
     if (sessionOptional.isPresent()) {
-      final Session session = sessionOptional.get();
+      final SessionContext session = sessionOptional.get();
+      if (!session.lock()) {
+        // throw
+      }
       ListenableFuture<ResultSet> resultSetListenableFuture =
           client.executeSql(
               Context.getDefault(),
@@ -207,13 +218,13 @@ public class SpannerAsyncClient {
               final RowCursor rowCursor = RowCursor.of(fieldList, rowList);
 
               resultSetFuture.set(rowCursor);
-              sessionPool.addSession(session);
+              session.unlock();
             }
 
             @Override
             public void onFailure(Throwable t) {
               resultSetFuture.setException(t);
-              sessionPool.addSession(session);
+              session.unlock();
             }
           },
           MoreExecutors.directExecutor());
@@ -225,11 +236,13 @@ public class SpannerAsyncClient {
   ListenableFuture<RowCursor> executeSqlReadOnlyStrong(String sql) {
     Preconditions.checkNotNull(sql);
 
-    final Optional<Session> sessionOptional = sessionPool.getSession();
+    final Optional<SessionContext> sessionOptional = sessionPool.tryGet();
     final SettableFuture<RowCursor> resultSetFuture = SettableFuture.create();
 
     if (sessionOptional.isPresent()) {
-      final Session session = sessionOptional.get();
+      final SessionContext session = sessionOptional.get();
+      session.lock();
+
       ListenableFuture<ResultSet> resultSetListenableFuture =
           client.executeSql(
               Context.getDefault(),
@@ -258,13 +271,13 @@ public class SpannerAsyncClient {
               final RowCursor rowCursor = RowCursor.of(fieldList, rowList);
 
               resultSetFuture.set(rowCursor);
-              sessionPool.addSession(session);
+              session.unlock();
             }
 
             @Override
             public void onFailure(Throwable t) {
               resultSetFuture.setException(t);
-              sessionPool.addSession(session);
+              session.unlock();
             }
           },
           MoreExecutors.directExecutor());
@@ -276,10 +289,11 @@ public class SpannerAsyncClient {
   void executeStreamingSql(String sql, SpannerStreamingHandler handler) {
     Preconditions.checkNotNull(sql);
 
-    final Optional<Session> sessionOptional = sessionPool.getSession();
+    final Optional<SessionContext> sessionOptional = sessionPool.tryGet();
 
     if (sessionOptional.isPresent()) {
-      final Session session = sessionOptional.get();
+      final SessionContext session = sessionOptional.get();
+      session.lock();
       client.executeStreamingSql(
           Context.getDefault(),
           ExecuteSqlRequest.newBuilder().setSession(session.getName()).setSql(sql).build(),
@@ -298,12 +312,12 @@ public class SpannerAsyncClient {
 
             @Override
             public void onError(Throwable t) {
-              sessionPool.addSession(session);
+              session.unlock();
             }
 
             @Override
             public void onCompleted() {
-              sessionPool.addSession(session);
+              session.unlock();
             }
           });
     }
@@ -312,10 +326,11 @@ public class SpannerAsyncClient {
   void executeStreamingSqlReadOnlyStrong(String sql, SpannerStreamingHandler handler) {
     Preconditions.checkNotNull(sql);
 
-    final Optional<Session> sessionOptional = sessionPool.getSession();
+    final Optional<SessionContext> sessionOptional = sessionPool.tryGet();
 
     if (sessionOptional.isPresent()) {
-      final Session session = sessionOptional.get();
+      final SessionContext session = sessionOptional.get();
+      session.lock();
       client.executeStreamingSql(
           Context.getDefault(),
           ExecuteSqlRequest.newBuilder()
@@ -345,12 +360,12 @@ public class SpannerAsyncClient {
 
             @Override
             public void onError(Throwable t) {
-              sessionPool.addSession(session);
+              session.unlock();
             }
 
             @Override
             public void onCompleted() {
-              sessionPool.addSession(session);
+              session.unlock();
             }
           });
     }
@@ -359,7 +374,7 @@ public class SpannerAsyncClient {
   void close() throws InterruptedException {
     poller.cancel(true);
     scheduler.shutdownNow();
-    final CountDownLatch lock = new CountDownLatch(sessionPool.getMaxPoolSize());
+    final CountDownLatch lock = new CountDownLatch(sessionPool.size());
     sessionPool
         .getSessionList()
         .forEach(
@@ -373,7 +388,7 @@ public class SpannerAsyncClient {
                   new FutureCallback<Empty>() {
                     @Override
                     public void onSuccess(@NullableDecl Empty result) {
-                      sessionPool.removeSession(s);
+                      // sessionPool.removeSession(s);
                       lock.countDown();
                     }
 

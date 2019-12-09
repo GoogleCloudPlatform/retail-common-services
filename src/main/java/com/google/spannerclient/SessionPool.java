@@ -26,11 +26,11 @@ import java.util.function.Consumer;
 
 class SessionPool {
   private final int maxPoolSize;
-  private final ConcurrentLinkedDeque pool;
+  private final ConcurrentLinkedDeque<Session> pool;
 
   SessionPool(int maxPoolSize) {
     this.maxPoolSize = maxPoolSize;
-    this.pool = new ConcurrentLinkedDeque();
+    this.pool = new ConcurrentLinkedDeque<>();
   }
 
   int getMaxPoolSize() {
@@ -45,7 +45,7 @@ class SessionPool {
     if (pool.isEmpty()) {
       return Optional.empty();
     } else {
-      return Optional.of((Session) pool.peekFirst());
+      return Optional.of(pool.peekFirst());
     }
   }
 
@@ -69,6 +69,6 @@ class SessionPool {
   void removeSession(Session s) {
     Preconditions.checkNotNull(s);
 
-    pool.remove(s);
+    // pool.remove(s);
   }
 }

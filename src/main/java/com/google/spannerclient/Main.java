@@ -31,6 +31,7 @@ class Main {
 
   public static void main(String[] args) {
     final CountDownLatch doneSignal = new CountDownLatch(1);
+    String project_id = args[0];
 
     try {
       final GoogleCredentials credentials =
@@ -38,7 +39,8 @@ class Main {
                   new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
 
-      final String database = "projects/{project_id}/instances/test-db/databases/test";
+      final String database = String.format("projects/%s/instances/test-db/databases/test", project_id);
+
       final String sql =
           "SELECT * FROM "
               + "test"

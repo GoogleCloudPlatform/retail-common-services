@@ -25,8 +25,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
 import javax.annotation.Nullable;
@@ -46,6 +46,7 @@ public class SpannerAsyncClient {
   private final BatchCreateSessionsRequest batchCreateSessionRequest;
   private final ScheduledExecutorService scheduler;
   private final ScheduledFuture<?> poller;
+  private final Map<Session, SessionContext> expiredSessionMap;
 
   public SpannerAsyncClient(String database, GoogleCredentials credentials) {
     Preconditions.checkNotNull(database);
@@ -65,6 +66,7 @@ public class SpannerAsyncClient {
 
     buildSessionPool();
     this.poller = startSessionPoller();
+    this.expiredSessionMap = new ConcurrentHashMap<>();
   }
 
   public SpannerAsyncClient(String database, GoogleCredentials credentials, int poolSize) {
@@ -86,6 +88,7 @@ public class SpannerAsyncClient {
 
     buildSessionPool();
     this.poller = startSessionPoller();
+    this.expiredSessionMap = new ConcurrentHashMap<>();
   }
 
   private ManagedChannel buildChannel() {
@@ -102,7 +105,7 @@ public class SpannerAsyncClient {
   }
 
   private void buildSessionPool() {
-    final CountDownLatch lock = new CountDownLatch(sessionPool.size());
+    final CountDownLatch lock = new CountDownLatch(1);
 
     ListenableFuture<BatchCreateSessionsResponse> batchCreateSessionsResponseFuture =
         client.batchCreateSession(Context.getDefault(), batchCreateSessionRequest);
@@ -119,7 +122,9 @@ public class SpannerAsyncClient {
                 .getSessionList()
                 .forEach(
                     s -> {
-                      sessionPool.tryPut(new SessionContext(s));
+                      boolean ok = sessionPool.tryPut(new SessionContext(s));
+                      // This failed?
+                      assert (ok);
                     });
             lock.countDown();
           }
@@ -143,48 +148,32 @@ public class SpannerAsyncClient {
   ScheduledFuture<?> startSessionPoller() {
     return scheduler.scheduleAtFixedRate(
         () -> {
-          List<Session> pendingSessions = new ArrayList<>();
           sessionPool
               .getSessionList()
               .forEach(
-                  session -> {
-                    pendingSessions.add(session);
-                    ListenableFuture<Session> getSessionFuture =
-                        client.getSession(
-                            Context.getDefault(),
-                            GetSessionRequest.newBuilder().setName(session.getName()).build());
-                    Futures.addCallback(
-                        getSessionFuture,
-                        new FutureCallback<Session>() {
-                          @Override
-                          public void onSuccess(@Nullable Session session_) {
-                            pendingSessions.remove(session_);
-                          }
+                  ctx -> {
+                    expiredSessionMap.put(ctx.getSession(), ctx);
+                    long lastUsed = ctx.lastUsed().toMinutes();
+                    long threshold = Duration.ofMinutes(45).toMinutes();
+                    if (lastUsed > threshold) {
+                      ListenableFuture<Session> getSessionFuture =
+                          client.getSession(
+                              Context.getDefault(),
+                              GetSessionRequest.newBuilder().setName(ctx.getName()).build());
+                      Futures.addCallback(
+                          getSessionFuture,
+                          new FutureCallback<Session>() {
+                            @Override
+                            public void onSuccess(@Nullable Session session_) {
+                              expiredSessionMap.remove(session_);
+                            }
 
-                          @Override
-                          public void onFailure(Throwable t) {}
-                        },
-                        MoreExecutors.directExecutor());
+                            @Override
+                            public void onFailure(Throwable t) {}
+                          },
+                          MoreExecutors.directExecutor());
+                    }
                   });
-
-          pendingSessions.forEach(
-              s -> {
-                // sessionPool.removeSession(s);
-                ListenableFuture<Session> sf =
-                    client.createSession(Context.getDefault(), createSessionRequest);
-                Futures.addCallback(
-                    sf,
-                    new FutureCallback<Session>() {
-                      @Override
-                      public void onSuccess(@Nullable Session session) {
-                        sessionPool.tryPut(new SessionContext(session));
-                      }
-
-                      @Override
-                      public void onFailure(Throwable t) {}
-                    },
-                    MoreExecutors.directExecutor());
-              });
         },
         30,
         30,
@@ -202,6 +191,7 @@ public class SpannerAsyncClient {
       if (!session.lock()) {
         // throw
       }
+
       ListenableFuture<ResultSet> resultSetListenableFuture =
           client.executeSql(
               Context.getDefault(),
@@ -241,7 +231,9 @@ public class SpannerAsyncClient {
 
     if (sessionOptional.isPresent()) {
       final SessionContext session = sessionOptional.get();
-      session.lock();
+      if (!session.lock()) {
+        // TODO(xjdr): Throw
+      }
 
       ListenableFuture<ResultSet> resultSetListenableFuture =
           client.executeSql(
@@ -293,7 +285,9 @@ public class SpannerAsyncClient {
 
     if (sessionOptional.isPresent()) {
       final SessionContext session = sessionOptional.get();
-      session.lock();
+      if (!session.lock()) {
+        // TODO(xjdr): Throw
+      }
       client.executeStreamingSql(
           Context.getDefault(),
           ExecuteSqlRequest.newBuilder().setSession(session.getName()).setSql(sql).build(),
@@ -330,7 +324,9 @@ public class SpannerAsyncClient {
 
     if (sessionOptional.isPresent()) {
       final SessionContext session = sessionOptional.get();
-      session.lock();
+      if (!session.lock()) {
+        // TODO(xjdr): Throw
+      }
       client.executeStreamingSql(
           Context.getDefault(),
           ExecuteSqlRequest.newBuilder()
@@ -379,23 +375,24 @@ public class SpannerAsyncClient {
         .getSessionList()
         .forEach(
             s -> {
-              ListenableFuture<Empty> sf =
-                  client.deleteSession(
-                      Context.getDefault(),
-                      DeleteSessionRequest.newBuilder().setName(s.getName()).build());
-              Futures.addCallback(
-                  sf,
-                  new FutureCallback<Empty>() {
-                    @Override
-                    public void onSuccess(@NullableDecl Empty result) {
-                      // sessionPool.removeSession(s);
-                      lock.countDown();
-                    }
+              if (s != null) {
+                ListenableFuture<Empty> sf =
+                    client.deleteSession(
+                        Context.getDefault(),
+                        DeleteSessionRequest.newBuilder().setName(s.getName()).build());
+                Futures.addCallback(
+                    sf,
+                    new FutureCallback<Empty>() {
+                      @Override
+                      public void onSuccess(@NullableDecl Empty result) {
+                        lock.countDown();
+                      }
 
-                    @Override
-                    public void onFailure(Throwable t) {}
-                  },
-                  MoreExecutors.directExecutor());
+                      @Override
+                      public void onFailure(Throwable t) {}
+                    },
+                    MoreExecutors.directExecutor());
+              }
             });
 
     lock.await(30, TimeUnit.SECONDS);

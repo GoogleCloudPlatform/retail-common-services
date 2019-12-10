@@ -19,6 +19,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.*;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
@@ -33,55 +34,69 @@ class Main {
     final CountDownLatch doneSignal = new CountDownLatch(1);
     String project_id = args[0];
 
+    GoogleCredentials credentials = null;
     try {
-      final GoogleCredentials credentials =
+      credentials =
           GoogleCredentials.fromStream(
                   new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
 
-      final String database = String.format("projects/%s/instances/test-db/databases/test", project_id);
+    final String database =
+        String.format("projects/%s/instances/test-db/databases/test", project_id);
 
-      final String sql =
-          "SELECT * FROM "
-              + "test"
-              + " "
-              + "WHERE Timestamp > '"
-              + "2019-08-08T20:02:48.000000Z"
-              + "' "
-              + "ORDER BY Timestamp ASC";
+    final String sql =
+        "SELECT * FROM "
+            + "test"
+            + " "
+            + "WHERE Timestamp > '"
+            + "2019-08-08T20:02:48.000000Z"
+            + "' "
+            + "ORDER BY Timestamp ASC";
 
-      final SpannerAsyncClient client = new SpannerAsyncClient(database, credentials, 2);
-      final ListenableFuture<RowCursor> resultSetListenableFuture = client.executeSql(sql);
+    final SpannerAsyncClient client = new SpannerAsyncClient(database, credentials, 2);
+    final ListenableFuture<RowCursor> resultSetListenableFuture = client.executeSql(sql);
 
-      Futures.addCallback(
-          resultSetListenableFuture,
-          new FutureCallback<RowCursor>() {
-            @Override
-            public void onSuccess(@NullableDecl RowCursor rowCursor) {
-
+    Futures.addCallback(
+        resultSetListenableFuture,
+        new FutureCallback<RowCursor>() {
+          @Override
+          public void onSuccess(@NullableDecl RowCursor rowCursor) {
+            try {
               while (rowCursor.next()) {
                 System.out.println("UUID: " + rowCursor.getLong("UUID"));
                 System.out.println("SortingKey: " + rowCursor.getString(1));
                 System.out.println("Timestamp: " + rowCursor.getTimestamp(2));
                 System.out.println("Data: " + rowCursor.getString(3));
               }
-
-              doneSignal.countDown();
+            } catch (NullPointerException e) {
+              e.printStackTrace();
             }
 
-            @Override
-            public void onFailure(Throwable t) {
-              doneSignal.countDown();
-            }
-          },
-          MoreExecutors.directExecutor());
+            doneSignal.countDown();
+          }
 
+          @Override
+          public void onFailure(Throwable t) {
+            System.out.println("This is bad");
+            doneSignal.countDown();
+          }
+        },
+        MoreExecutors.directExecutor());
+
+    try {
       doneSignal.await();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
 
+    try {
       client.close();
-
-    } catch (Exception e) {
-      System.out.println("Exception: " + e.toString());
+    } catch (InterruptedException e) {
+      System.out.println("95");
+      e.printStackTrace();
     }
   }
 }

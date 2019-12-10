@@ -16,8 +16,8 @@
 package com.google.spannerclient;
 
 import com.google.common.base.Preconditions;
-import com.google.spanner.v1.Session;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,8 +32,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * each item).
  */
 class ConcurrentRingBuffer<T> {
-  private final AtomicLong nextRead = new AtomicLong(0);
-  private final AtomicLong nextWrite = new AtomicLong(0);
+  private final AtomicLong nextRead = new AtomicLong();
+  private final AtomicLong nextWrite = new AtomicLong();
   private final AtomicLong publishedWrite = new AtomicLong(-1);
   private final int capacity;
   private final T[] ring;
@@ -46,7 +46,7 @@ class ConcurrentRingBuffer<T> {
   }
 
   void publish(long which) {
-    while (publishedWrite.get() != which) {}
+    while (publishedWrite.get() != which - 1) {}
     boolean ok = publishedWrite.compareAndSet(which - 1, which);
     assert (ok);
   }
@@ -66,12 +66,10 @@ class ConcurrentRingBuffer<T> {
     final T el = ring[Math.toIntExact(r % capacity)];
 
     if (nextRead.compareAndSet(r, r + 1)) {
-      Optional.of(el);
+      return Optional.of(el);
     } else {
       return tryGet();
     }
-
-    return Optional.empty();
   }
 
   /**
@@ -93,7 +91,7 @@ class ConcurrentRingBuffer<T> {
 
   /** Attempt to put an item into the buffer. If it is full, the operation fails. */
   boolean tryPut(T el) {
-    final long w = publishedWrite.get();
+    final long w = nextWrite.get();
     final long r = nextRead.get();
 
     if (w - r >= capacity) {
@@ -120,7 +118,9 @@ class ConcurrentRingBuffer<T> {
     return Math.toIntExact(nextWrite.get() - nextRead.get());
   }
 
-  List<Session> getSessionList() {
-    return new ArrayList<>();
+  List<T> getSessionList() {
+    List<T> ringList = new ArrayList<>(Arrays.asList(ring).subList(0, capacity - 1));
+
+    return ringList;
   }
 }

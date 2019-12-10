@@ -16,8 +16,8 @@
 package com.google.spannerclient;
 
 import com.google.spanner.v1.Session;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 class SessionContext {
@@ -25,17 +25,40 @@ class SessionContext {
   private final Session session;
   private final AtomicBoolean inUse;
 
+  private Instant lastUsed;
+  private boolean expired;
+
   public SessionContext(Session session) {
     this.session = session;
     this.inUse = new AtomicBoolean(false);
+    this.expired = false;
+  }
+
+  void markExpired() {
+    expired = true;
   }
 
   boolean isLocked() {
     return inUse.get();
   }
 
+  Duration lastUsed() {
+    Instant now = Instant.now();
+
+    return Duration.between(lastUsed, now);
+  }
+
   boolean lock() {
-    return inUse.compareAndSet(false, true);
+    if (expired == true) {
+      return false;
+    }
+
+    if (inUse.compareAndSet(false, true)) {
+      lastUsed = Instant.now();
+      return true;
+    }
+
+    return false;
   }
 
   void unlock() {
@@ -48,9 +71,5 @@ class SessionContext {
 
   String getName() {
     return session.getName();
-  }
-
-  List<Session> getSessionList() {
-    return new ArrayList<>();
   }
 }

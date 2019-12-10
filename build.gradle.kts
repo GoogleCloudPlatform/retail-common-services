@@ -68,7 +68,13 @@ dependencies {
         // see: https://github.com/grpc/grpc-java/issues/3633
         compile("javax.annotation:javax.annotation-api:1.3.2")
     }
+    testCompile(Config.Libs.junit_api)
+    testRuntime(Config.Libs.junit_engine)
 
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
 }
 
 // ErrorProne

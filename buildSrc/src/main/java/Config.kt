@@ -18,6 +18,7 @@ object Config {
         val bigquery_version = "1.88.0"
         val gcp_core_version = "1.91.3"
         val grpc_native_version = "2.0.27.Final"
+        val junit_version = "5.5.2"
     }
 
     object Libs {
@@ -45,8 +46,11 @@ object Config {
         val bigquery = "com.google.cloud:google-cloud-bigquery:".plus(Version.bigquery_version)
         val gcp_core = "com.google.cloud:google-cloud-core:".plus(Version.gcp_core_version)
 
-
         // DB
         val rocksdb = "org.rocksdb:rocksdbjni:".plus(Version.rocks_version)
+
+        // Testing
+        val junit_api = "org.junit.jupiter:junit-jupiter-api:".plus(Version.junit_version)
+        val junit_engine = "org.junit.jupiter:junit-jupiter-engine:".plus(Version.junit_version)
     }
 }

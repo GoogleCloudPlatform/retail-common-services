@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
@@ -199,10 +200,10 @@ public class SpannerTailer {
             .bind("tablename")
             .to(tableName)
             .build();
-
     final DatabaseClient dbClient = getDbClient(projectId, instanceName, dbName);
 
-    try (final ResultSet resultSet = dbClient.readOnlyTransaction().executeQuery(schemaQuery)) {
+    try (ReadOnlyTransaction readOnlyTransaction = dbClient.readOnlyTransaction();
+        ResultSet resultSet = readOnlyTransaction.executeQuery(schemaQuery)) {
       log.debug("Processing Schema");
       return SpannerToAvro.GetSchema("test", "avroNamespace", resultSet);
     } catch (Exception e) {
@@ -319,7 +320,9 @@ public class SpannerTailer {
     final Statement lptsQuery = Statement.newBuilder("SELECT * FROM " + lptsTableName).build();
 
     if (firstRun) {
-      try (ResultSet resultSet = dbClient.readOnlyTransaction().executeQuery(lptsQuery)) {
+
+      try (ReadOnlyTransaction readOnlyTransaction = dbClient.readOnlyTransaction();
+          ResultSet resultSet = readOnlyTransaction.executeQuery(lptsQuery)) {
         while (resultSet.next()) {
           String startingTimestamp = resultSet.getString("LastProcessedTimestamp");
           Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
@@ -348,8 +351,8 @@ public class SpannerTailer {
               @Override
               public ImmutableList<Struct> call() {
                 final List<Struct> sl = new ArrayList<>();
-                try (final ResultSet resultSet =
-                    dbClient.singleUseReadOnlyTransaction().executeQuery(pollQuery)) {
+                try (ReadOnlyTransaction readOnlyTransaction = dbClient.readOnlyTransaction();
+                    ResultSet resultSet = readOnlyTransaction.executeQuery(pollQuery)) {
                   while (resultSet.next()) {
                     sl.add(resultSet.getCurrentRowAsStruct());
                   }

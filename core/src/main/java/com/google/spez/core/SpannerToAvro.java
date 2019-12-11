@@ -60,10 +60,6 @@ public class SpannerToAvro {
       final String type = currentRow.getString(1);
       spannerSchema.put(name, type);
       log.debug("Binding Avro Schema");
-      // TODO(JR): Need to strip out size from the type object and add it to the avro datatype
-      // i.e
-      // STRING(MAX) vs STRING(1024)
-      // Fixed length strings will be unsupported in the first release.
       switch (type) {
         case "ARRAY":
           log.debug("Made ARRAY");

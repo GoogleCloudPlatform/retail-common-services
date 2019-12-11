@@ -203,7 +203,7 @@ public class SpannerTailer {
     final DatabaseClient dbClient = getDbClient(projectId, instanceName, dbName);
 
     try (final ResultSet resultSet = dbClient.readOnlyTransaction().executeQuery(schemaQuery)) {
-      log.info("Processing Schema");
+      log.debug("Processing Schema");
       return SpannerToAvro.GetSchema("test", "avroNamespace", resultSet);
     } catch (Exception e) {
 
@@ -392,7 +392,7 @@ public class SpannerTailer {
           .get()
           .forEach(
               f -> {
-                log.info(
+                log.debug(
                     "Successfully Processed: "
                         + f
                         + " - "

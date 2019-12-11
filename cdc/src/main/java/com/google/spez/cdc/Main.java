@@ -36,9 +36,8 @@ class Main {
     final List<ListeningExecutorService> l =
         Spez.ServicePoolGenerator(32, "Spanner Tailer Event Worker");
 
-    final SpannerTailer tailer = new SpannerTailer(32);
-    final EventPublisher publisher =
-        new EventPublisher("retail-common-services-249016", "test-topic");
+    final SpannerTailer tailer = new SpannerTailer(32, 200000000);
+    final EventPublisher publisher = new EventPublisher("{project_id}", "test-topic");
     final Map<String, String> metadata = new HashMap<>();
 
     // Populate CDC Metadata

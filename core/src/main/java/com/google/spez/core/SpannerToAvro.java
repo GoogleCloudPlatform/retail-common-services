@@ -67,37 +67,37 @@ public class SpannerToAvro {
           break;
         case "BOOL":
           log.debug("Made BOOL");
-          avroSchemaBuilder.name(name).type().booleanType().noDefault();
+          avroSchemaBuilder.name(name).type().nullable().booleanType().noDefault();
           break;
         case "BYTES":
           log.debug("Made BYTES");
-          avroSchemaBuilder.name(name).type().bytesType().noDefault();
+          avroSchemaBuilder.name(name).type().nullable().bytesType().noDefault();
           break;
         case "DATE":
           // Date handled as String type
           log.debug("Made DATE");
-          avroSchemaBuilder.name(name).type().stringType().noDefault();
+          avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
           break;
         case "FLOAT64":
           log.debug("Made FLOAT64");
-          avroSchemaBuilder.name(name).type().doubleType().noDefault();
+          avroSchemaBuilder.name(name).type().nullable().doubleType().noDefault();
           break;
         case "INT64":
           log.debug("Made INT64");
-          avroSchemaBuilder.name(name).type().longType().noDefault();
+          avroSchemaBuilder.name(name).type().nullable().longType().noDefault();
           break;
         case "STRING(MAX)":
           log.debug("Made STRING(MAX)");
-          avroSchemaBuilder.name(name).type().stringType().noDefault();
+          avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
           break;
         case "TIMESTAMP":
           log.debug("Made TIMESTAMP");
-          avroSchemaBuilder.name(name).type().stringType().noDefault();
+          avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
           break;
         default:
           if (type.contains("STRING")) {
             log.debug("Made STRING: " + type);
-            avroSchemaBuilder.name(name).type().stringType().noDefault();
+            avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
           } else {
             log.error("Unknown Schema type when generating Avro Schema: " + type);
             //          stop();
@@ -141,27 +141,57 @@ public class SpannerToAvro {
               switch (arrayTypeString) {
                 case "BOOL":
                   log.debug("Put BOOL");
-                  record.put(x, resultSet.getBooleanList(x));
+                  try {
+                    record.put(x, resultSet.getBooleanList(x));
+                  } catch (NullPointerException e) {
+                    record.put(x, null);
+                  }
+
                   break;
                 case "BYTES":
                   log.debug("Put BYTES");
-                  record.put(x, resultSet.getBytesList(x));
+                  try {
+                    record.put(x, resultSet.getBytesList(x));
+                  } catch (NullPointerException e) {
+                    record.put(x, null);
+                  }
+
                   break;
                 case "DATE":
                   log.debug("Put DATE");
-                  record.put(x, resultSet.getStringList(x));
+                  try {
+                    record.put(x, resultSet.getStringList(x));
+                  } catch (NullPointerException e) {
+                    record.put(x, null);
+                  }
+
                   break;
                 case "FLOAT64":
                   log.debug("Put FLOAT64");
-                  record.put(x, resultSet.getDoubleList(x));
+                  try {
+                    record.put(x, resultSet.getDoubleList(x));
+                  } catch (NullPointerException e) {
+                    record.put(x, null);
+                  }
+
                   break;
                 case "INT64":
                   log.debug("Put INT64");
-                  record.put(x, resultSet.getLongList(x));
+                  try {
+                    record.put(x, resultSet.getLongList(x));
+                  } catch (NullPointerException e) {
+                    record.put(x, null);
+                  }
+
                   break;
                 case "STRING(MAX)":
                   log.debug("Put STRING");
-                  record.put(x, resultSet.getStringList(x));
+                  try {
+                    record.put(x, resultSet.getStringList(x));
+                  } catch (NullPointerException e) {
+                    record.put(x, null);
+                  }
+
                   break;
                 case "TIMESTAMP":
                   // Timestamp lists are not supported as of now
@@ -175,36 +205,74 @@ public class SpannerToAvro {
               break;
             case "BOOL":
               log.debug("Put BOOL");
-              record.put(x, resultSet.getBoolean(x));
+              try {
+                record.put(x, resultSet.getBoolean(x));
+              } catch (NullPointerException e) {
+                record.put(x, null);
+              }
+
               break;
             case "BYTES":
               log.debug("Put BYTES");
-              record.put(x, resultSet.getBytes(x));
+              try {
+                record.put(x, resultSet.getBytes(x));
+              } catch (NullPointerException e) {
+                record.put(x, null);
+              }
+
               break;
             case "DATE":
               log.debug("Put DATE");
-              record.put(x, resultSet.getString(x));
+              try {
+                record.put(x, resultSet.getDate(x).toString());
+              } catch (NullPointerException e) {
+                record.put(x, null);
+              }
+
               break;
             case "FLOAT64":
               log.debug("Put FLOAT64");
-              record.put(x, resultSet.getDouble(x));
+              try {
+                record.put(x, resultSet.getDouble(x));
+              } catch (NullPointerException e) {
+                record.put(x, null);
+              }
+
               break;
             case "INT64":
               log.debug("Put INT64");
-              record.put(x, resultSet.getLong(x));
+              try {
+                record.put(x, resultSet.getLong(x));
+              } catch (NullPointerException e) {
+                record.put(x, null);
+              }
+
               break;
             case "STRING(MAX)":
               log.debug("Put STRING");
-              record.put(x, resultSet.getString(x));
+              try {
+                record.put(x, resultSet.getString(x));
+              } catch (NullPointerException e) {
+                record.put(x, null);
+              }
               break;
             case "TIMESTAMP":
               log.debug("Put TIMESTAMP");
-              record.put(x, resultSet.getTimestamp(x).toString());
+              try {
+                record.put(x, resultSet.getTimestamp(x).toString());
+              } catch (NullPointerException e) {
+                record.put(x, null);
+              }
+
               break;
             default:
               if (schemaSet.spannerSchema().get(x).contains("STRING")) {
                 log.debug("Put STRING");
-                record.put(x, resultSet.getString(x));
+                try {
+                  record.put(x, resultSet.getString(x));
+                } catch (NullPointerException e) {
+                  record.put(x, null);
+                }
 
               } else {
                 log.error(

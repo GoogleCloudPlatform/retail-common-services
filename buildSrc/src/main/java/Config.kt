@@ -12,7 +12,7 @@ object  Config {
 	val groovy_version = "2.5.8"
 	val rocks_version = "6.0.1"
 	val guava_version = "28.0.1-jre"
-	val spanner_version = "1.44.0"
+	val spanner_version = "1.46.0"
 	val pubsub_version = "1.99.0"
 	val storage_version = "1.99.0"
 	val bigquery_version = "1.99.0"

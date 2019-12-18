@@ -299,12 +299,14 @@ public class SpannerAsyncClient {
             public void onNext(PartialResultSet value) {
               final ImmutableList<StructType.Field> fieldList =
                   ImmutableList.copyOf(value.getMetadata().getRowType().getFieldsList());
-               if (value.getChunkedValue()) {
+              if (value.getChunkedValue()) {
                 resultSetList.add(value);
               } else {
-                  ResultSet resultSet = PartialResultSetCombiner.combine(ImmutableList.of(value), fieldList.size(), 0);
-                  RowCursor rowCursor = RowCursor.of(fieldList,  ImmutableList.copyOf(resultSet.getRowsList()));
-                  handler.apply(rowCursor);
+                ResultSet resultSet =
+                    PartialResultSetCombiner.combine(ImmutableList.of(value), fieldList.size(), 0);
+                RowCursor rowCursor =
+                    RowCursor.of(fieldList, ImmutableList.copyOf(resultSet.getRowsList()));
+                handler.apply(rowCursor);
               }
             }
 

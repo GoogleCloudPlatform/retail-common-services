@@ -21,7 +21,6 @@ import com.google.common.util.concurrent.*;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
-import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
 class Main {
   private static final ImmutableList<String> DEFAULT_SERVICE_SCOPES =
@@ -38,7 +37,9 @@ class Main {
     try {
       credentials =
           GoogleCredentials.fromStream(
-                  new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
+                  // new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
+                  new FileInputStream(
+                      "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
     } catch (IOException e) {
       e.printStackTrace();
@@ -57,34 +58,59 @@ class Main {
             + "ORDER BY Timestamp ASC";
 
     final SpannerAsyncClient client = new SpannerAsyncClient(database, credentials, 2);
-    final ListenableFuture<RowCursor> resultSetListenableFuture = client.executeSql(sql);
+    //    final ListenableFuture<RowCursor> resultSetListenableFuture = client.executeSql(sql);
+    //
+    //    Futures.addCallback(
+    //        resultSetListenableFuture,
+    //        new FutureCallback<RowCursor>() {
+    //          @Override
+    //          public void onSuccess(@NullableDecl RowCursor rowCursor) {
+    //            try {
+    //              while (rowCursor.next()) {
+    //                System.out.println("UUID: " + rowCursor.getLong("UUID"));
+    //                System.out.println("SortingKey: " + rowCursor.getString(1));
+    //                System.out.println("Timestamp: " + rowCursor.getTimestamp(2));
+    //                System.out.println("Data: " + rowCursor.getString(3));
+    //              }
+    //            } catch (NullPointerException e) {
+    //              e.printStackTrace();
+    //            }
+    //
+    //            doneSignal.countDown();
+    //          }
+    //
+    //          @Override
+    //          public void onFailure(Throwable t) {
+    //            System.out.println("This is bad");
+    //            doneSignal.countDown();
+    //          }
+    //        },
+    //        MoreExecutors.directExecutor());
 
-    Futures.addCallback(
-        resultSetListenableFuture,
-        new FutureCallback<RowCursor>() {
+    client.executeStreamingSql(
+        sql,
+        new SpannerStreamingHandler() {
           @Override
-          public void onSuccess(@NullableDecl RowCursor rowCursor) {
-            try {
+          public void apply(RowBase row_) {
+            if (row_ instanceof Row) {
+              Row row = (Row) row_;
+              System.out.println("UUID: " + row.getLong("UUID"));
+              System.out.println("SortingKey: " + row.getString(1));
+              System.out.println("Timestamp: " + row.getTimestamp(2));
+              System.out.println("Data: " + row.getString(3));
+            } else if (row_ instanceof RowCursor) {
+              RowCursor rowCursor = (RowCursor) row_;
               while (rowCursor.next()) {
                 System.out.println("UUID: " + rowCursor.getLong("UUID"));
                 System.out.println("SortingKey: " + rowCursor.getString(1));
                 System.out.println("Timestamp: " + rowCursor.getTimestamp(2));
                 System.out.println("Data: " + rowCursor.getString(3));
               }
-            } catch (NullPointerException e) {
-              e.printStackTrace();
+            } else {
+              // ---
             }
-
-            doneSignal.countDown();
           }
-
-          @Override
-          public void onFailure(Throwable t) {
-            System.out.println("This is bad");
-            doneSignal.countDown();
-          }
-        },
-        MoreExecutors.directExecutor());
+        });
 
     try {
       doneSignal.await();

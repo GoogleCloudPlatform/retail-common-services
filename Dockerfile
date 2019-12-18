@@ -39,4 +39,5 @@ ENTRYPOINT ["java", \
   "-Dcom.sun.management.jmxremote.ssl=false",\
   "-Djava.rmi.server.hostname=127.0.0.1",\
   "-jar", \
-  "app.jar"]
+  "app.jar", \
+  "$@"]

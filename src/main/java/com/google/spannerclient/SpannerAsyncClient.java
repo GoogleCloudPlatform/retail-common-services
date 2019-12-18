@@ -26,6 +26,8 @@ import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
@@ -282,6 +284,7 @@ public class SpannerAsyncClient {
     Preconditions.checkNotNull(sql);
 
     final Optional<SessionContext> sessionOptional = sessionPool.tryGet();
+    final List<PartialResultSet> resultSetList = new ArrayList<>();
 
     if (sessionOptional.isPresent()) {
       final SessionContext session = sessionOptional.get();
@@ -296,12 +299,13 @@ public class SpannerAsyncClient {
             public void onNext(PartialResultSet value) {
               final ImmutableList<StructType.Field> fieldList =
                   ImmutableList.copyOf(value.getMetadata().getRowType().getFieldsList());
-              final ImmutableList<Value> values = ImmutableList.copyOf(value.getValuesList());
-              if (value.getChunkedValue()) {
-                // Build proper values
+               if (value.getChunkedValue()) {
+                resultSetList.add(value);
+              } else {
+                  ResultSet resultSet = PartialResultSetCombiner.combine(ImmutableList.of(value), fieldList.size(), 0);
+                  RowCursor rowCursor = RowCursor.of(fieldList,  ImmutableList.copyOf(resultSet.getRowsList()));
+                  handler.apply(rowCursor);
               }
-
-              handler.apply(Row.of(fieldList, values));
             }
 
             @Override
@@ -311,6 +315,19 @@ public class SpannerAsyncClient {
 
             @Override
             public void onCompleted() {
+              if (resultSetList.size() >= 1) {
+                final ImmutableList<StructType.Field> fieldList =
+                    ImmutableList.copyOf(
+                        resultSetList.get(0).getMetadata().getRowType().getFieldsList());
+                final ResultSet resultSet =
+                    PartialResultSetCombiner.combine(resultSetList, fieldList.size(), 0);
+                final ImmutableList<ListValue> rowList =
+                    ImmutableList.copyOf(resultSet.getRowsList());
+                rowList.forEach(
+                    v -> {
+                      handler.apply(Row.of(fieldList, ImmutableList.copyOf(v.getValuesList())));
+                    });
+              }
               session.unlock();
             }
           });

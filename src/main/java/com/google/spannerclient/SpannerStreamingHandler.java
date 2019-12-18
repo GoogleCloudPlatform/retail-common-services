@@ -16,5 +16,5 @@
 package com.google.spannerclient;
 
 public interface SpannerStreamingHandler {
-  void apply(RowBase row);
+  void apply(Row row);
 }

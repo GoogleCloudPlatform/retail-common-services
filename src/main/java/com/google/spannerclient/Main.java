@@ -33,6 +33,7 @@ class Main {
     final CountDownLatch doneSignal = new CountDownLatch(1);
     String project_id = args[0];
 
+
     GoogleCredentials credentials = null;
     try {
       credentials =
@@ -91,24 +92,11 @@ class Main {
         sql,
         new SpannerStreamingHandler() {
           @Override
-          public void apply(RowBase row_) {
-            if (row_ instanceof Row) {
-              Row row = (Row) row_;
+          public void apply(Row row) {
               System.out.println("UUID: " + row.getLong("UUID"));
               System.out.println("SortingKey: " + row.getString(1));
               System.out.println("Timestamp: " + row.getTimestamp(2));
               System.out.println("Data: " + row.getString(3));
-            } else if (row_ instanceof RowCursor) {
-              RowCursor rowCursor = (RowCursor) row_;
-              while (rowCursor.next()) {
-                System.out.println("UUID: " + rowCursor.getLong("UUID"));
-                System.out.println("SortingKey: " + rowCursor.getString(1));
-                System.out.println("Timestamp: " + rowCursor.getTimestamp(2));
-                System.out.println("Data: " + rowCursor.getString(3));
-              }
-            } else {
-              // ---
-            }
           }
         });
 

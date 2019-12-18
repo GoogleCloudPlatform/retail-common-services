@@ -49,7 +49,7 @@ public class RowCursor implements RowBase, AutoCloseable {
     return ++index < rows.size();
   }
 
-  private Row getCurrentRow() {
+  Row getCurrentRow() {
     Preconditions.checkState(index >= 0, "Must be preceded by a next() call");
     Preconditions.checkElementIndex(index, rows.size(), "All rows have been yielded");
     return Row.of(fields, ImmutableList.copyOf(rows.get(index).getValuesList()));

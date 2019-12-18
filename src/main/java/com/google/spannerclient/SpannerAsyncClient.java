@@ -306,7 +306,9 @@ public class SpannerAsyncClient {
                     PartialResultSetCombiner.combine(ImmutableList.of(value), fieldList.size(), 0);
                 RowCursor rowCursor =
                     RowCursor.of(fieldList, ImmutableList.copyOf(resultSet.getRowsList()));
-                handler.apply(rowCursor);
+                while (rowCursor.next()) {
+                    handler.apply(rowCursor.getCurrentRow());
+                }
               }
             }
 

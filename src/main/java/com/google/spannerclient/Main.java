@@ -33,7 +33,6 @@ class Main {
     final CountDownLatch doneSignal = new CountDownLatch(1);
     String project_id = args[0];
 
-
     GoogleCredentials credentials = null;
     try {
       credentials =
@@ -93,10 +92,10 @@ class Main {
         new SpannerStreamingHandler() {
           @Override
           public void apply(Row row) {
-              System.out.println("UUID: " + row.getLong("UUID"));
-              System.out.println("SortingKey: " + row.getString(1));
-              System.out.println("Timestamp: " + row.getTimestamp(2));
-              System.out.println("Data: " + row.getString(3));
+            System.out.println("UUID: " + row.getLong("UUID"));
+            System.out.println("SortingKey: " + row.getString(1));
+            System.out.println("Timestamp: " + row.getTimestamp(2));
+            System.out.println("Data: " + row.getString(3));
           }
         });
 

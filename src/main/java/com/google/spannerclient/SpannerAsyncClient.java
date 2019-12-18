@@ -307,7 +307,7 @@ public class SpannerAsyncClient {
                 RowCursor rowCursor =
                     RowCursor.of(fieldList, ImmutableList.copyOf(resultSet.getRowsList()));
                 while (rowCursor.next()) {
-                    handler.apply(rowCursor.getCurrentRow());
+                  handler.apply(rowCursor.getCurrentRow());
                 }
               }
             }

@@ -170,7 +170,10 @@ public class SpannerTailer {
             new Thread("spannerShutdown") {
               @Override
               public void run() {
-                spanner.close();
+                System.out.println("System Runtime Shutdown Hook has been called");
+                if (!spanner.isClosed()) {
+                  spanner.close();
+                }
               }
             });
 

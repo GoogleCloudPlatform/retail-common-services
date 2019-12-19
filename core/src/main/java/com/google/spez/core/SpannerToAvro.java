@@ -101,7 +101,7 @@ public class SpannerToAvro {
           } else {
             log.error("Unknown Schema type when generating Avro Schema: " + type);
             //          stop();
-            System.exit(1);
+            // System.exit(1);
           }
           break;
       }

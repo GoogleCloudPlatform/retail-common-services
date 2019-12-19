@@ -31,21 +31,26 @@ import org.slf4j.LoggerFactory;
 
 class Main {
   private static final Logger log = LoggerFactory.getLogger(Main.class);
+  private static final String PROJECT_NAME = "{project_id}";
+  private static final String INSTANCE_NAME = "test-db";
+  private static final String DB_NAME = "test";
+  private static final String TABLE_NAME = "test";
+  private static final String TOPIC_NAME = "test-topic";
 
   public static void main(String[] args) {
     final List<ListeningExecutorService> l =
         Spez.ServicePoolGenerator(32, "Spanner Tailer Event Worker");
 
     final SpannerTailer tailer = new SpannerTailer(32, 200000000);
-    final EventPublisher publisher = new EventPublisher("{project_id}", "test-topic");
+    final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
     final Map<String, String> metadata = new HashMap<>();
 
     // Populate CDC Metadata
-    metadata.put("test_key1", "test_val1");
-    metadata.put("test_key2", "test_val2");
+    metadata.put("SrcDatabase", DB_NAME);
+    metadata.put("SrcTablename", TABLE_NAME);
 
     final SpannerToAvro.SchemaSet schemaSet =
-        tailer.getSchema("{project_id}", "test-db", "test", "test");
+        tailer.getSchema(PROJECT_NAME, INSTANCE_NAME, DB_NAME, TABLE_NAME);
 
     final SpannerEventHandler handler =
         (bucket, s, timestamp) -> {
@@ -62,10 +67,10 @@ class Main {
         l.size(),
         2,
         500,
-        "{project_id}",
-        "test-db",
-        "test",
-        "test",
+        PROJECT_NAME,
+        INSTANCE_NAME,
+        DB_NAME,
+        TABLE_NAME,
         "lpts_table",
         "2000",
         500,

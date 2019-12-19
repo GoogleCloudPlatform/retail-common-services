@@ -37,15 +37,13 @@ class Main {
     try {
       credentials =
           GoogleCredentials.fromStream(
-                  // new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
-                  new FileInputStream(
-                      "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
+                  new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
     } catch (IOException e) {
       e.printStackTrace();
     }
 
-    final String database =
+    final String databasePath =
         String.format("projects/%s/instances/test-db/databases/test", project_id);
 
     final String sql =
@@ -57,7 +55,41 @@ class Main {
             + "' "
             + "ORDER BY Timestamp ASC";
 
-    final SpannerAsyncClient client = new SpannerAsyncClient(database, credentials, 2);
+    ListenableFuture<Database> dbFuture =
+        Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
+
+    Futures.addCallback(
+        dbFuture,
+        new FutureCallback<Database>() {
+
+          @Override
+          public void onSuccess(Database db) {
+            Spanner.executeStreaming(
+                QueryOptions.DEFAULT(),
+                db,
+                new SpannerStreamingHandler() {
+
+                  @Override
+                  public void apply(Row row) {
+                    System.out.println("UUID: " + row.getLong("UUID"));
+                    System.out.println("SortingKey: " + row.getString(1));
+                    System.out.println("Timestamp: " + row.getTimestamp(2));
+                    System.out.println("Data: " + row.getString(3));
+                  }
+                },
+                Query.create(sql));
+          }
+
+          @Override
+          public void onFailure(Throwable t) {
+            throw new RuntimeException("Could not open db");
+          }
+        },
+        MoreExecutors.directExecutor());
+
+    //    Spanner.execute(QueryOptions.DEFAULT(), db, Query.create(sql));
+
+    //    final SpannerAsyncClient client = new SpannerAsyncClient(database, credentials, 2);
     //    final ListenableFuture<RowCursor> resultSetListenableFuture = client.executeSql(sql);
     //
     //    Futures.addCallback(
@@ -87,17 +119,17 @@ class Main {
     //        },
     //        MoreExecutors.directExecutor());
 
-    client.executeStreamingSql(
-        sql,
-        new SpannerStreamingHandler() {
-          @Override
-          public void apply(Row row) {
-            System.out.println("UUID: " + row.getLong("UUID"));
-            System.out.println("SortingKey: " + row.getString(1));
-            System.out.println("Timestamp: " + row.getTimestamp(2));
-            System.out.println("Data: " + row.getString(3));
-          }
-        });
+    // client.executeStreamingSql(
+    //     sql,
+    //     new SpannerStreamingHandler() {
+    //       @Override
+    //       public void apply(Row row) {
+    //         System.out.println("UUID: " + row.getLong("UUID"));
+    //         System.out.println("SortingKey: " + row.getString(1));
+    //         System.out.println("Timestamp: " + row.getTimestamp(2));
+    //         System.out.println("Data: " + row.getString(3));
+    //       }
+    //     });
 
     try {
       doneSignal.await();
@@ -105,11 +137,11 @@ class Main {
       e.printStackTrace();
     }
 
-    try {
-      client.close();
-    } catch (InterruptedException e) {
-      System.out.println("95");
-      e.printStackTrace();
-    }
+    // try {
+    //   client.close();
+    // } catch (InterruptedException e) {
+    //   System.out.println("95");
+    //   e.printStackTrace();
+    // }
   }
 }

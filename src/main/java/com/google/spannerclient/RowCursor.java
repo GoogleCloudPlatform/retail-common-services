@@ -30,11 +30,20 @@ import java.util.List;
 public class RowCursor implements RowBase, AutoCloseable {
   private final ImmutableList<StructType.Field> fields;
   private final ImmutableList<ListValue> rows;
+  private final SessionContext ctx;
   private int index = -1;
 
   private RowCursor(ImmutableList<StructType.Field> fields, ImmutableList<ListValue> rows) {
     this.fields = fields;
     this.rows = rows;
+    this.ctx = null;
+  }
+
+  private RowCursor(
+      ImmutableList<StructType.Field> fields, ImmutableList<ListValue> rows, SessionContext ctx) {
+    this.fields = fields;
+    this.rows = rows;
+    this.ctx = ctx;
   }
 
   public static RowCursor of(
@@ -546,5 +555,9 @@ public class RowCursor implements RowBase, AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {}
+  public void close() throws Exception {
+    if (ctx != null) {
+      ctx.unlock();
+    }
+  }
 }

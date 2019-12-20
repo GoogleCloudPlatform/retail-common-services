@@ -3,6 +3,7 @@ plugins {
     java
     eclipse
     kotlin("jvm") version "1.3.41"
+    id("net.researchgate.release") version "2.8.1"
 }
 
 group = "com.google.retail"

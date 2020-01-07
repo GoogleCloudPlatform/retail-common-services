@@ -60,8 +60,6 @@ class Main {
     final ListenableFuture<SchemaSet> schemaSetFuture =
         tailer.getSchema(PROJECT_NAME, INSTANCE_NAME, DB_NAME, TABLE_NAME);
 
-    //    final ListenableFuture<SchemaSet> schemaProcessFuture =
-    //    Futures.withTimeout(schemaSetFuture, 30, TimeUnit.SECONDS, null);
     Futures.addCallback(
         schemaSetFuture,
         new FutureCallback<SchemaSet>() {
@@ -72,13 +70,20 @@ class Main {
 
             final SpannerEventHandler handler =
                 (bucket, s, timestamp) -> {
-                  // TODO(xjdr): Throw if empty optional
-                  log.info("Processing Record");
-                  Optional<ByteString> record = SpannerToAvro.MakeRecord(schemaSet, s);
-                  log.info("Record Processed, getting ready to publish");
-                  publisher.publish(record.get(), metadata, timestamp);
-                  log.info("Published: " + record.get().toString() + " " + timestamp);
+                  ListenableFuture<Boolean> x =
+                      l.get(bucket)
+                          .submit(
+                              () -> {
+                                // TODO(xjdr): Throw if empty optional
+                                log.info("Processing Record");
+                                Optional<ByteString> record =
+                                    SpannerToAvro.MakeRecord(schemaSet, s);
+                                log.info("Record Processed, getting ready to publish");
+                                publisher.publish(record.get(), metadata, timestamp);
+                                log.info("Published: " + record.get().toString() + " " + timestamp);
 
+                                return Boolean.TRUE;
+                              });
                   return Boolean.TRUE;
                 };
 

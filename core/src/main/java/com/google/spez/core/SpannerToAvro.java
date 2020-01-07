@@ -145,13 +145,13 @@ public class SpannerToAvro {
     final Set<String> keySet = schemaSet.spannerSchema().keySet();
     final GenericRecord record = new GenericData.Record(schemaSet.avroSchema());
 
-    log.info("KeySet: "+ keySet);
-    log.info("Record: "+ record);
-    
+    log.info("KeySet: " + keySet);
+    log.info("Record: " + record);
+
     keySet.forEach(
         x -> {
-            log.info("Column Name: " + x);
-            log.info("Data Type: " + schemaSet.spannerSchema().get(x));
+          log.info("Column Name: " + x);
+          log.info("Data Type: " + schemaSet.spannerSchema().get(x));
           switch (schemaSet.spannerSchema().get(x)) {
             case "ARRAY":
               log.info("Put ARRAY");
@@ -159,8 +159,8 @@ public class SpannerToAvro {
               final com.google.spanner.v1.Type columnType = resultSet.getColumnType(x);
               final String arrayTypeString = columnType.getArrayElementType().getCode().toString();
 
-              log.info("Type: "+ columnType);
-              log.info("ArrayString: "+ arrayTypeString);
+              log.info("Type: " + columnType);
+              log.info("ArrayString: " + arrayTypeString);
 
               switch (arrayTypeString) {
                 case "BOOL":

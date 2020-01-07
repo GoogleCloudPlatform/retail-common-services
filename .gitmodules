@@ -1,0 +1,3 @@
+[submodule "spannerclient"]
+	path = spannerclient
+	url = https://github.com/xjdr/spannerclient

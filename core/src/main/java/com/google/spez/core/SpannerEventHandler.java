@@ -15,7 +15,7 @@
  */
 package com.google.spez.core;
 
-import com.google.cloud.spanner.Struct;
+import com.google.spannerclient.Row;
 
 /** Interface to specific a call back method that is for each new event. */
 public interface SpannerEventHandler {
@@ -29,5 +29,5 @@ public interface SpannerEventHandler {
    *     event.
    * @param timestamp the Cloud Spanner Commit Timestamp for the event
    */
-  Boolean process(int bucket, Struct event, String timestamp);
+  Boolean process(int bucket, Row event, String timestamp);
 }

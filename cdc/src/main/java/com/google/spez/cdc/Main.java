@@ -15,23 +15,29 @@
  */
 package com.google.spez.cdc;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.spez.core.EventPublisher;
 import com.google.spez.core.SpannerEventHandler;
 import com.google.spez.core.SpannerTailer;
 import com.google.spez.core.SpannerToAvro;
+import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.google.spez.core.Spez;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class Main {
   private static final Logger log = LoggerFactory.getLogger(Main.class);
-  private static final String PROJECT_NAME = "{project_id}";
+  private static final String PROJECT_NAME = "retail-common-services-249016";
   private static final String INSTANCE_NAME = "test-db";
   private static final String DB_NAME = "test";
   private static final String TABLE_NAME = "test";
@@ -44,36 +50,67 @@ class Main {
     final SpannerTailer tailer = new SpannerTailer(32, 200000000);
     final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
     final Map<String, String> metadata = new HashMap<>();
+    final CountDownLatch doneSignal = new CountDownLatch(1);
 
     // Populate CDC Metadata
     metadata.put("SrcDatabase", DB_NAME);
     metadata.put("SrcTablename", TABLE_NAME);
+    metadata.put("DstTopic", TOPIC_NAME);
 
-    final SpannerToAvro.SchemaSet schemaSet =
+    final ListenableFuture<SchemaSet> schemaSetFuture =
         tailer.getSchema(PROJECT_NAME, INSTANCE_NAME, DB_NAME, TABLE_NAME);
 
-    final SpannerEventHandler handler =
-        (bucket, s, timestamp) -> {
-          Optional<ByteString> record = SpannerToAvro.MakeRecord(schemaSet, s);
-          // TODO(xjdr): Throw if empty optional
-          publisher.publish(record.get(), metadata, timestamp);
-          log.info("Published: " + record.get().toString() + " " + timestamp);
+    //    final ListenableFuture<SchemaSet> schemaProcessFuture =
+    //    Futures.withTimeout(schemaSetFuture, 30, TimeUnit.SECONDS, null);
+    Futures.addCallback(
+        schemaSetFuture,
+        new FutureCallback<SchemaSet>() {
 
-          return Boolean.TRUE;
-        };
+          @Override
+          public void onSuccess(SchemaSet schemaSet) {
+            log.info("Successfully Processed the Table Schema. Starting the poller now ...");
 
-    tailer.start(
-        handler,
-        l.size(),
-        2,
-        500,
-        PROJECT_NAME,
-        INSTANCE_NAME,
-        DB_NAME,
-        TABLE_NAME,
-        "lpts_table",
-        "2000",
-        500,
-        500);
+            final SpannerEventHandler handler =
+                (bucket, s, timestamp) -> {
+                  // TODO(xjdr): Throw if empty optional
+                  log.info("Processing Record");
+                  Optional<ByteString> record = SpannerToAvro.MakeRecord(schemaSet, s);
+                  log.info("Record Processed, getting ready to publish");
+                  publisher.publish(record.get(), metadata, timestamp);
+                  log.info("Published: " + record.get().toString() + " " + timestamp);
+
+                  return Boolean.TRUE;
+                };
+
+            tailer.start(
+                handler,
+                l.size(),
+                2,
+                500,
+                PROJECT_NAME,
+                INSTANCE_NAME,
+                DB_NAME,
+                TABLE_NAME,
+                "lpts_table",
+                "2000",
+                500,
+                500);
+
+            doneSignal.countDown();
+          }
+
+          @Override
+          public void onFailure(Throwable t) {
+            log.error("Unable to process schema", t);
+            System.exit(-1);
+          }
+        },
+        MoreExecutors.directExecutor());
+
+    try {
+      doneSignal.await();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 }

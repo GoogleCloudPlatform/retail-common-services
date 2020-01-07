@@ -16,12 +16,16 @@
 package com.google.spez.core;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.spanner.ResultSet;
-import com.google.cloud.spanner.Struct;
-import com.google.cloud.spanner.Type;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.ByteString;
+import com.google.spannerclient.Row;
+import com.google.spannerclient.RowCursor;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.Unpooled;
@@ -29,6 +33,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executors;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -45,7 +50,20 @@ public class SpannerToAvro {
 
   private SpannerToAvro() {}
 
-  public static SchemaSet GetSchema(String tableName, String avroNamespace, ResultSet resultSet) {
+  public static ListenableFuture<SchemaSet> GetSchemaAsync(
+      String tableName, String avroNamespace, RowCursor resultSet) {
+    final SettableFuture<SchemaSet> schemaFuture = SettableFuture.create();
+    final ListeningExecutorService x =
+        MoreExecutors.listeningDecorator(
+            Executors.newFixedThreadPool(
+                1, new ThreadFactoryBuilder().setNameFormat("Spanner To Avro Thread").build()));
+
+    schemaFuture.set(GetSchema(tableName, avroNamespace, resultSet));
+
+    return schemaFuture;
+  }
+
+  public static SchemaSet GetSchema(String tableName, String avroNamespace, RowCursor resultSet) {
 
     final LinkedHashMap<String, String> spannerSchema = Maps.newLinkedHashMap();
     final SchemaBuilder.FieldAssembler<Schema> avroSchemaBuilder =
@@ -55,7 +73,7 @@ public class SpannerToAvro {
     log.debug("Processing  Schema");
     while (resultSet.next()) {
       log.debug("Making Avro Schema");
-      final Struct currentRow = resultSet.getCurrentRowAsStruct();
+      final Row currentRow = resultSet.getCurrentRow();
       final String name = currentRow.getString(0);
       final String type = currentRow.getString(1);
       spannerSchema.put(name, type);
@@ -100,8 +118,6 @@ public class SpannerToAvro {
             avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
           } else {
             log.error("Unknown Schema type when generating Avro Schema: " + type);
-            //          stop();
-            // System.exit(1);
           }
           break;
       }
@@ -124,23 +140,31 @@ public class SpannerToAvro {
     return SchemaSet.create(avroSchema, ImmutableMap.copyOf(spannerSchema));
   }
 
-  public static Optional<ByteString> MakeRecord(SchemaSet schemaSet, Struct resultSet) {
+  public static Optional<ByteString> MakeRecord(SchemaSet schemaSet, Row resultSet) {
     final ByteBuf bb = Unpooled.directBuffer();
     final Set<String> keySet = schemaSet.spannerSchema().keySet();
-
     final GenericRecord record = new GenericData.Record(schemaSet.avroSchema());
+
+    log.info("KeySet: "+ keySet);
+    log.info("Record: "+ record);
+    
     keySet.forEach(
         x -> {
+            log.info("Column Name: " + x);
+            log.info("Data Type: " + schemaSet.spannerSchema().get(x));
           switch (schemaSet.spannerSchema().get(x)) {
             case "ARRAY":
-              log.debug("Put ARRAY");
+              log.info("Put ARRAY");
 
-              final Type columnType = resultSet.getColumnType(x);
+              final com.google.spanner.v1.Type columnType = resultSet.getColumnType(x);
               final String arrayTypeString = columnType.getArrayElementType().getCode().toString();
+
+              log.info("Type: "+ columnType);
+              log.info("ArrayString: "+ arrayTypeString);
 
               switch (arrayTypeString) {
                 case "BOOL":
-                  log.debug("Put BOOL");
+                  log.info("Put BOOL");
                   try {
                     record.put(x, resultSet.getBooleanList(x));
                   } catch (NullPointerException e) {
@@ -149,7 +173,7 @@ public class SpannerToAvro {
 
                   break;
                 case "BYTES":
-                  log.debug("Put BYTES");
+                  log.info("Put BYTES");
                   try {
                     record.put(x, resultSet.getBytesList(x));
                   } catch (NullPointerException e) {
@@ -158,7 +182,7 @@ public class SpannerToAvro {
 
                   break;
                 case "DATE":
-                  log.debug("Put DATE");
+                  log.info("Put DATE");
                   try {
                     record.put(x, resultSet.getStringList(x));
                   } catch (NullPointerException e) {
@@ -167,7 +191,7 @@ public class SpannerToAvro {
 
                   break;
                 case "FLOAT64":
-                  log.debug("Put FLOAT64");
+                  log.info("Put FLOAT64");
                   try {
                     record.put(x, resultSet.getDoubleList(x));
                   } catch (NullPointerException e) {
@@ -176,7 +200,7 @@ public class SpannerToAvro {
 
                   break;
                 case "INT64":
-                  log.debug("Put INT64");
+                  log.info("Put INT64");
                   try {
                     record.put(x, resultSet.getLongList(x));
                   } catch (NullPointerException e) {
@@ -185,7 +209,7 @@ public class SpannerToAvro {
 
                   break;
                 case "STRING(MAX)":
-                  log.debug("Put STRING");
+                  log.info("Put STRING");
                   try {
                     record.put(x, resultSet.getStringList(x));
                   } catch (NullPointerException e) {
@@ -204,7 +228,7 @@ public class SpannerToAvro {
 
               break;
             case "BOOL":
-              log.debug("Put BOOL");
+              log.info("Put BOOL");
               try {
                 record.put(x, resultSet.getBoolean(x));
               } catch (NullPointerException e) {
@@ -213,7 +237,7 @@ public class SpannerToAvro {
 
               break;
             case "BYTES":
-              log.debug("Put BYTES");
+              log.info("Put BYTES");
               try {
                 record.put(x, resultSet.getBytes(x));
               } catch (NullPointerException e) {
@@ -222,7 +246,7 @@ public class SpannerToAvro {
 
               break;
             case "DATE":
-              log.debug("Put DATE");
+              log.info("Put DATE");
               try {
                 record.put(x, resultSet.getDate(x).toString());
               } catch (NullPointerException e) {
@@ -231,7 +255,7 @@ public class SpannerToAvro {
 
               break;
             case "FLOAT64":
-              log.debug("Put FLOAT64");
+              log.info("Put FLOAT64");
               try {
                 record.put(x, resultSet.getDouble(x));
               } catch (NullPointerException e) {
@@ -240,24 +264,28 @@ public class SpannerToAvro {
 
               break;
             case "INT64":
-              log.debug("Put INT64");
+              log.info("Put INT64");
               try {
                 record.put(x, resultSet.getLong(x));
+                log.info("INT64 OK");
               } catch (NullPointerException e) {
                 record.put(x, null);
+                log.info("INT64 NULL OK");
               }
 
               break;
             case "STRING(MAX)":
-              log.debug("Put STRING");
+              log.info("Put STRING");
               try {
                 record.put(x, resultSet.getString(x));
+                log.info("STRING(MAX) OK");
               } catch (NullPointerException e) {
                 record.put(x, null);
+                log.info("STRING(MAX) NULL OK");
               }
               break;
             case "TIMESTAMP":
-              log.debug("Put TIMESTAMP");
+              log.info("Put TIMESTAMP");
               try {
                 record.put(x, resultSet.getTimestamp(x).toString());
               } catch (NullPointerException e) {
@@ -267,11 +295,13 @@ public class SpannerToAvro {
               break;
             default:
               if (schemaSet.spannerSchema().get(x).contains("STRING")) {
-                log.debug("Put STRING");
+                log.info("Put STRING");
                 try {
                   record.put(x, resultSet.getString(x));
+                  log.info("STRING OK");
                 } catch (NullPointerException e) {
                   record.put(x, null);
+                  log.info("STRING NULL OK");
                 }
 
               } else {
@@ -283,8 +313,8 @@ public class SpannerToAvro {
           }
         });
 
-    log.debug("Made Record");
-    log.debug(record.toString());
+    log.info("Made Record");
+    log.info(record.toString());
 
     try (final ByteBufOutputStream outputStream = new ByteBufOutputStream(bb)) {
 
@@ -292,15 +322,15 @@ public class SpannerToAvro {
           EncoderFactory.get().jsonEncoder(schemaSet.avroSchema(), outputStream, true);
       final DatumWriter<Object> writer = new GenericDatumWriter<>(schemaSet.avroSchema());
 
-      log.debug("Serializing Record");
+      log.info("Serializing Record");
       writer.write(record, encoder);
       encoder.flush();
       outputStream.flush();
-      log.debug("Adding serialized record to list");
+      log.info("Adding serialized record to list");
       final byte[] ba = new byte[bb.readableBytes()];
-      log.debug("--------------------------------- readableBytes " + bb.readableBytes());
-      log.debug("--------------------------------- readerIndex " + bb.readerIndex());
-      log.debug("--------------------------------- writerIndex " + bb.writerIndex());
+      log.info("--------------------------------- readableBytes " + bb.readableBytes());
+      log.info("--------------------------------- readerIndex " + bb.readerIndex());
+      log.info("--------------------------------- writerIndex " + bb.writerIndex());
       bb.getBytes(bb.readerIndex(), ba);
       final ByteString message = ByteString.copyFrom(ba);
 
@@ -310,7 +340,7 @@ public class SpannerToAvro {
       log.error(
           "IOException while Serializing Spanner Stuct to Avro Record: " + record.toString(), e);
     } finally {
-      // ...
+      bb.release();
     }
 
     return Optional.empty();

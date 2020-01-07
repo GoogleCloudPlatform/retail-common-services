@@ -17,18 +17,9 @@ package com.google.spez.core;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import com.google.api.gax.retrying.RetrySettings;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.DatabaseClient;
-import com.google.cloud.spanner.DatabaseId;
-import com.google.cloud.spanner.ReadOnlyTransaction;
-import com.google.cloud.spanner.ResultSet;
-import com.google.cloud.spanner.SessionPoolOptions;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spanner.Statement;
-import com.google.cloud.spanner.Struct;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -38,12 +29,18 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.*;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.List;
+import com.google.spannerclient.Database;
+import com.google.spannerclient.Options;
+import com.google.spannerclient.Query;
+import com.google.spannerclient.QueryOptions;
+import com.google.spannerclient.Row;
+import com.google.spannerclient.RowCursor;
+import com.google.spannerclient.Spanner;
+import com.google.spannerclient.SpannerStreamingHandler;
+import com.google.spez.core.SpannerToAvro.SchemaSet;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -51,7 +48,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.threeten.bp.Duration;
 
 /**
  * This class creates and schedules the spanner event tailer
@@ -71,6 +67,11 @@ import org.threeten.bp.Duration;
  */
 public class SpannerTailer {
   private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
+  private static final ImmutableList<String> DEFAULT_SERVICE_SCOPES =
+      ImmutableList.<String>builder()
+          .add("https://www.googleapis.com/auth/cloud-platform")
+          .add("https://www.googleapis.com/auth/spanner.data")
+          .build();
 
   private final ListeningExecutorService service;
   private final ScheduledExecutorService scheduler;
@@ -79,9 +80,11 @@ public class SpannerTailer {
   private final BloomFilter<Event> bloomFilter;
   private final Map<HashCode, Timestamp> eventMap;
 
-  private Spanner spanner;
+  // private Spanner spanner;
   private String lastProcessedTimestamp;
   private boolean firstRun = true;
+
+  private GoogleCredentials credentials;
 
   public SpannerTailer(int threadPool, int maxEventCount) {
     this.scheduler = Executors.newScheduledThreadPool(threadPool);
@@ -99,85 +102,21 @@ public class SpannerTailer {
 
     this.bloomFilter = BloomFilter.create(eventFunnel, maxEventCount, 0.01);
     this.eventMap = new ConcurrentHashMap<>(maxEventCount);
+
+    getCreds();
   }
 
-  private Spanner getSpanner(String projectId, String instanceName, String dbName) {
-
-    final RetrySettings retrySettings =
-        RetrySettings.newBuilder()
-            .setInitialRpcTimeout(Duration.ofSeconds(10L)) // TODO(XJDR): Move this to config file
-            .setMaxRpcTimeout(Duration.ofSeconds(20L)) // TODO(XJDR): Move this to config file
-            .setMaxAttempts(5) // TODO(XJDR): Move this to config file
-            .setTotalTimeout(Duration.ofSeconds(30L)) // TODO(XJDR): Move this to config file
-            .build();
-
-    final SessionPoolOptions sessionPoolOptions =
-        SessionPoolOptions.newBuilder()
-            .setMinSessions(4) // TODO(XJDR): Move this to config file
-            // Since we have no read-write transactions, we can set the write session fraction to
-            // 0.
-            .setWriteSessionsFraction(0)
-            .build();
-
-    SpannerOptions.Builder builder =
-        SpannerOptions.newBuilder()
-            .setSessionPoolOption(sessionPoolOptions)
-            .setNumChannels(4); // TODO(XJDR): Move this to config file
+  void getCreds() {
     try {
-      builder
-          .getSpannerStubSettingsBuilder()
-          .applyToAllUnaryMethods(
-              input -> {
-                input.setRetrySettings(retrySettings);
-                return null;
-              });
-    } catch (Exception e) {
-      log.error("Error Creating Retry Setting");
-
-      // TODO(xjdr): Do something better here
-      // stop();
-      // System.exit(1);
+      credentials =
+          GoogleCredentials.fromStream(
+                  new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
+              // new FileInputStream(
+              //           "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
+              .createScoped(DEFAULT_SERVICE_SCOPES);
+    } catch (IOException e) {
+      log.error("Could not find or parse credential file", e);
     }
-
-    return builder.build().getService();
-  }
-
-  private DatabaseClient getDbClient(String projectId, String instanceName, String dbName) {
-    if (spanner == null) {
-      spanner = getSpanner(projectId, instanceName, dbName);
-    } else if (spanner.isClosed()) {
-      spanner = getSpanner(projectId, instanceName, dbName);
-    }
-
-    final DatabaseId db = DatabaseId.of(projectId, instanceName, dbName);
-    final String clientProject = spanner.getOptions().getProjectId();
-
-    if (!db.getInstanceId().getProject().equals(clientProject)) {
-      log.error(
-          "Invalid project specified. Project in the database id should match"
-              + "the project name set in the environment variable GCLOUD_PROJECT. Expected: "
-              + clientProject);
-
-      // TODO(xjdr): Do something better here
-      // stop();
-      // System.exit(1);
-    }
-
-    final DatabaseClient dbClient = spanner.getDatabaseClient(db);
-
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread("spannerShutdown") {
-              @Override
-              public void run() {
-                System.out.println("System Runtime Shutdown Hook has been called");
-                if (!spanner.isClosed()) {
-                  spanner.close();
-                }
-              }
-            });
-
-    return dbClient;
   }
 
   /**
@@ -190,30 +129,56 @@ public class SpannerTailer {
    * @param dbName Cloud Spanner Database Name
    * @param tableName Cloud Spanner Table Name
    */
-  public SpannerToAvro.SchemaSet getSchema(
+  public ListenableFuture<SchemaSet> getSchema(
       String projectId, String instanceName, String dbName, String tableName) {
     Preconditions.checkNotNull(projectId);
     Preconditions.checkNotNull(instanceName);
     Preconditions.checkNotNull(dbName);
     Preconditions.checkNotNull(tableName);
 
-    final Statement schemaQuery =
-        Statement.newBuilder(
-                "SELECT COLUMN_NAME, SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME=@tablename ORDER BY ORDINAL_POSITION")
-            .bind("tablename")
-            .to(tableName)
-            .build();
-    final DatabaseClient dbClient = getDbClient(projectId, instanceName, dbName);
+    final String databasePath =
+        String.format("projects/%s/instances/test-db/databases/test", projectId);
 
-    try (ReadOnlyTransaction readOnlyTransaction = dbClient.readOnlyTransaction();
-        ResultSet resultSet = readOnlyTransaction.executeQuery(schemaQuery)) {
-      log.debug("Processing Schema");
-      return SpannerToAvro.GetSchema("test", "avroNamespace", resultSet);
-    } catch (Exception e) {
+    final ListenableFuture<Database> dbFuture =
+        Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
+    final AsyncFunction<Database, RowCursor> querySchemaFuture =
+        new AsyncFunction<Database, RowCursor>() {
 
-    }
+          @Override
+          public ListenableFuture<RowCursor> apply(Database db) throws Exception {
+            ListenableFuture<RowCursor> f =
+                Spanner.executeAsync(
+                    QueryOptions.DEFAULT(),
+                    db,
+                    Query.create(
+                        "SELECT COLUMN_NAME, SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='"
+                            + tableName
+                            + "' ORDER BY ORDINAL_POSITION"));
 
-    return null;
+            try {
+              db.close();
+            } catch (IOException e) {
+              log.error("Error Closing Managed Channel", e);
+            }
+
+            return f;
+          }
+        };
+
+    final ListenableFuture<RowCursor> rowCursorFuture =
+        Futures.transformAsync(dbFuture, querySchemaFuture, MoreExecutors.directExecutor());
+
+    final AsyncFunction<RowCursor, SpannerToAvro.SchemaSet> schemaSetFunction =
+        new AsyncFunction<RowCursor, SpannerToAvro.SchemaSet>() {
+
+          @Override
+          public ListenableFuture<SchemaSet> apply(RowCursor rowCursor) throws Exception {
+            return SpannerToAvro.GetSchemaAsync("test", "avroNamespace", rowCursor);
+          }
+        };
+
+    return Futures.transformAsync(
+        rowCursorFuture, schemaSetFunction, MoreExecutors.directExecutor());
   }
 
   private boolean uniq(Event e) {
@@ -319,106 +284,79 @@ public class SpannerTailer {
       SpannerEventHandler handler,
       int bucketSize) {
 
-    final DatabaseClient dbClient = getDbClient(projectId, instanceName, dbName);
-    final Statement lptsQuery = Statement.newBuilder("SELECT * FROM " + lptsTableName).build();
+    final String databasePath =
+        String.format("projects/%s/instances/test-db/databases/test", projectId);
 
-    if (firstRun) {
+    final ListenableFuture<Database> dbFuture =
+        Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
 
-      try (ReadOnlyTransaction readOnlyTransaction = dbClient.readOnlyTransaction();
-          ResultSet resultSet = readOnlyTransaction.executeQuery(lptsQuery)) {
-        while (resultSet.next()) {
-          String startingTimestamp = resultSet.getString("LastProcessedTimestamp");
-          Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
-          lastProcessedTimestamp = tt.toString();
-        }
-      }
+    Futures.addCallback(
+        dbFuture,
+        new FutureCallback<Database>() {
 
-      firstRun = false;
-    }
-
-    final Statement pollQuery =
-        Statement.newBuilder(
-                "SELECT * FROM "
-                    + tableName
-                    + " "
-                    + "WHERE Timestamp > '"
-                    + lastProcessedTimestamp
-                    + "' "
-                    + "ORDER BY Timestamp ASC LIMIT "
-                    + recordLimit)
-            .build();
-
-    final ListenableFuture<ImmutableList<Struct>> resultSet =
-        service.submit(
-            new Callable<ImmutableList<Struct>>() {
-              @Override
-              public ImmutableList<Struct> call() {
-                final List<Struct> sl = new ArrayList<>();
-                try (ReadOnlyTransaction readOnlyTransaction = dbClient.readOnlyTransaction();
-                    ResultSet resultSet = readOnlyTransaction.executeQuery(pollQuery)) {
-                  while (resultSet.next()) {
-                    sl.add(resultSet.getCurrentRowAsStruct());
-                  }
-                } catch (Exception e) {
-
-                }
-
-                return ImmutableList.copyOf(sl);
-              }
-            });
-
-    final AsyncFunction<ImmutableList<Struct>, List<Boolean>> processEvent =
-        new AsyncFunction<ImmutableList<Struct>, List<Boolean>>() {
           @Override
-          public ListenableFuture<List<Boolean>> apply(ImmutableList<Struct> structList) {
-            final List<ListenableFuture<Boolean>> fl = new ArrayList<>();
-            structList.forEach(
-                s -> {
-                  fl.add(
-                      service.submit(
-                          new Callable<Boolean>() {
-                            @Override
-                            public Boolean call() {
-                              return processRow(handler, s);
-                            }
-                          }));
-                });
-            return Futures.successfulAsList(fl);
+          public void onSuccess(Database db) {
+            try {
+              if (firstRun) {
+
+                RowCursor rowCursor =
+                    Spanner.execute(
+                        QueryOptions.DEFAULT(), db, Query.create("SELECT * FROM " + lptsTableName));
+
+                while (rowCursor.next()) {
+                  String startingTimestamp = rowCursor.getString("LastProcessedTimestamp");
+                  Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
+                  lastProcessedTimestamp = tt.toString();
+                }
+              }
+
+              firstRun = false;
+
+              Spanner.executeStreaming(
+                  QueryOptions.DEFAULT(),
+                  db,
+                  new SpannerStreamingHandler() {
+                    @Override
+                    public void apply(Row row) {
+                      processRow(handler, row);
+                    }
+                  },
+                  Query.create(
+                      "SELECT * FROM "
+                          + tableName
+                          + " "
+                          + "WHERE Timestamp > '"
+                          + lastProcessedTimestamp
+                          + "' "
+                          + "ORDER BY Timestamp ASC LIMIT "
+                          + recordLimit));
+            } finally {
+              try {
+                db.close();
+              } catch (IOException e) {
+                log.error("Error Closing Managed Channel", e);
+              }
+            }
           }
-        };
 
-    final ListenableFuture<ImmutableList<Struct>> resultSetTimeout =
-        Futures.withTimeout(resultSet, 5, TimeUnit.SECONDS, scheduler);
-
-    final ListenableFuture<List<Boolean>> pollingFuture =
-        Futures.transformAsync(resultSet, processEvent, service);
-
-    try {
-      pollingFuture
-          .get()
-          .forEach(
-              f -> {
-                log.debug(
-                    "Successfully Processed: "
-                        + f
-                        + " - "
-                        + LocalTime.now(ZoneId.of("America/Los_Angeles")));
-              });
-    } catch (Exception e) {
-      log.error("Polling Session Failed: " + e, e);
-    }
+          @Override
+          public void onFailure(Throwable t) {
+            log.error("Failure Polling DB: ", t);
+          }
+        },
+        MoreExecutors.directExecutor());
   }
 
-  private Boolean processRow(SpannerEventHandler handler, Struct struct) {
-    final String uuid = Long.toString(struct.getLong("UUID"));
-    final Timestamp ts = struct.getTimestamp("Timestamp");
+  private Boolean processRow(SpannerEventHandler handler, Row row) {
+    final String uuid = Long.toString(row.getLong("UUID"));
+    final Timestamp ts = row.getTimestamp("Timestamp");
     final Event e = Event.create(uuid, ts);
 
     if (uniq(e)) {
       final HashCode sortingKeyHashCode = hasher.newHasher().putBytes(uuid.getBytes(UTF_8)).hash();
       final int bucket = Hashing.consistentHash(sortingKeyHashCode, 12);
 
-      handler.process(bucket, struct, ts.toString());
+      handler.process(bucket, row, ts.toString());
       lastProcessedTimestamp = ts.toString();
     }
 

@@ -1,3 +1,3 @@
 rootProject.name = "spez"
 
-include("core", "cdc")
+include("core", "cdc", "spannerclient")

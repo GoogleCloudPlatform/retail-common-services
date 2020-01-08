@@ -75,10 +75,10 @@ class Main {
                           .submit(
                               () -> {
                                 // TODO(xjdr): Throw if empty optional
-                                log.info("Processing Record");
+                                log.debug("Processing Record");
                                 Optional<ByteString> record =
                                     SpannerToAvro.MakeRecord(schemaSet, s);
-                                log.info("Record Processed, getting ready to publish");
+                                log.debug("Record Processed, getting ready to publish");
                                 publisher.publish(record.get(), metadata, timestamp);
                                 log.info("Published: " + record.get().toString() + " " + timestamp);
 
@@ -89,6 +89,7 @@ class Main {
 
             tailer.start(
                 handler,
+                schemaSet.tsColName(),
                 l.size(),
                 2,
                 500,

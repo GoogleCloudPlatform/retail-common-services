@@ -29,6 +29,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.common.util.concurrent.*;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spannerclient.Database;
 import com.google.spannerclient.Options;
 import com.google.spannerclient.Query;
@@ -40,6 +41,8 @@ import com.google.spannerclient.SpannerStreamingHandler;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -80,8 +83,8 @@ public class SpannerTailer {
   private final BloomFilter<Event> bloomFilter;
   private final Map<HashCode, Timestamp> eventMap;
 
-  // private Spanner spanner;
-  private String lastProcessedTimestamp;
+  // We should set an official Spez epoch
+  private String lastProcessedTimestamp = "2019-08-08T20:30:39.802644Z";
   private boolean firstRun = true;
 
   private GoogleCredentials credentials;
@@ -112,7 +115,7 @@ public class SpannerTailer {
           GoogleCredentials.fromStream(
                   new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
               // new FileInputStream(
-              //           "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
+              //    "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
     } catch (IOException e) {
       log.error("Could not find or parse credential file", e);
@@ -138,22 +141,29 @@ public class SpannerTailer {
 
     final String databasePath =
         String.format("projects/%s/instances/test-db/databases/test", projectId);
+    final String tsQuery =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '" + tableName + "'";
+        final String pkQuery =
+        "SELECT * FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME = '" + tableName + "'";
+    final String schemaQuery =
+        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='"
+            + tableName
+            + "' ORDER BY ORDINAL_POSITION";
 
+    final SettableFuture<SchemaSet> result = SettableFuture.create();
     final ListenableFuture<Database> dbFuture =
         Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
-    final AsyncFunction<Database, RowCursor> querySchemaFuture =
-        new AsyncFunction<Database, RowCursor>() {
+
+    final AsyncFunction<Database, List<RowCursor>> querySchemaFuture =
+        new AsyncFunction<Database, List<RowCursor>>() {
 
           @Override
-          public ListenableFuture<RowCursor> apply(Database db) throws Exception {
-            ListenableFuture<RowCursor> f =
-                Spanner.executeAsync(
-                    QueryOptions.DEFAULT(),
-                    db,
-                    Query.create(
-                        "SELECT COLUMN_NAME, SPANNER_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='"
-                            + tableName
-                            + "' ORDER BY ORDINAL_POSITION"));
+          public ListenableFuture<List<RowCursor>> apply(Database db) throws Exception {
+            ImmutableList<ListenableFuture<RowCursor>> fl =
+                ImmutableList.of(
+                    Spanner.executeAsync(QueryOptions.DEFAULT(), db, Query.create(schemaQuery)),
+                    Spanner.executeAsync(QueryOptions.DEFAULT(), db, Query.create(pkQuery)),
+                    Spanner.executeAsync(QueryOptions.DEFAULT(), db, Query.create(tsQuery)));
 
             try {
               db.close();
@@ -161,24 +171,35 @@ public class SpannerTailer {
               log.error("Error Closing Managed Channel", e);
             }
 
-            return f;
+            return Futures.successfulAsList(fl);
           }
         };
 
-    final ListenableFuture<RowCursor> rowCursorFuture =
+    final ListenableFuture<List<RowCursor>> rowCursorsFuture =
         Futures.transformAsync(dbFuture, querySchemaFuture, MoreExecutors.directExecutor());
 
-    final AsyncFunction<RowCursor, SpannerToAvro.SchemaSet> schemaSetFunction =
-        new AsyncFunction<RowCursor, SpannerToAvro.SchemaSet>() {
+    final AsyncFunction<List<RowCursor>, SpannerToAvro.SchemaSet> schemaSetFunction =
+        new AsyncFunction<List<RowCursor>, SpannerToAvro.SchemaSet>() {
 
           @Override
-          public ListenableFuture<SchemaSet> apply(RowCursor rowCursor) throws Exception {
-            return SpannerToAvro.GetSchemaAsync("test", "avroNamespace", rowCursor);
+          public ListenableFuture<SchemaSet> apply(List<RowCursor> rowCursors) throws Exception {
+            final RowCursor rc = rowCursors.get(2);
+            while (rc.next()) {
+              if (rc.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
+                if (rc.getString("OPTION_VALUE").equals("TRUE")) {
+                  return SpannerToAvro.GetSchemaAsync(
+                      "test", "avroNamespace", rowCursors.get(0), rc.getString("COLUMN_NAME"));
+                }
+              }
+            }
+
+            // TODO(xjdr): Should make custom exception types
+            throw new InvalidObjectException("Spanner Table Must contan Commit_Timestamp");
           }
         };
 
     return Futures.transformAsync(
-        rowCursorFuture, schemaSetFunction, MoreExecutors.directExecutor());
+        rowCursorsFuture, schemaSetFunction, MoreExecutors.directExecutor());
   }
 
   private boolean uniq(Event e) {
@@ -207,6 +228,7 @@ public class SpannerTailer {
    * `Timestamp`.
    *
    * @param handler SpannerEventHandler to be triggered on each new record for processing
+   * @param tsColName the name of the column holding the true time commit timestamp for processing
    * @param bucketSize Size of the consistent hashing algorythm for thread poll managment
    * @param threadCount xx
    * @param pollRate Time delay in Milliseconds between polls
@@ -222,6 +244,7 @@ public class SpannerTailer {
    */
   public ScheduledFuture<?> start(
       SpannerEventHandler handler,
+      String tsColName,
       int bucketSize,
       int threadCount,
       int pollRate,
@@ -235,6 +258,7 @@ public class SpannerTailer {
       long eventCacheTTL) {
 
     Preconditions.checkNotNull(handler);
+    Preconditions.checkNotNull(tsColName);
     Preconditions.checkArgument(bucketSize > 0);
     Preconditions.checkArgument(threadCount > 0);
     Preconditions.checkArgument(pollRate > 0);
@@ -259,6 +283,7 @@ public class SpannerTailer {
                     lptsTableName,
                     recordLimit,
                     handler,
+                    tsColName,
                     bucketSize);
               },
               0,
@@ -282,6 +307,7 @@ public class SpannerTailer {
       String lptsTableName,
       String recordLimit,
       SpannerEventHandler handler,
+      String tsColName,
       int bucketSize) {
 
     final String databasePath =
@@ -299,18 +325,35 @@ public class SpannerTailer {
             try {
               if (firstRun) {
 
-                RowCursor rowCursor =
+                final String tsQuery =
+                    "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '"
+                        + lptsTableName
+                        + "'";
+
+                // RowCursor lptsColNameCursor =
+                //     Spanner.execute(QueryOptions.DEFAULT(), db, Query.create(tsQuery));
+
+                RowCursor lptsCursor =
                     Spanner.execute(
                         QueryOptions.DEFAULT(), db, Query.create("SELECT * FROM " + lptsTableName));
 
-                while (rowCursor.next()) {
-                  String startingTimestamp = rowCursor.getString("LastProcessedTimestamp");
+                // while (lptsColNameCursor.next()) {
+                //   if
+                // (lptsColNameCursor.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
+                //     if (lptsColNameCursor.getString("OPTION_VALUE").equals("TRUE")) {
+                while (lptsCursor.next()) {
+                  String startingTimestamp =
+                      lptsCursor.getString(
+                          "LastProcessedTimestamp"); // lptsColNameCursor.getString("COLUMN_NAME"));
                   Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
                   lastProcessedTimestamp = tt.toString();
                 }
-              }
+                //     }
+                //   }
+                // }
 
-              firstRun = false;
+                firstRun = false;
+              }
 
               Spanner.executeStreaming(
                   QueryOptions.DEFAULT(),
@@ -318,7 +361,7 @@ public class SpannerTailer {
                   new SpannerStreamingHandler() {
                     @Override
                     public void apply(Row row) {
-                      processRow(handler, row);
+                      processRow(handler, row, tsColName);
                     }
                   },
                   Query.create(
@@ -347,9 +390,9 @@ public class SpannerTailer {
         MoreExecutors.directExecutor());
   }
 
-  private Boolean processRow(SpannerEventHandler handler, Row row) {
+  private Boolean processRow(SpannerEventHandler handler, Row row, String tsColName) {
     final String uuid = Long.toString(row.getLong("UUID"));
-    final Timestamp ts = row.getTimestamp("Timestamp");
+    final Timestamp ts = row.getTimestamp(tsColName);
     final Event e = Event.create(uuid, ts);
 
     if (uniq(e)) {

@@ -51,19 +51,20 @@ public class SpannerToAvro {
   private SpannerToAvro() {}
 
   public static ListenableFuture<SchemaSet> GetSchemaAsync(
-      String tableName, String avroNamespace, RowCursor resultSet) {
+      String tableName, String avroNamespace, RowCursor resultSet, String tsColName) {
     final SettableFuture<SchemaSet> schemaFuture = SettableFuture.create();
     final ListeningExecutorService x =
         MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(
                 1, new ThreadFactoryBuilder().setNameFormat("Spanner To Avro Thread").build()));
 
-    schemaFuture.set(GetSchema(tableName, avroNamespace, resultSet));
+    schemaFuture.set(GetSchema(tableName, avroNamespace, resultSet, tsColName));
 
     return schemaFuture;
   }
 
-  public static SchemaSet GetSchema(String tableName, String avroNamespace, RowCursor resultSet) {
+  public static SchemaSet GetSchema(
+      String tableName, String avroNamespace, RowCursor resultSet, String tsColName) {
 
     final LinkedHashMap<String, String> spannerSchema = Maps.newLinkedHashMap();
     final SchemaBuilder.FieldAssembler<Schema> avroSchemaBuilder =
@@ -76,46 +77,81 @@ public class SpannerToAvro {
       final Row currentRow = resultSet.getCurrentRow();
       final String name = currentRow.getString(0);
       final String type = currentRow.getString(1);
+      final boolean nullable = currentRow.getString(2).equals("NO") ? false : true;
+
       spannerSchema.put(name, type);
       log.debug("Binding Avro Schema");
       switch (type) {
         case "ARRAY":
           log.debug("Made ARRAY");
+          // Arrays cannot be nullable
           avroSchemaBuilder.name(name).type().array();
           break;
         case "BOOL":
           log.debug("Made BOOL");
-          avroSchemaBuilder.name(name).type().nullable().booleanType().noDefault();
+          if (nullable) {
+            avroSchemaBuilder.name(name).type().optional().booleanType();
+          } else {
+            avroSchemaBuilder.name(name).type().booleanType().noDefault();
+          }
           break;
         case "BYTES":
           log.debug("Made BYTES");
-          avroSchemaBuilder.name(name).type().nullable().bytesType().noDefault();
+          if (nullable) {
+            avroSchemaBuilder.name(name).type().optional().bytesType();
+          } else {
+            avroSchemaBuilder.name(name).type().bytesType().noDefault();
+          }
           break;
         case "DATE":
           // Date handled as String type
           log.debug("Made DATE");
-          avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
+          if (nullable) {
+            avroSchemaBuilder.name(name).type().optional().stringType();
+          } else {
+            avroSchemaBuilder.name(name).type().stringType().noDefault();
+          }
           break;
         case "FLOAT64":
           log.debug("Made FLOAT64");
-          avroSchemaBuilder.name(name).type().nullable().doubleType().noDefault();
+          if (nullable) {
+            avroSchemaBuilder.name(name).type().optional().doubleType();
+          } else {
+            avroSchemaBuilder.name(name).type().doubleType().noDefault();
+          }
           break;
         case "INT64":
           log.debug("Made INT64");
-          avroSchemaBuilder.name(name).type().nullable().longType().noDefault();
+          if (nullable) {
+            avroSchemaBuilder.name(name).type().optional().longType();
+          } else {
+            avroSchemaBuilder.name(name).type().longType().noDefault();
+          }
           break;
         case "STRING(MAX)":
           log.debug("Made STRING(MAX)");
-          avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
+          if (nullable) {
+            avroSchemaBuilder.name(name).type().optional().stringType();
+          } else {
+            avroSchemaBuilder.name(name).type().stringType().noDefault();
+          }
           break;
         case "TIMESTAMP":
           log.debug("Made TIMESTAMP");
-          avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
+          if (nullable) {
+            avroSchemaBuilder.name(name).type().optional().stringType();
+          } else {
+            avroSchemaBuilder.name(name).type().stringType().noDefault();
+          }
           break;
         default:
           if (type.contains("STRING")) {
             log.debug("Made STRING: " + type);
-            avroSchemaBuilder.name(name).type().nullable().stringType().noDefault();
+            if (nullable) {
+              avroSchemaBuilder.name(name).type().optional().stringType();
+            } else {
+              avroSchemaBuilder.name(name).type().stringType().noDefault();
+            }
           } else {
             log.error("Unknown Schema type when generating Avro Schema: " + type);
           }
@@ -131,13 +167,13 @@ public class SpannerToAvro {
     if (log.isDebugEnabled()) {
       final Set<String> keySet = spannerSchema.keySet();
       for (String k : keySet) {
-        log.debug("-------------------------- ColName: " + k + " Type: " + spannerSchema.get(k));
+        log.info("-------------------------- ColName: " + k + " Type: " + spannerSchema.get(k));
       }
 
-      log.debug("--------------------------- " + avroSchema.toString());
+      log.info("--------------------------- " + avroSchema.toString());
     }
 
-    return SchemaSet.create(avroSchema, ImmutableMap.copyOf(spannerSchema));
+    return SchemaSet.create(avroSchema, ImmutableMap.copyOf(spannerSchema), tsColName);
   }
 
   public static Optional<ByteString> MakeRecord(SchemaSet schemaSet, Row resultSet) {
@@ -145,26 +181,26 @@ public class SpannerToAvro {
     final Set<String> keySet = schemaSet.spannerSchema().keySet();
     final GenericRecord record = new GenericData.Record(schemaSet.avroSchema());
 
-    log.info("KeySet: " + keySet);
-    log.info("Record: " + record);
+    log.debug("KeySet: " + keySet);
+    log.debug("Record: " + record);
 
     keySet.forEach(
         x -> {
-          log.info("Column Name: " + x);
-          log.info("Data Type: " + schemaSet.spannerSchema().get(x));
+          log.debug("Column Name: " + x);
+          log.debug("Data Type: " + schemaSet.spannerSchema().get(x));
           switch (schemaSet.spannerSchema().get(x)) {
             case "ARRAY":
-              log.info("Put ARRAY");
+              log.debug("Put ARRAY");
 
               final com.google.spanner.v1.Type columnType = resultSet.getColumnType(x);
               final String arrayTypeString = columnType.getArrayElementType().getCode().toString();
 
-              log.info("Type: " + columnType);
-              log.info("ArrayString: " + arrayTypeString);
+              log.debug("Type: " + columnType);
+              log.debug("ArrayString: " + arrayTypeString);
 
               switch (arrayTypeString) {
                 case "BOOL":
-                  log.info("Put BOOL");
+                  log.debug("Put BOOL");
                   try {
                     record.put(x, resultSet.getBooleanList(x));
                   } catch (NullPointerException e) {
@@ -173,7 +209,7 @@ public class SpannerToAvro {
 
                   break;
                 case "BYTES":
-                  log.info("Put BYTES");
+                  log.debug("Put BYTES");
                   try {
                     record.put(x, resultSet.getBytesList(x));
                   } catch (NullPointerException e) {
@@ -182,7 +218,7 @@ public class SpannerToAvro {
 
                   break;
                 case "DATE":
-                  log.info("Put DATE");
+                  log.debug("Put DATE");
                   try {
                     record.put(x, resultSet.getStringList(x));
                   } catch (NullPointerException e) {
@@ -191,7 +227,7 @@ public class SpannerToAvro {
 
                   break;
                 case "FLOAT64":
-                  log.info("Put FLOAT64");
+                  log.debug("Put FLOAT64");
                   try {
                     record.put(x, resultSet.getDoubleList(x));
                   } catch (NullPointerException e) {
@@ -200,7 +236,7 @@ public class SpannerToAvro {
 
                   break;
                 case "INT64":
-                  log.info("Put INT64");
+                  log.debug("Put INT64");
                   try {
                     record.put(x, resultSet.getLongList(x));
                   } catch (NullPointerException e) {
@@ -209,7 +245,7 @@ public class SpannerToAvro {
 
                   break;
                 case "STRING(MAX)":
-                  log.info("Put STRING");
+                  log.debug("Put STRING");
                   try {
                     record.put(x, resultSet.getStringList(x));
                   } catch (NullPointerException e) {
@@ -228,7 +264,7 @@ public class SpannerToAvro {
 
               break;
             case "BOOL":
-              log.info("Put BOOL");
+              log.debug("Put BOOL");
               try {
                 record.put(x, resultSet.getBoolean(x));
               } catch (NullPointerException e) {
@@ -237,7 +273,7 @@ public class SpannerToAvro {
 
               break;
             case "BYTES":
-              log.info("Put BYTES");
+              log.debug("Put BYTES");
               try {
                 record.put(x, resultSet.getBytes(x));
               } catch (NullPointerException e) {
@@ -246,7 +282,7 @@ public class SpannerToAvro {
 
               break;
             case "DATE":
-              log.info("Put DATE");
+              log.debug("Put DATE");
               try {
                 record.put(x, resultSet.getDate(x).toString());
               } catch (NullPointerException e) {
@@ -255,7 +291,7 @@ public class SpannerToAvro {
 
               break;
             case "FLOAT64":
-              log.info("Put FLOAT64");
+              log.debug("Put FLOAT64");
               try {
                 record.put(x, resultSet.getDouble(x));
               } catch (NullPointerException e) {
@@ -264,28 +300,28 @@ public class SpannerToAvro {
 
               break;
             case "INT64":
-              log.info("Put INT64");
+              log.debug("Put INT64");
               try {
                 record.put(x, resultSet.getLong(x));
-                log.info("INT64 OK");
+                log.debug("INT64 OK");
               } catch (NullPointerException e) {
                 record.put(x, null);
-                log.info("INT64 NULL OK");
+                log.debug("INT64 NULL OK");
               }
 
               break;
             case "STRING(MAX)":
-              log.info("Put STRING");
+              log.debug("Put STRING");
               try {
                 record.put(x, resultSet.getString(x));
-                log.info("STRING(MAX) OK");
+                log.debug("STRING(MAX) OK");
               } catch (NullPointerException e) {
                 record.put(x, null);
-                log.info("STRING(MAX) NULL OK");
+                log.debug("STRING(MAX) NULL OK");
               }
               break;
             case "TIMESTAMP":
-              log.info("Put TIMESTAMP");
+              log.debug("Put TIMESTAMP");
               try {
                 record.put(x, resultSet.getTimestamp(x).toString());
               } catch (NullPointerException e) {
@@ -295,13 +331,13 @@ public class SpannerToAvro {
               break;
             default:
               if (schemaSet.spannerSchema().get(x).contains("STRING")) {
-                log.info("Put STRING");
+                log.debug("Put STRING");
                 try {
                   record.put(x, resultSet.getString(x));
-                  log.info("STRING OK");
+                  log.debug("STRING OK");
                 } catch (NullPointerException e) {
                   record.put(x, null);
-                  log.info("STRING NULL OK");
+                  log.debug("STRING NULL OK");
                 }
 
               } else {
@@ -313,8 +349,8 @@ public class SpannerToAvro {
           }
         });
 
-    log.info("Made Record");
-    log.info(record.toString());
+    log.debug("Made Record");
+    log.debug(record.toString());
 
     try (final ByteBufOutputStream outputStream = new ByteBufOutputStream(bb)) {
 
@@ -322,15 +358,15 @@ public class SpannerToAvro {
           EncoderFactory.get().jsonEncoder(schemaSet.avroSchema(), outputStream, true);
       final DatumWriter<Object> writer = new GenericDatumWriter<>(schemaSet.avroSchema());
 
-      log.info("Serializing Record");
+      log.debug("Serializing Record");
       writer.write(record, encoder);
       encoder.flush();
       outputStream.flush();
-      log.info("Adding serialized record to list");
+      log.debug("Adding serialized record to list");
       final byte[] ba = new byte[bb.readableBytes()];
-      log.info("--------------------------------- readableBytes " + bb.readableBytes());
-      log.info("--------------------------------- readerIndex " + bb.readerIndex());
-      log.info("--------------------------------- writerIndex " + bb.writerIndex());
+      log.debug("--------------------------------- readableBytes " + bb.readableBytes());
+      log.debug("--------------------------------- readerIndex " + bb.readerIndex());
+      log.debug("--------------------------------- writerIndex " + bb.writerIndex());
       bb.getBytes(bb.readerIndex(), ba);
       final ByteString message = ByteString.copyFrom(ba);
 
@@ -348,12 +384,15 @@ public class SpannerToAvro {
 
   @AutoValue
   public abstract static class SchemaSet {
-    static SchemaSet create(Schema avroSchema, ImmutableMap<String, String> spannerSchema) {
-      return new AutoValue_SpannerToAvro_SchemaSet(avroSchema, spannerSchema);
+    static SchemaSet create(
+        Schema avroSchema, ImmutableMap<String, String> spannerSchema, String tsColName) {
+      return new AutoValue_SpannerToAvro_SchemaSet(avroSchema, spannerSchema, tsColName);
     }
 
     abstract Schema avroSchema();
 
     abstract ImmutableMap<String, String> spannerSchema();
+
+    public abstract String tsColName();
   }
 }

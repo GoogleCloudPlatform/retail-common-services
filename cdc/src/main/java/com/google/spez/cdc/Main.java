@@ -22,16 +22,23 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.spez.core.EventPublisher;
+import com.google.spez.core.SpannerEvent;
 import com.google.spez.core.SpannerEventHandler;
 import com.google.spez.core.SpannerTailer;
 import com.google.spez.core.SpannerToAvro;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.google.spez.core.Spez;
+import com.lmax.disruptor.RingBuffer;
+import com.lmax.disruptor.YieldingWaitStrategy;
+import com.lmax.disruptor.dsl.Disruptor;
+import com.lmax.disruptor.dsl.ProducerType;
+import com.lmax.disruptor.util.DaemonThreadFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +49,9 @@ class Main {
   private static final String DB_NAME = "test";
   private static final String TABLE_NAME = "test";
   private static final String TOPIC_NAME = "test-topic";
+  private static final int BUFFER_SIZE = 1024;
+
+  private static final boolean DISRUPTOR = true;
 
   public static void main(String[] args) {
     final List<ListeningExecutorService> l =
@@ -51,6 +61,13 @@ class Main {
     final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
     final Map<String, String> metadata = new HashMap<>();
     final CountDownLatch doneSignal = new CountDownLatch(1);
+    final Disruptor<SpannerEvent> disruptor =
+        new Disruptor<SpannerEvent>(
+            SpannerEvent::new,
+            BUFFER_SIZE,
+            DaemonThreadFactory.INSTANCE,
+            ProducerType.SINGLE,
+            new YieldingWaitStrategy());
 
     // Populate CDC Metadata
     metadata.put("SrcDatabase", DB_NAME);
@@ -68,41 +85,79 @@ class Main {
           public void onSuccess(SchemaSet schemaSet) {
             log.info("Successfully Processed the Table Schema. Starting the poller now ...");
 
-            final SpannerEventHandler handler =
-                (bucket, s, timestamp) -> {
-                  ListenableFuture<Boolean> x =
-                      l.get(bucket)
-                          .submit(
-                              () -> {
-                                // TODO(xjdr): Throw if empty optional
-                                log.debug("Processing Record");
-                                Optional<ByteString> record =
-                                    SpannerToAvro.MakeRecord(schemaSet, s);
-                                log.debug("Record Processed, getting ready to publish");
-                                publisher.publish(record.get(), metadata, timestamp);
-                                log.info("Published: " + record.get().toString() + " " + timestamp);
+            if (DISRUPTOR) {
+              disruptor
+                  .handleEventsWith(
+                      (event, sequence, endOfBatch) -> {
+                        Optional<ByteString> record =
+                            SpannerToAvro.MakeRecord(schemaSet, event.row());
+                        if (record.isPresent()) {
+                          publisher.publish(record.get(), metadata, event.timestamp());
+                          log.info(
+                              "Published: " + record.get().toString() + " " + event.timestamp());
+                        }
+                      })
+                  .then((event, sequence, endOfBatch) -> event.clear());
 
-                                return Boolean.TRUE;
-                              });
-                  return Boolean.TRUE;
-                };
+              disruptor.start();
 
-            tailer.start(
-                handler,
-                schemaSet.tsColName(),
-                l.size(),
-                2,
-                500,
-                PROJECT_NAME,
-                INSTANCE_NAME,
-                DB_NAME,
-                TABLE_NAME,
-                "lpts_table",
-                "2000",
-                500,
-                500);
+              final RingBuffer<SpannerEvent> ringBuffer = disruptor.getRingBuffer();
 
-            doneSignal.countDown();
+              tailer.setRingBuffer(ringBuffer);
+
+              ScheduledFuture<?> result =
+                  tailer.start(
+                      2,
+                      500,
+                      PROJECT_NAME,
+                      INSTANCE_NAME,
+                      DB_NAME,
+                      TABLE_NAME,
+                      "lpts_table",
+                      schemaSet.tsColName(),
+                      "2000");
+
+              doneSignal.countDown();
+
+            } else {
+
+              final SpannerEventHandler handler =
+                  (bucket, s, timestamp) -> {
+                    ListenableFuture<Boolean> x =
+                        l.get(bucket)
+                            .submit(
+                                () -> {
+                                  // TODO(xjdr): Throw if empty optional
+                                  log.debug("Processing Record");
+                                  Optional<ByteString> record =
+                                      SpannerToAvro.MakeRecord(schemaSet, s);
+                                  log.debug("Record Processed, getting ready to publish");
+                                  publisher.publish(record.get(), metadata, timestamp);
+                                  log.info(
+                                      "Published: " + record.get().toString() + " " + timestamp);
+
+                                  return Boolean.TRUE;
+                                });
+                    return Boolean.TRUE;
+                  };
+
+              tailer.start(
+                  handler,
+                  schemaSet.tsColName(),
+                  l.size(),
+                  2,
+                  500,
+                  PROJECT_NAME,
+                  INSTANCE_NAME,
+                  DB_NAME,
+                  TABLE_NAME,
+                  "lpts_table",
+                  "2000",
+                  500,
+                  500);
+
+              doneSignal.countDown();
+            }
           }
 
           @Override

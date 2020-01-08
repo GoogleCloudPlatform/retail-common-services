@@ -11,14 +11,14 @@ version = "0.1.0-SNAPSHOT"
 
 tasks {
     "wrapper"(Wrapper::class) {
-	version = "5.5.1"
+	      version = "5.5.1"
     }
 }
 
 
 allprojects {
     repositories {
-	jcenter()
-	google()
+	      jcenter()
+	      google()
     }
 }

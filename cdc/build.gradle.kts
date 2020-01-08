@@ -27,8 +27,11 @@ dependencies {
 	  implementation(Config.Libs.guava)
 	  implementation(Config.Libs.spanner)
 	  implementation(Config.Libs.pubsub)
-	  implementation(Config.Libs.storage)
-	  implementation(Config.Libs.rocksdb)
+	  //implementation(Config.Libs.storage)
+	  //implementation(Config.Libs.rocksdb)
+
+    // LMAX
+	  implementation("com.lmax:disruptor:3.4.2")
 
     // AutoValue
     compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")

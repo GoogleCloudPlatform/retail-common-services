@@ -1,5 +1,9 @@
 Spanner Event Exporter
 ======================
+*** WARNING: Immutable insterts only with OpCode and with a single primary key is
+supported by default, any other implementation will probably work but will contain
+dragons of various shapes and sizes lurking around each corner *** 
+
 
 The Spanner Event Exporter is a library that will publish any updates to a
 Cloud Spanner table as an Avro record to a pub/sub topic. This is a great

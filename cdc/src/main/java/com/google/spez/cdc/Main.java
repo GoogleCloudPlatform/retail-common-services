@@ -19,7 +19,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.spez.core.EventPublisher;
 import com.google.spez.core.SpannerEvent;
@@ -55,9 +54,9 @@ class Main {
 
   public static void main(String[] args) {
     final List<ListeningExecutorService> l =
-        Spez.ServicePoolGenerator(32, "Spanner Tailer Event Worker");
+        Spez.ServicePoolGenerator(12, "Spanner Tailer Event Worker");
 
-    final SpannerTailer tailer = new SpannerTailer(32, 200000000);
+    final SpannerTailer tailer = new SpannerTailer(12, 200000000);
     final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
     final Map<String, String> metadata = new HashMap<>();
     final CountDownLatch doneSignal = new CountDownLatch(1);
@@ -89,13 +88,23 @@ class Main {
               disruptor
                   .handleEventsWith(
                       (event, sequence, endOfBatch) -> {
-                        Optional<ByteString> record =
-                            SpannerToAvro.MakeRecord(schemaSet, event.row());
-                        if (record.isPresent()) {
-                          publisher.publish(record.get(), metadata, event.timestamp());
-                          log.info(
-                              "Published: " + record.get().toString() + " " + event.timestamp());
-                        }
+                        ListenableFuture<Boolean> x =
+                            l.get(l.size() % 12)
+                                .submit(
+                                    () -> {
+                                      Optional<ByteString> record =
+                                          SpannerToAvro.MakeRecord(schemaSet, event.row());
+                                      if (record.isPresent()) {
+                                        publisher.publish(
+                                            record.get(), metadata, event.timestamp());
+                                        log.info(
+                                            "Published: "
+                                                + record.get().toString()
+                                                + " "
+                                                + event.timestamp());
+                                      }
+                                      return Boolean.TRUE;
+                                    });
                       })
                   .then((event, sequence, endOfBatch) -> event.clear());
 
@@ -145,8 +154,8 @@ class Main {
                   handler,
                   schemaSet.tsColName(),
                   l.size(),
-                  2,
-                  500,
+                  12,
+                  300,
                   PROJECT_NAME,
                   INSTANCE_NAME,
                   DB_NAME,
@@ -166,7 +175,7 @@ class Main {
             System.exit(-1);
           }
         },
-        MoreExecutors.directExecutor());
+        l.get(0));
 
     try {
       doneSignal.await();

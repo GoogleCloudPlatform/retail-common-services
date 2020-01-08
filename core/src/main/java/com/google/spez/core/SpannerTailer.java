@@ -200,8 +200,7 @@ public class SpannerTailer {
           }
         };
 
-    return Futures.transformAsync(
-        rowCursorsFuture, schemaSetFunction, MoreExecutors.directExecutor());
+    return Futures.transformAsync(rowCursorsFuture, schemaSetFunction, service);
   }
 
   private boolean uniq(Event e) {
@@ -374,8 +373,7 @@ public class SpannerTailer {
                           + "WHERE Timestamp > '"
                           + lastProcessedTimestamp
                           + "' "
-                          + "ORDER BY Timestamp ASC LIMIT "
-                          + recordLimit));
+                          + "ORDER BY Timestamp ASC"));
             } finally {
               try {
                 db.close();
@@ -390,7 +388,7 @@ public class SpannerTailer {
             log.error("Failure Polling DB: ", t);
           }
         },
-        MoreExecutors.directExecutor());
+        service);
   }
 
   private Boolean processRow(SpannerEventHandler handler, Row row, String tsColName) {
@@ -554,8 +552,8 @@ public class SpannerTailer {
                           + "WHERE Timestamp > '"
                           + lastProcessedTimestamp
                           + "' "
-                          + "ORDER BY Timestamp ASC LIMIT "
-                          + recordLimit));
+                          + "ORDER BY Timestamp ASC"));
+
             } finally {
               try {
                 db.close();
@@ -570,7 +568,7 @@ public class SpannerTailer {
             log.error("Failure Polling DB: ", t);
           }
         },
-        MoreExecutors.directExecutor());
+        service);
   }
 
   @AutoValue

@@ -1,0 +1,2 @@
+* TODOS
+** TODO Understand why session pool less than 4 doesn't work

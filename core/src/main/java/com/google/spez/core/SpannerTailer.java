@@ -178,7 +178,7 @@ public class SpannerTailer {
         };
 
     final ListenableFuture<List<RowCursor>> rowCursorsFuture =
-        Futures.transformAsync(dbFuture, querySchemaFuture, MoreExecutors.directExecutor());
+        Futures.transformAsync(dbFuture, querySchemaFuture, service);
 
     final AsyncFunction<List<RowCursor>, SpannerToAvro.SchemaSet> schemaSetFunction =
         new AsyncFunction<List<RowCursor>, SpannerToAvro.SchemaSet>() {
@@ -362,8 +362,29 @@ public class SpannerTailer {
                   new SpannerStreamingHandler() {
                     @Override
                     public void apply(Row row) {
-                      processRow(handler, row, tsColName);
-                      lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
+                      ListenableFuture<Boolean> x =
+                          service.submit(
+                              () -> {
+                                processRow(handler, row, tsColName);
+                                lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
+                                return Boolean.TRUE;
+                              });
+
+                      Futures.addCallback(
+                          x,
+                          new FutureCallback<Boolean>() {
+
+                            @Override
+                            public void onSuccess(Boolean result) {
+                              log.debug("Row Successfully Processed");
+                            }
+
+                            @Override
+                            public void onFailure(Throwable t) {
+                              log.error("Unable to Process Row", t);
+                            }
+                          },
+                          service);
                     }
                   },
                   Query.create(

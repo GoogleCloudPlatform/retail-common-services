@@ -49,14 +49,15 @@ class Main {
   private static final String TABLE_NAME = "test";
   private static final String TOPIC_NAME = "test-topic";
   private static final int BUFFER_SIZE = 1024;
+  private static final int THREAD_POOL = 12;
 
-  private static final boolean DISRUPTOR = true;
+  private static final boolean DISRUPTOR = false;
 
   public static void main(String[] args) {
     final List<ListeningExecutorService> l =
-        Spez.ServicePoolGenerator(12, "Spanner Tailer Event Worker");
+        Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
 
-    final SpannerTailer tailer = new SpannerTailer(12, 200000000);
+    final SpannerTailer tailer = new SpannerTailer(THREAD_POOL, 200000000);
     final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
     final Map<String, String> metadata = new HashMap<>();
     final CountDownLatch doneSignal = new CountDownLatch(1);
@@ -89,7 +90,7 @@ class Main {
                   .handleEventsWith(
                       (event, sequence, endOfBatch) -> {
                         ListenableFuture<Boolean> x =
-                            l.get(l.size() % 12)
+                            l.get(l.size() % THREAD_POOL)
                                 .submit(
                                     () -> {
                                       Optional<ByteString> record =
@@ -105,6 +106,22 @@ class Main {
                                       }
                                       return Boolean.TRUE;
                                     });
+
+                        Futures.addCallback(
+                            x,
+                            new FutureCallback<Boolean>() {
+
+                              @Override
+                              public void onSuccess(Boolean result) {
+                                log.debug("Record Successfully Published");
+                              }
+
+                              @Override
+                              public void onFailure(Throwable t) {
+                                log.error("Unable to process record", t);
+                              }
+                            },
+                            l.get(l.size() % THREAD_POOL));
                       })
                   .then((event, sequence, endOfBatch) -> event.clear());
 
@@ -142,11 +159,28 @@ class Main {
                                       SpannerToAvro.MakeRecord(schemaSet, s);
                                   log.debug("Record Processed, getting ready to publish");
                                   publisher.publish(record.get(), metadata, timestamp);
-                                  log.info(
+                                  log.debug(
                                       "Published: " + record.get().toString() + " " + timestamp);
 
                                   return Boolean.TRUE;
                                 });
+
+                    Futures.addCallback(
+                        x,
+                        new FutureCallback<Boolean>() {
+
+                          @Override
+                          public void onSuccess(Boolean result) {
+                            log.debug("Record Successfully Published");
+                          }
+
+                          @Override
+                          public void onFailure(Throwable t) {
+                            log.error("Unable to process record", t);
+                          }
+                        },
+                        l.get(l.size() % THREAD_POOL));
+
                     return Boolean.TRUE;
                   };
 
@@ -175,7 +209,7 @@ class Main {
             System.exit(-1);
           }
         },
-        l.get(0));
+        l.get(l.size() % THREAD_POOL));
 
     try {
       doneSignal.await();

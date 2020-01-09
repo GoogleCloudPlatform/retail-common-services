@@ -113,7 +113,7 @@ public class Spanner {
 
   public static ListenableFuture<RowCursor> executeAsync(
       QueryOptions options, Database db, Query query) {
-    Preconditions.checkNotNull(options);
+    // Preconditions.checkNotNull(options);
     Preconditions.checkNotNull(db);
     Preconditions.checkNotNull(query);
 
@@ -145,11 +145,13 @@ public class Spanner {
                 final RowCursor rowCursor = RowCursor.of(fieldList, rowList);
 
                 resultSetFuture.set(rowCursor);
+                session.unlock();
               }
 
               @Override
               public void onFailure(Throwable t) {
                 resultSetFuture.setException(t);
+                session.unlock();
               }
             },
             MoreExecutors.directExecutor());

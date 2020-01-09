@@ -26,7 +26,9 @@ import com.google.protobuf.*;
 import com.google.spanner.v1.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 import java.util.stream.IntStream;
+import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
 public class Database {
   private static final int DEFAULT_POOL_SIZE = 4;
@@ -132,5 +134,35 @@ public class Database {
 
   public ConcurrentRingBuffer<SessionContext> sessionPool() {
     return sessionPool;
+  }
+
+  public void close() throws InterruptedException {
+    final CountDownLatch lock = new CountDownLatch(sessionPool.size());
+    sessionPool
+        .getSessionList()
+        .forEach(
+            s -> {
+              if (s != null) {
+                ListenableFuture<Empty> sf =
+                    stub.deleteSession(
+                        Context.getDefault(),
+                        DeleteSessionRequest.newBuilder().setName(s.getName()).build());
+                Futures.addCallback(
+                    sf,
+                    new FutureCallback<Empty>() {
+                      @Override
+                      public void onSuccess(@NullableDecl Empty result) {
+                        lock.countDown();
+                      }
+
+                      @Override
+                      public void onFailure(Throwable t) {}
+                    },
+                    MoreExecutors.directExecutor());
+              }
+            });
+
+    lock.await(30, TimeUnit.SECONDS);
+    System.out.println(" ---------------- Cleaned Up Sessions ----------------- ");
   }
 }

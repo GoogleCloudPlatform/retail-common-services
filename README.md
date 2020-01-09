@@ -1,4 +1,4 @@
-Spanner Async Client
+ySpanner Async Client
 ====================
 
 * Introduction

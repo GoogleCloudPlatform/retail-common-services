@@ -288,8 +288,8 @@ public class SpannerTailer {
                     bucketSize);
               },
               0,
-              500,
-              TimeUnit.MILLISECONDS);
+              60,
+              TimeUnit.SECONDS);
       return poller;
 
     } catch (Exception e) {
@@ -356,7 +356,7 @@ public class SpannerTailer {
                 firstRun = false;
               }
 
-              Spanner.executeStreaming(
+              Spanner.executeStreamingReadOnlyStrong(
                   QueryOptions.DEFAULT(),
                   db,
                   new SpannerStreamingHandler() {
@@ -392,9 +392,7 @@ public class SpannerTailer {
                           + tableName
                           + " "
                           + "WHERE Timestamp > '"
-                          + lastProcessedTimestamp
-                          + "' "
-                          + "ORDER BY Timestamp ASC"));
+                      + lastProcessedTimestamp + "'"));
             } finally {
               try {
                 db.close();
@@ -413,6 +411,7 @@ public class SpannerTailer {
   }
 
   private Boolean processRow(SpannerEventHandler handler, Row row, String tsColName) {
+      if (row != null) {
     final String uuid = Long.toString(row.getLong("UUID"));
     final Timestamp ts = row.getTimestamp(tsColName);
     final Event e = Event.create(uuid, ts);
@@ -426,6 +425,9 @@ public class SpannerTailer {
     }
 
     return true;
+      } else {
+          return false;
+      }
   }
 
   public void setRingBuffer(RingBuffer<SpannerEvent> ringBuffer) {
@@ -550,7 +552,7 @@ public class SpannerTailer {
                 firstRun = false;
               }
 
-              Spanner.executeStreaming(
+              Spanner.executeStreamingReadOnlyStrong(
                   QueryOptions.DEFAULT(),
                   db,
                   new SpannerStreamingHandler() {

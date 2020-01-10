@@ -98,7 +98,7 @@ class Main {
                                       if (record.isPresent()) {
                                         publisher.publish(
                                             record.get(), metadata, event.timestamp());
-                                        log.info(
+                                        log.debug(
                                             "Published: "
                                                 + record.get().toString()
                                                 + " "
@@ -188,8 +188,8 @@ class Main {
                   handler,
                   schemaSet.tsColName(),
                   l.size(),
-                  12,
-                  300,
+                  THREAD_POOL,
+                  500,
                   PROJECT_NAME,
                   INSTANCE_NAME,
                   DB_NAME,

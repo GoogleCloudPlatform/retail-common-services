@@ -356,8 +356,12 @@ public class SpannerTailer {
                 firstRun = false;
               }
 
-              Spanner.executeStreamingReadOnlyStrong(
-                  QueryOptions.DEFAULT(),
+              Spanner.executeStreaming(
+                  QueryOptions.newBuilder()
+                      .setReadOnly(true)
+                      .setStale(true)
+                      .setMaxStaleness(15)
+                      .build(),
                   db,
                   new SpannerStreamingHandler() {
                     @Override
@@ -392,7 +396,8 @@ public class SpannerTailer {
                           + tableName
                           + " "
                           + "WHERE Timestamp > '"
-                      + lastProcessedTimestamp + "'"));
+                          + lastProcessedTimestamp
+                          + "'"));
             } finally {
               try {
                 db.close();
@@ -411,8 +416,7 @@ public class SpannerTailer {
   }
 
   private Boolean processRow(SpannerEventHandler handler, Row row, String tsColName) {
-      if (row != null) {
-    final String uuid = Long.toString(row.getLong("UUID"));
+    final String uuid = Long.toString(row.getLong(0));
     final Timestamp ts = row.getTimestamp(tsColName);
     final Event e = Event.create(uuid, ts);
 
@@ -425,9 +429,6 @@ public class SpannerTailer {
     }
 
     return true;
-      } else {
-          return false;
-      }
   }
 
   public void setRingBuffer(RingBuffer<SpannerEvent> ringBuffer) {
@@ -552,8 +553,12 @@ public class SpannerTailer {
                 firstRun = false;
               }
 
-              Spanner.executeStreamingReadOnlyStrong(
-                  QueryOptions.DEFAULT(),
+              Spanner.executeStreaming(
+                  QueryOptions.newBuilder()
+                      .setReadOnly(true)
+                      .setStale(true)
+                      .setMaxStaleness(15)
+                      .build(),
                   db,
                   new SpannerStreamingHandler() {
                     @Override

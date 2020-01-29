@@ -98,7 +98,7 @@ class Main {
                                       if (record.isPresent()) {
                                         publisher.publish(
                                             record.get(), metadata, event.timestamp());
-                                        log.debug(
+                                        log.info(
                                             "Published: "
                                                 + record.get().toString()
                                                 + " "
@@ -113,7 +113,7 @@ class Main {
 
                               @Override
                               public void onSuccess(Boolean result) {
-                                log.debug("Record Successfully Published");
+                                log.info("Record Successfully Published");
                               }
 
                               @Override

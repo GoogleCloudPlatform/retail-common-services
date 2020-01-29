@@ -16,18 +16,28 @@
 package com.google.spez.core;
 
 import com.google.cloud.Timestamp;
+import com.google.common.base.Preconditions;
 import com.google.spannerclient.Row;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SpannerEvent {
+  private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
 
   private Row row;
   private Timestamp timestamp;
+  private AtomicInteger lock = new AtomicInteger();
 
   public SpannerEvent() {}
 
   public void clear() {
-    this.row = null;
-    this.timestamp = null;
+    if (lock.compareAndSet(1, 0)) {
+      this.row = null;
+      this.timestamp = null;
+    } else {
+      log.error("Tried to clear an event that was not in use");
+    }
   }
 
   public Row row() {
@@ -35,8 +45,15 @@ public class SpannerEvent {
   }
 
   public void set(Row row, String tsColName) {
-    this.row = row;
-    this.timestamp = row.getTimestamp(tsColName);
+    Preconditions.checkNotNull(row);
+    Preconditions.checkNotNull(tsColName);
+
+    if (lock.compareAndSet(0, 1)) {
+      this.row = row;
+      this.timestamp = row.getTimestamp(tsColName);
+    } else {
+      log.error("Tried to set an event that was still in use");
+    }
   }
 
   public String timestamp() {

@@ -117,7 +117,7 @@ public class SpannerTailer {
           GoogleCredentials.fromStream(
                   new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
               // new FileInputStream(
-              //    "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
+              //   "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
     } catch (IOException e) {
       log.error("Could not find or parse credential file", e);
@@ -288,7 +288,7 @@ public class SpannerTailer {
                     bucketSize);
               },
               0,
-              60,
+              30,
               TimeUnit.SECONDS);
       return poller;
 
@@ -360,7 +360,7 @@ public class SpannerTailer {
                   QueryOptions.newBuilder()
                       .setReadOnly(true)
                       .setStale(true)
-                      .setMaxStaleness(15)
+                      .setMaxStaleness(500)
                       .build(),
                   db,
                   new SpannerStreamingHandler() {
@@ -487,8 +487,8 @@ public class SpannerTailer {
                     recordLimit);
               },
               0,
-              500,
-              TimeUnit.MILLISECONDS);
+              30,
+              TimeUnit.SECONDS);
       return poller;
 
     } catch (Exception e) {
@@ -567,6 +567,8 @@ public class SpannerTailer {
                       try {
                         SpannerEvent event = ringBuffer.get(seq);
                         event.set(row, tsColName);
+                      } catch (Exception e) {
+                        log.error("Error processing event", e);
                       } finally {
                         ringBuffer.publish(seq);
                         lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
@@ -579,8 +581,7 @@ public class SpannerTailer {
                           + " "
                           + "WHERE Timestamp > '"
                           + lastProcessedTimestamp
-                          + "' "
-                          + "ORDER BY Timestamp ASC"));
+                          + "'"));
 
             } finally {
               try {

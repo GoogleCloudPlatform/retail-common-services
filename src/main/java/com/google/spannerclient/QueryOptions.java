@@ -15,9 +15,89 @@
  */
 package com.google.spannerclient;
 
+import com.google.api.client.util.Preconditions;
+
 public class QueryOptions {
+  private final boolean readOnly;
+  private final boolean strong;
+  private final boolean stale;
+  private final int maxStaleness;
+
+  private QueryOptions(boolean readOnly, boolean strong, boolean stale, int maxStaleness) {
+    if (strong) {
+      Preconditions.checkArgument(
+          stale == false, "Cannot have both Strong Reads and Stale Reads configured");
+    }
+    if (stale) {
+      Preconditions.checkArgument(
+          strong == false, "Cannot have both Strong Reads and Stale Reads configured");
+      Preconditions.checkArgument(maxStaleness > 0);
+    }
+    this.readOnly = readOnly == true;
+    this.strong = strong == true;
+    this.stale = stale == true;
+    this.maxStaleness = maxStaleness;
+  }
+
+  public boolean readOnly() {
+    return readOnly;
+  }
+
+  public boolean strong() {
+    return strong;
+  }
+
+  public boolean stale() {
+    return stale;
+  }
+
+  public int maxStaleness() {
+    return maxStaleness;
+  }
 
   public static QueryOptions DEFAULT() {
-    return null;
+    return new QueryOptions(false, false, false, 0);
+  }
+
+  public static QueryOptions.Builder newBuilder() {
+    return new QueryOptions.Builder();
+  }
+
+  public static class Builder {
+    private boolean readOnly;
+    private boolean strong;
+    private boolean stale;
+    private int maxStaleness;
+
+    private Builder() {}
+
+    public Builder setReadOnly(boolean b) {
+      this.readOnly = b;
+
+      return this;
+    }
+
+    public Builder setStrong(boolean b) {
+      this.strong = b;
+
+      return this;
+    }
+
+    public Builder setStale(boolean b) {
+      this.stale = b;
+
+      return this;
+    }
+
+    public Builder setMaxStaleness(int i) {
+      this.maxStaleness = i;
+
+      return this;
+    }
+
+    public QueryOptions build() {
+
+      return new QueryOptions(this.readOnly, this.strong, this.stale, this.maxStaleness);
+    }
   }
 }

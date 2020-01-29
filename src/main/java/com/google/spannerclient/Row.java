@@ -38,6 +38,8 @@ public class Row implements RowBase {
   private final ImmutableList<Value> values;
 
   public Row(ImmutableList<StructType.Field> fields, ImmutableList<Value> values) {
+    Preconditions.checkNotNull(fields);
+    Preconditions.checkNotNull(values);
 
     this.fields = fields;
     this.values = values;
@@ -78,14 +80,14 @@ public class Row implements RowBase {
    *     type().structFields()} with {@link Type.StructField#getName()} equal to {@code columnName}
    */
   @Override
-  public int getColumnIndex(String columnName) {
-    for (int i = 0; i < fields.size() - 1; i++) {
+  public int getColumnIndex(String columnName) throws IllegalArgumentException {
+    for (int i = 0; i < fields.size(); i++) {
       if (fields.get(i).getName().equals(columnName)) {
         return i;
       }
     }
 
-    throw new IllegalArgumentException();
+    throw new IllegalArgumentException("Couldn't find column '" + columnName + "'");
   }
 
   /**

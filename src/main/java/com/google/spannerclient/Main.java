@@ -31,16 +31,13 @@ class Main {
 
   public static void main(String[] args) {
     final CountDownLatch doneSignal = new CountDownLatch(1);
-    //    String project_id = args[0];
-    String project_id = "retail-common-services-249016";
+    String project_id = args[0];
 
     GoogleCredentials credentials = null;
     try {
       credentials =
           GoogleCredentials.fromStream(
-                  // new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
-                  new FileInputStream(
-                      "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
+                  new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
               .createScoped(DEFAULT_SERVICE_SCOPES);
     } catch (IOException e) {
       e.printStackTrace();

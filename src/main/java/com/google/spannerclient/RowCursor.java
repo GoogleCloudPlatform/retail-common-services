@@ -58,7 +58,7 @@ public class RowCursor implements RowBase, AutoCloseable {
     return ++index < rows.size();
   }
 
-  Row getCurrentRow() {
+  public Row getCurrentRow() {
     Preconditions.checkState(index >= 0, "Must be preceded by a next() call");
     Preconditions.checkElementIndex(index, rows.size(), "All rows have been yielded");
     return Row.of(fields, ImmutableList.copyOf(rows.get(index).getValuesList()));
@@ -439,8 +439,8 @@ public class RowCursor implements RowBase, AutoCloseable {
    *     type().structFields()} with {@link Type.StructField#getName()} equal to {@code columnName}
    */
   @Override
-  public int getColumnIndex(String columnName) {
-    for (int i = 0; i < fields.size() - 1; i++) {
+  public int getColumnIndex(String columnName) throws IllegalArgumentException {
+    for (int i = 0; i < fields.size(); i++) {
       if (fields.get(i).getName().equals(columnName)) {
         return i;
       }

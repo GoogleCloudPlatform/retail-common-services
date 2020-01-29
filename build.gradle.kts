@@ -17,7 +17,7 @@ plugins {
     id("com.google.protobuf") version "0.8.10"
     id("com.diffplug.gradle.spotless") version "3.24.0"
     id("net.ltgt.errorprone") version "0.8.1"
-    kotlin("jvm") version "1.3.50"
+    //    kotlin("jvm") version "1.3.50"
 }
 
 repositories {
@@ -27,13 +27,6 @@ repositories {
 
 group = "com.google.spannerclient"
 version = "0.1.0-SNAPSHOT"
-
-tasks {
-    "wrapper"(Wrapper::class) {
-        version = "5.5.1"
-    }
-}
-
 
 dependencies {
     implementation(Config.Libs.typesafe_config)
@@ -149,9 +142,9 @@ tasks.register<Jar>("spannerClientTest") {
     archiveClassifier.set("uber")
     manifest {
         attributes(mapOf(
-                "Implementation-Title" to "Spanner Client Testin",
-                "Implementation-Version" to "version",
-                "Main-Class" to "com.google.spannerclient.Main"
+                       "Implementation-Title" to "Spanner Client Testin",
+                       "Implementation-Version" to "version",
+                       "Main-Class" to "com.google.spannerclient.Main"
         ))
     }
     baseName = "Main"
@@ -169,6 +162,6 @@ idea {
         // proto files and generated Java files are automatically added as
         // source dirs.
         // If you have additional sources, add them here:
-        sourceDirs.add(file("$projectDir/gen"))
+            sourceDirs.add(file("$projectDir/gen"))
     }
 }

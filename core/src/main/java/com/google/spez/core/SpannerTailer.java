@@ -37,9 +37,9 @@ import com.google.spannerclient.QueryOptions;
 import com.google.spannerclient.Row;
 import com.google.spannerclient.RowCursor;
 import com.google.spannerclient.Spanner;
-import com.google.spannerclient.SpannerStreamingHandler;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.lmax.disruptor.RingBuffer;
+import io.grpc.stub.StreamObserver;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -363,9 +363,9 @@ public class SpannerTailer {
                       .setMaxStaleness(500)
                       .build(),
                   db,
-                  new SpannerStreamingHandler() {
+                  new StreamObserver<Row>() {
                     @Override
-                    public void apply(Row row) {
+                    public void onNext(Row row) {
                       ListenableFuture<Boolean> x =
                           service.submit(
                               () -> {
@@ -390,6 +390,12 @@ public class SpannerTailer {
                           },
                           service);
                     }
+
+                    @Override
+                    public void onError(Throwable t) {}
+
+                    @Override
+                    public void onCompleted() {}
                   },
                   Query.create(
                       "SELECT * FROM "
@@ -560,9 +566,9 @@ public class SpannerTailer {
                       .setMaxStaleness(15)
                       .build(),
                   db,
-                  new SpannerStreamingHandler() {
+                  new StreamObserver<Row>() {
                     @Override
-                    public void apply(Row row) {
+                    public void onNext(Row row) {
                       final long seq = ringBuffer.next();
                       try {
                         SpannerEvent event = ringBuffer.get(seq);
@@ -574,6 +580,12 @@ public class SpannerTailer {
                         lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
                       }
                     }
+
+                    @Override
+                    public void onError(Throwable t) {}
+
+                    @Override
+                    public void onCompleted() {}
                   },
                   Query.create(
                       "SELECT * FROM "

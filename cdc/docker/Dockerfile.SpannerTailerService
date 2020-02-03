@@ -12,15 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM gradle:latest AS build-env
+ENV JVM_HEAP_SIZE=6g
+ARG JDK_VERSION=11
+FROM openjdk:${JDK_VERSION}-jdk-slim as build-env
+# Get gradle distribution
+COPY *.gradle gradle.* gradlew /app/
+COPY gradle /app/gradle
+RUN /app/gradlew --version
+
+FROM build-env as app-build
 ADD . /app
 WORKDIR /app
 USER root
-RUN ./gradlew :cdc:spannerTailerService && \
-  mv cdc/build/libs/Main-fat-uber.jar Main.jar
+RUN ./gradlew clean :cdc:spannerTailerService && \
+  mv cdc/build/libs/Main-fat-*.jar Main.jar
 
-FROM gcr.io/distroless/java
-COPY --from=build-env /app/Main.jar /app/Main.jar
+FROM gcr.io/distroless/java:${JDK_VERSION}
+COPY --from=app-build /app/Main.jar /app/Main.jar
 ## This line is for local testing and should be commented out !!!
 ADD secrets /var/run/secret/cloud.google.com
 ENV GOOGLE_APPLICATION_CREDENTIALS /var/run/secret/cloud.google.com/service-account.json
@@ -30,7 +38,9 @@ ENTRYPOINT ["java", \
   "-Djava.net.preferIPv4Stack=true", \
   "-Dio.netty.allocator.type=pooled", \
   "-XX:+UseStringDeduplication", \
+  "-XX:+HeapDumpOnOutOfMemoryError", \
   "-XX:+UseG1GC", \
+  "-Xmx${JVM_HEAP_SIZE}", \
   "-Dcom.sun.management.jmxremote", \
   "-Dcom.sun.management.jmxremote.port=9010", \
   "-Dcom.sun.management.jmxremote.rmi.port=9010", \

@@ -280,7 +280,7 @@ public class SpannerAsyncClient {
     return resultSetFuture;
   }
 
-  void executeStreamingSql(String sql, SpannerStreamingHandler handler) {
+  void executeStreamingSql(String sql, StreamObserver<Row> handler) {
     Preconditions.checkNotNull(sql);
 
     final Optional<SessionContext> sessionOptional = sessionPool.tryGet();
@@ -307,7 +307,7 @@ public class SpannerAsyncClient {
                 RowCursor rowCursor =
                     RowCursor.of(fieldList, ImmutableList.copyOf(resultSet.getRowsList()));
                 while (rowCursor.next()) {
-                  handler.apply(rowCursor.getCurrentRow());
+                  handler.onNext(rowCursor.getCurrentRow());
                 }
               }
             }
@@ -315,6 +315,7 @@ public class SpannerAsyncClient {
             @Override
             public void onError(Throwable t) {
               session.unlock();
+              handler.onError(t);
             }
 
             @Override
@@ -329,16 +330,17 @@ public class SpannerAsyncClient {
                     ImmutableList.copyOf(resultSet.getRowsList());
                 rowList.forEach(
                     v -> {
-                      handler.apply(Row.of(fieldList, ImmutableList.copyOf(v.getValuesList())));
+                      handler.onNext(Row.of(fieldList, ImmutableList.copyOf(v.getValuesList())));
                     });
               }
               session.unlock();
+              handler.onCompleted();
             }
           });
     }
   }
 
-  void executeStreamingSqlReadOnlyStrong(String sql, SpannerStreamingHandler handler) {
+  void executeStreamingSqlReadOnlyStrong(String sql, StreamObserver<Row> handler) {
     Preconditions.checkNotNull(sql);
 
     final Optional<SessionContext> sessionOptional = sessionPool.tryGet();
@@ -372,17 +374,19 @@ public class SpannerAsyncClient {
               }
 
               // This should probably be wrapped in an executor
-              handler.apply(Row.of(fieldList, values));
+              handler.onNext(Row.of(fieldList, values));
             }
 
             @Override
             public void onError(Throwable t) {
               session.unlock();
+              handler.onError(t);
             }
 
             @Override
             public void onCompleted() {
               session.unlock();
+              handler.onCompleted();
             }
           });
     }

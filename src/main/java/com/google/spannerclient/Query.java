@@ -16,6 +16,7 @@
 package com.google.spannerclient;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import io.grpc.stub.StreamObserver;
 
 public class Query {
   private String sql;
@@ -44,8 +45,7 @@ public class Query {
     return null;
   }
 
-  public void executeStreaming(
-      QueryOptions options, Database db, SpannerStreamingHandler handler) {}
+  public void executeStreaming(QueryOptions options, Database db, StreamObserver<Row> handler) {}
 
   public String getSql() {
     return sql;

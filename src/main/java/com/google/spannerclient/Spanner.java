@@ -175,7 +175,7 @@ public class Spanner {
   }
 
   public static void executeStreaming(
-      QueryOptions options, Database db, SpannerStreamingHandler handler, Query query) {
+      QueryOptions options, Database db, StreamObserver<Row> handler, Query query) {
     // Preconditions.checkNotNull(options);
     Preconditions.checkNotNull(db);
     Preconditions.checkNotNull(handler);
@@ -216,7 +216,7 @@ public class Spanner {
                       final RowCursor rowCursor =
                           RowCursor.of(fieldList, ImmutableList.copyOf(resultSet.getRowsList()));
                       while (rowCursor.next()) {
-                        handler.apply(rowCursor.getCurrentRow());
+                        handler.onNext(rowCursor.getCurrentRow());
                       }
                       resultSetList.clear();
                     }
@@ -225,6 +225,7 @@ public class Spanner {
                   @Override
                   public void onError(Throwable t) {
                     cleanup();
+                    handler.onError(t);
                   }
 
                   @Override
@@ -238,11 +239,12 @@ public class Spanner {
                           ImmutableList.copyOf(resultSet.getRowsList());
                       rowList.forEach(
                           v -> {
-                            handler.apply(
+                            handler.onNext(
                                 Row.of(fieldList, ImmutableList.copyOf(v.getValuesList())));
                           });
                     }
                     cleanup();
+                    handler.onCompleted();
                   }
 
                   public void cleanup() {

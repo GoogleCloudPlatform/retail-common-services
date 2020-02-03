@@ -18,6 +18,7 @@ package com.google.spannerclient;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.*;
+import io.grpc.stub.StreamObserver;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -67,15 +68,20 @@ class Main {
             Spanner.executeStreaming(
                 QueryOptions.DEFAULT(),
                 db,
-                new SpannerStreamingHandler() {
-
+                new StreamObserver<Row>() {
                   @Override
-                  public void apply(Row row) {
+                  public void onNext(Row row) {
                     System.out.println("UUID: " + row.getLong("UUID"));
                     System.out.println("SortingKey: " + row.getString(1));
                     System.out.println("Timestamp: " + row.getTimestamp(2));
                     System.out.println("Data: " + row.getString(3));
                   }
+
+                  @Override
+                  public void onError(Throwable t) {}
+
+                  @Override
+                  public void onCompleted() {}
                 },
                 Query.create(sql));
           }
@@ -118,18 +124,6 @@ class Main {
     //          }
     //        },
     //        MoreExecutors.directExecutor());
-
-    // client.executeStreamingSql(
-    //     sql,
-    //     new SpannerStreamingHandler() {
-    //       @Override
-    //       public void apply(Row row) {
-    //         System.out.println("UUID: " + row.getLong("UUID"));
-    //         System.out.println("SortingKey: " + row.getString(1));
-    //         System.out.println("Timestamp: " + row.getTimestamp(2));
-    //         System.out.println("Data: " + row.getString(3));
-    //       }
-    //     });
 
     try {
       doneSignal.await();

@@ -15,8 +15,7 @@ jobs:
         java-version: 1.8
     - name: Build with Gradle
       run: ./gradlew build
-    - name: Save artifacts
-      uses: actions/upload-artifact
+    - uses: actions/upload-artifact
       with:
         name: spotbugs
         path: build/reports/spotbugs/main.html

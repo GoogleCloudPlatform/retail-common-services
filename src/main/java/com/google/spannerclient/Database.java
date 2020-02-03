@@ -28,8 +28,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Database {
+  private static final Logger log = LoggerFactory.getLogger(Database.class);
+
   private static final int DEFAULT_POOL_SIZE = 4;
   private static final String DEFAULT_TARGET = "spanner.googleapis.com";
 
@@ -81,6 +85,7 @@ public class Database {
     this.stub = stub;
     this.sessionPool = sessionPool;
 
+    log.info("Creating {} sessions", poolSize);
     IntStream.range(0, poolSize)
         .forEachOrdered(
             i ->
@@ -92,13 +97,20 @@ public class Database {
         new FutureCallback<List<Session>>() {
           @Override
           public void onSuccess(List<Session> sessionList) {
+            // TODO(pdex): sessionList.size will always be equal to poolSize
+            //             remove this check and replace with a session healthcheck
             if (sessionList.size() == poolSize) {
               // Log Prolly?
 
               sessionList.forEach(
                   s -> {
-                    if (!sessionPool.tryPut(new SessionContext(s))) {
-                      // Log prolly?
+                    if (s == null) {
+                      log.error("Session was null!");
+                    } else {
+                      if (!sessionPool.tryPut(new SessionContext(s))) {
+                        // Log prolly?
+                        log.error("Couldn't put session {}", s);
+                      }
                     }
                   });
               f.set(getClazz());

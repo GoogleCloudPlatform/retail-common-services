@@ -39,8 +39,11 @@ import java.sql.SQLTimeoutException;
 import java.sql.SQLTransientException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GrpcClient {
+  private static final Logger log = LoggerFactory.getLogger(Spanner.class);
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
   private final ManagedChannel channel;
@@ -145,6 +148,7 @@ public class GrpcClient {
     Preconditions.checkNotNull(ctx);
     Preconditions.checkNotNull(request);
 
+    log.info("Executing streaming request '{}'", request);
     getAsyncStub(ctx, credentials).executeStreamingSql(request, responseObserver);
   }
 

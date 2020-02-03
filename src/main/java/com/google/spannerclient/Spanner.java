@@ -125,6 +125,7 @@ public class Spanner {
 
     if (sessionOptional.isPresent()) {
       final SessionContext session = sessionOptional.get();
+      log.info("took out session '{}'", session);
       if (session.lock()) {
         final ExecuteSqlRequest req = getExecuteSqlRequest(options, query, session.getName());
         final ListenableFuture<ResultSet> resultSetListenableFuture =
@@ -142,18 +143,32 @@ public class Spanner {
                 final RowCursor rowCursor = RowCursor.of(fieldList, rowList);
 
                 resultSetFuture.set(rowCursor);
+                cleanup();
               }
 
               @Override
               public void onFailure(Throwable t) {
                 resultSetFuture.setException(t);
+                cleanup();
+              }
+
+              public void cleanup() {
+                session.unlock();
+                if (!db.sessionPool().tryPut(session)) {
+                  log.error(
+                      "Couldn't put session '{}' back into pool '{}'", session, db.sessionPool());
+                } else {
+                  log.info("put away session '{}'", session);
+                }
               }
             },
             MoreExecutors.directExecutor());
-
       } else {
         // throw prolly
+        log.warn("Couldn't lock SessionContext");
       }
+    } else {
+      log.warn("Couldn't get a SessionContext");
     }
 
     return resultSetFuture;
@@ -170,6 +185,7 @@ public class Spanner {
     final List<PartialResultSet> resultSetList = new ArrayList<>();
     if (sessionOptional.isPresent()) {
       final SessionContext session = sessionOptional.get();
+      log.info("took out session '{}'", session);
       if (session.lock()) {
         final ExecuteSqlRequest req = getExecuteSqlRequest(options, query, session.getName());
         db.stub()
@@ -178,18 +194,22 @@ public class Spanner {
                 req,
                 new StreamObserver<PartialResultSet>() {
                   ImmutableList<StructType.Field> fieldList = null;
+
                   @Override
                   public void onNext(PartialResultSet value) {
                     // Only the first PartialResultSet will contain Metadata
                     if (fieldList == null) {
-                      fieldList = ImmutableList.copyOf(value.getMetadata().getRowType().getFieldsList());
+                      fieldList =
+                          ImmutableList.copyOf(value.getMetadata().getRowType().getFieldsList());
                     }
                     if (value.getChunkedValue()) {
+                      log.debug("got chunked");
                       // this value is chunked, we can't process it until we received a non chunked
                       // value
                       // append it to the resultSetList and process it later
                       resultSetList.add(value);
                     } else {
+                      log.debug("got regular");
                       resultSetList.add(value);
                       final ResultSet resultSet =
                           PartialResultSetCombiner.combine(resultSetList, fieldList.size(), 0);
@@ -204,13 +224,14 @@ public class Spanner {
 
                   @Override
                   public void onError(Throwable t) {
-                    session.unlock();
+                    cleanup();
                   }
 
                   @Override
                   public void onCompleted() {
                     if (resultSetList.size() >= 1 && fieldList != null) {
-                      log.warn("onCompleted called with resuletSetList.size = " + resultSetList.size());
+                      log.warn(
+                          "onCompleted called with resuletSetList.size = " + resultSetList.size());
                       final ResultSet resultSet =
                           PartialResultSetCombiner.combine(resultSetList, fieldList.size(), 0);
                       final ImmutableList<ListValue> rowList =
@@ -221,13 +242,28 @@ public class Spanner {
                                 Row.of(fieldList, ImmutableList.copyOf(v.getValuesList())));
                           });
                     }
+                    cleanup();
+                  }
+
+                  public void cleanup() {
                     session.unlock();
+                    if (!db.sessionPool().tryPut(session)) {
+                      log.error(
+                          "Couldn't put session '{}' back into pool '{}'",
+                          session,
+                          db.sessionPool());
+                    } else {
+                      log.info("put away session '{}'", session);
+                    }
                   }
                 });
 
       } else {
         // -------
+        log.warn("Couldn't lock SessionContext");
       }
+    } else {
+      log.warn("Couldn't get a SessionContext");
     }
   }
 

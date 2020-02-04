@@ -31,22 +31,8 @@ COPY --from=app-build /app/Main.jar /app/Main.jar
 ## This line is for local testing and should be commented out !!!
 ADD secrets /var/run/secret/cloud.google.com
 ENV GOOGLE_APPLICATION_CREDENTIALS /var/run/secret/cloud.google.com/service-account.json
-WORKDIR /app
 ENV JVM_HEAP_SIZE=6g
-ENTRYPOINT ["java", \
-  "-ea", \
-  "-Djava.net.preferIPv4Stack=true", \
-  "-Dio.netty.allocator.type=pooled", \
-  "-XX:+UseStringDeduplication", \
-  "-XX:+HeapDumpOnOutOfMemoryError", \
-  "-XX:+UseG1GC", \
-  "-Xmx${JVM_HEAP_SIZE}", \
-  "-Dcom.sun.management.jmxremote", \
-  "-Dcom.sun.management.jmxremote.port=9010", \
-  "-Dcom.sun.management.jmxremote.rmi.port=9010", \
-  "-Dcom.sun.management.jmxremote.local.only=false",\
-  "-Dcom.sun.management.jmxremote.authenticate=false",\
-  "-Dcom.sun.management.jmxremote.ssl=false",\
-  "-Djava.rmi.server.hostname=127.0.0.1",\
-  "-jar", \
-  "Main.jar"]
+ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
+ADD cdc/docker/jvm-arguments /app/
+WORKDIR /app
+ENTRYPOINT ["java", "@/app/jvm-arguments", "-jar", "Main.jar"]

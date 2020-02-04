@@ -1,0 +1,13 @@
+-ea
+-Djava.net.preferIPv4Stack=true
+-Dio.netty.allocator.type=pooled
+-XX:+UseStringDeduplication
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:+UseG1GC
+-Dcom.sun.management.jmxremote
+-Dcom.sun.management.jmxremote.port=9011
+-Dcom.sun.management.jmxremote.rmi.port=9011
+-Dcom.sun.management.jmxremote.local.only=false
+-Dcom.sun.management.jmxremote.authenticate=false
+-Dcom.sun.management.jmxremote.ssl=false
+-Djava.rmi.server.hostname=127.0.0.1

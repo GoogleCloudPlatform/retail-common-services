@@ -1,6 +1,6 @@
 import com.google.protobuf.gradle.*
-import net.ltgt.gradle.errorprone.errorprone
 import net.ltgt.gradle.errorprone.CheckSeverity
+import net.ltgt.gradle.errorprone.errorprone
 
 buildscript {
     dependencies {
@@ -9,36 +9,36 @@ buildscript {
 }
 
 plugins {
-	  idea
+    idea
     eclipse
-	  java
-	  checkstyle
+    java
+    checkstyle
     id("com.github.spotbugs") version "2.0.1"
-	  id("com.google.protobuf") version "0.8.10"
-	  id("com.diffplug.gradle.spotless") version "3.24.0"
+    id("com.google.protobuf") version "0.8.10"
+    id("com.diffplug.gradle.spotless") version "3.24.0"
     id("net.ltgt.errorprone") version "0.8.1"
 }
 
 dependencies {
-	  implementation(project(":spannerclient"))
+    implementation(project(":spannerclient"))
     implementation(Config.Libs.typesafe_config)
-	  implementation(Config.Libs.slf4j)
-	  implementation(Config.Libs.logback_classic)
-	  implementation(Config.Libs.logback_core)
-	  implementation(Config.Libs.protobuf)
-	  implementation(Config.Libs.grpc_core)
-	  implementation(Config.Libs.grpc_protobuf)
-	  implementation(Config.Libs.grpc_stub)
-	  implementation(Config.Libs.grpc_netty)
-	  implementation(Config.Libs.guava)
-	  implementation(Config.Libs.spanner)
-	  implementation(Config.Libs.pubsub)
-	  //implementation(Config.Libs.storage)
+    implementation(Config.Libs.slf4j)
+    implementation(Config.Libs.logback_classic)
+    implementation(Config.Libs.logback_core)
+    implementation(Config.Libs.protobuf)
+    implementation(Config.Libs.grpc_core)
+    implementation(Config.Libs.grpc_protobuf)
+    implementation(Config.Libs.grpc_stub)
+    implementation(Config.Libs.grpc_netty)
+    implementation(Config.Libs.guava)
+    implementation(Config.Libs.spanner)
+    implementation(Config.Libs.pubsub)
+    // implementation(Config.Libs.storage)
     implementation(Config.Libs.bigquery)
-	  //implementation(Config.Libs.rocksdb)
+    // implementation(Config.Libs.rocksdb)
 
     // LMAX
-	  implementation("com.lmax:disruptor:3.4.2")
+    implementation("com.lmax:disruptor:3.4.2")
 
     // AutoValue
     compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")
@@ -49,14 +49,13 @@ dependencies {
     implementation("io.netty:netty-buffer:4.1.33.Final")
 
     // Protobuf
-	  protobuf(files("src/main/protos"))
+    protobuf(files("src/main/protos"))
 
     // Static Analysis
     compileOnly("com.google.code.findbugs:jsr305:3.0.2")
     annotationProcessor("com.uber.nullaway:nullaway:0.7.5")
     errorprone("com.google.errorprone:error_prone_core:2.3.3")
     errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
-
 }
 
 // ErrorProne
@@ -74,51 +73,51 @@ tasks.withType<JavaCompile>().configureEach {
 
 // Protobuf
 protobuf {
-	  protoc {
-		    // The artifact spec for the Protobuf Compiler
-		    artifact = "com.google.protobuf:protoc:3.9.1"
-	  }
-	  plugins {
-		    // Optional: an artifact spec for a protoc plugin, with "grpc" as
-		    // the identifier, which can be referred to in the "plugins"
-		    // container of the "generateProtoTasks" closure.
-		    id("grpc") {
-			      artifact = "io.grpc:protoc-gen-grpc-java:1.22.1"
-		    }
-	  }
-	  generateProtoTasks {
-		    ofSourceSet("main").forEach {
-			      it.plugins {
-				        // Apply the "grpc" plugin whose spec is defined above, without options.
-				        id("grpc")
-			      }
-		    }
-	  }
+    protoc {
+        // The artifact spec for the Protobuf Compiler
+        artifact = "com.google.protobuf:protoc:3.9.1"
+    }
+    plugins {
+        // Optional: an artifact spec for a protoc plugin, with "grpc" as
+        // the identifier, which can be referred to in the "plugins"
+        // container of the "generateProtoTasks" closure.
+        id("grpc") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.22.1"
+        }
+    }
+    generateProtoTasks {
+        ofSourceSet("main").forEach {
+            it.plugins {
+                // Apply the "grpc" plugin whose spec is defined above, without options.
+                id("grpc")
+            }
+        }
+    }
 
-	  generatedFilesBaseDir = "$projectDir/gen"
+    generatedFilesBaseDir = "$projectDir/gen"
 }
 
 tasks.register("cleanProtos").configure {
-	  delete("$projectDir/gen")
+    delete("$projectDir/gen")
 }
 
 spotless {
-	  java {
-	      googleJavaFormat("1.7")
-	      licenseHeaderFile("../spotless.license.java")
+    java {
+        googleJavaFormat("1.7")
+        licenseHeaderFile("../spotless.license.java")
     }
 
     format("misc") {
-	      target("**/*.java")
+        target("**/*.java")
     }
 }
 
 tasks.withType<com.github.spotbugs.SpotBugsTask> {
-	  ignoreFailures = true
-	  exclude("$projectDir/gen")
+    ignoreFailures = true
+    exclude("$projectDir/gen")
 
     reports {
-	      xml.isEnabled = false
-	      html.isEnabled = true
+        xml.isEnabled = false
+        html.isEnabled = true
     }
 }

@@ -43,6 +43,8 @@ import io.grpc.stub.StreamObserver;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -50,6 +52,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +93,8 @@ public class SpannerTailer {
   private RingBuffer<SpannerEvent> ringBuffer;
 
   private GoogleCredentials credentials;
+  private Database database;
+  private final AtomicLong running = new AtomicLong(0);
 
   public SpannerTailer(int threadPool, int maxEventCount) {
     this.scheduler = Executors.newScheduledThreadPool(threadPool);
@@ -272,29 +277,51 @@ public class SpannerTailer {
     Preconditions.checkArgument(vacuumRate > 0);
     Preconditions.checkArgument(eventCacheTTL > 0);
 
-    try {
-      final ScheduledFuture<?> poller =
-          scheduler.scheduleAtFixedRate(
-              () -> {
-                poll(
-                    projectId,
-                    instanceName,
-                    dbName,
-                    tableName,
-                    lptsTableName,
-                    recordLimit,
-                    handler,
-                    tsColName,
-                    bucketSize);
-              },
-              0,
-              30,
-              TimeUnit.SECONDS);
-      return poller;
+    final String databasePath =
+        String.format("projects/%s/instances/test-db/databases/test", projectId);
 
-    } catch (Exception e) {
+    log.info("Building database with path '{}'", databasePath);
+    final ListenableFuture<Database> dbFuture =
+        Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
 
-    }
+    Futures.addCallback(
+        dbFuture,
+        new FutureCallback<Database>() {
+          @Override
+          public void onSuccess(Database db) {
+            SpannerTailer.this.database = db;
+            log.info("Built database, starting scheduler");
+            try {
+              final ScheduledFuture<?> poller =
+                  scheduler.scheduleAtFixedRate(
+                      () -> {
+                        poll(
+                            projectId,
+                            instanceName,
+                            dbName,
+                            tableName,
+                            lptsTableName,
+                            recordLimit,
+                            handler,
+                            tsColName,
+                            bucketSize);
+                      },
+                      0,
+                      30, // TODO(pdex): I should be a runtime option
+                      TimeUnit.SECONDS);
+              // return poller;
+
+            } catch (Exception e) {
+              log.error("Coudln't start poller", e);
+            }
+          }
+
+          @Override
+          public void onFailure(Throwable t) {
+            log.error("Failed to acquire a database: ", t);
+          }
+        },
+        service);
 
     // TODO(xjdr): Don't do this.
     return null;
@@ -311,114 +338,114 @@ public class SpannerTailer {
       String tsColName,
       int bucketSize) {
 
-    final String databasePath =
-        String.format("projects/%s/instances/test-db/databases/test", projectId);
+    long num = running.incrementAndGet();
+    if (num > 1) {
+      log.debug("Already {} polling processes in flight", num - 1);
+      running.decrementAndGet();
+      return;
+    }
+    try {
+      if (firstRun) {
 
-    final ListenableFuture<Database> dbFuture =
-        Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
+        final String tsQuery =
+            "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '"
+                + lptsTableName
+                + "'";
 
-    Futures.addCallback(
-        dbFuture,
-        new FutureCallback<Database>() {
+        // RowCursor lptsColNameCursor =
+        //     Spanner.execute(QueryOptions.DEFAULT(), db, Query.create(tsQuery));
 
-          @Override
-          public void onSuccess(Database db) {
-            try {
-              if (firstRun) {
+        RowCursor lptsCursor =
+            Spanner.execute(
+                QueryOptions.DEFAULT(), database, Query.create("SELECT * FROM " + lptsTableName));
 
-                final String tsQuery =
-                    "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '"
-                        + lptsTableName
-                        + "'";
+        // while (lptsColNameCursor.next()) {
+        //   if
+        // (lptsColNameCursor.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
+        //     if (lptsColNameCursor.getString("OPTION_VALUE").equals("TRUE")) {
+        while (lptsCursor.next()) {
+          String startingTimestamp =
+              lptsCursor.getString(
+                  "LastProcessedTimestamp"); // lptsColNameCursor.getString("COLUMN_NAME"));
+          Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
+          lastProcessedTimestamp = tt.toString();
+        }
+        //     }
+        //   }
+        // }
 
-                // RowCursor lptsColNameCursor =
-                //     Spanner.execute(QueryOptions.DEFAULT(), db, Query.create(tsQuery));
+        firstRun = false;
+      }
+      log.info("Polling for records newer than {}", lastProcessedTimestamp);
+      Instant then = Instant.now();
+      AtomicLong records = new AtomicLong(0);
+      Spanner.executeStreaming(
+          QueryOptions.newBuilder().setReadOnly(true).setStale(true).setMaxStaleness(500).build(),
+          database,
+          new StreamObserver<Row>() {
+            @Override
+            public void onNext(Row row) {
+              long count = records.incrementAndGet();
+              log.debug("onNext count = {}", count);
+              ListenableFuture<Boolean> x =
+                  service.submit(
+                      () -> {
+                        processRow(handler, row, tsColName);
+                        lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
+                        return Boolean.TRUE;
+                      });
 
-                RowCursor lptsCursor =
-                    Spanner.execute(
-                        QueryOptions.DEFAULT(), db, Query.create("SELECT * FROM " + lptsTableName));
+              Futures.addCallback(
+                  x,
+                  new FutureCallback<Boolean>() {
 
-                // while (lptsColNameCursor.next()) {
-                //   if
-                // (lptsColNameCursor.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
-                //     if (lptsColNameCursor.getString("OPTION_VALUE").equals("TRUE")) {
-                while (lptsCursor.next()) {
-                  String startingTimestamp =
-                      lptsCursor.getString(
-                          "LastProcessedTimestamp"); // lptsColNameCursor.getString("COLUMN_NAME"));
-                  Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
-                  lastProcessedTimestamp = tt.toString();
-                }
-                //     }
-                //   }
-                // }
-
-                firstRun = false;
-              }
-
-              Spanner.executeStreaming(
-                  QueryOptions.newBuilder()
-                      .setReadOnly(true)
-                      .setStale(true)
-                      .setMaxStaleness(500)
-                      .build(),
-                  db,
-                  new StreamObserver<Row>() {
                     @Override
-                    public void onNext(Row row) {
-                      ListenableFuture<Boolean> x =
-                          service.submit(
-                              () -> {
-                                processRow(handler, row, tsColName);
-                                lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
-                                return Boolean.TRUE;
-                              });
-
-                      Futures.addCallback(
-                          x,
-                          new FutureCallback<Boolean>() {
-
-                            @Override
-                            public void onSuccess(Boolean result) {
-                              log.debug("Row Successfully Processed");
-                            }
-
-                            @Override
-                            public void onFailure(Throwable t) {
-                              log.error("Unable to Process Row", t);
-                            }
-                          },
-                          service);
+                    public void onSuccess(Boolean result) {
+                      log.debug("Row Successfully Processed");
                     }
 
                     @Override
-                    public void onError(Throwable t) {}
-
-                    @Override
-                    public void onCompleted() {}
+                    public void onFailure(Throwable t) {
+                      log.error("Unable to Process Row", t);
+                    }
                   },
-                  Query.create(
-                      "SELECT * FROM "
-                          + tableName
-                          + " "
-                          + "WHERE Timestamp > '"
-                          + lastProcessedTimestamp
-                          + "'"));
-            } finally {
-              try {
-                db.close();
-              } catch (IOException e) {
-                log.error("Error Closing Managed Channel", e);
-              }
+                  service);
             }
-          }
 
-          @Override
-          public void onFailure(Throwable t) {
-            log.error("Failure Polling DB: ", t);
-          }
-        },
-        service);
+            @Override
+            public void onError(Throwable t) {}
+
+            @Override
+            public void onCompleted() {
+              Instant now = Instant.now();
+              Duration duration = Duration.between(then, now);
+              log.warn(
+                  "Processed {} records in {} seconds for LPTS {}",
+                  records.get(),
+                  duration.toNanos() / 1000000000.0,
+                  lastProcessedTimestamp);
+            }
+          },
+          Query.create(
+              "SELECT * FROM "
+                  + tableName
+                  + " "
+                  + "WHERE Timestamp > '"
+                  + lastProcessedTimestamp
+                  + "'"));
+    } catch (Exception e) {
+      log.error("Caught error while polling", e);
+    }
+  }
+
+  public void close() {
+    try {
+      if (database != null) {
+        database.close();
+      }
+    } catch (IOException e) {
+      log.error("Error Closing Managed Channel", e);
+    }
   }
 
   private Boolean processRow(SpannerEventHandler handler, Row row, String tsColName) {
@@ -426,13 +453,13 @@ public class SpannerTailer {
     final Timestamp ts = row.getTimestamp(tsColName);
     final Event e = Event.create(uuid, ts);
 
-    if (uniq(e)) {
-      final HashCode sortingKeyHashCode = hasher.newHasher().putBytes(uuid.getBytes(UTF_8)).hash();
-      final int bucket = Hashing.consistentHash(sortingKeyHashCode, 12);
+    // if (uniq(e)) {
+    final HashCode sortingKeyHashCode = hasher.newHasher().putBytes(uuid.getBytes(UTF_8)).hash();
+    final int bucket = Hashing.consistentHash(sortingKeyHashCode, 12);
 
-      handler.process(bucket, row, ts.toString());
-      lastProcessedTimestamp = ts.toString();
-    }
+    handler.process(bucket, row, ts.toString());
+    lastProcessedTimestamp = ts.toString();
+    // }
 
     return true;
   }

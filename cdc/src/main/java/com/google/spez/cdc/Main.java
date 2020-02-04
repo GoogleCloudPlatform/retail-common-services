@@ -32,12 +32,15 @@ import com.lmax.disruptor.YieldingWaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import com.lmax.disruptor.util.DaemonThreadFactory;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +57,7 @@ class Main {
   private static final boolean DISRUPTOR = false;
 
   public static void main(String[] args) {
+    // TODO(pdex): why are we making our own threadpool?
     final List<ListeningExecutorService> l =
         Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
 
@@ -84,7 +88,6 @@ class Main {
           @Override
           public void onSuccess(SchemaSet schemaSet) {
             log.info("Successfully Processed the Table Schema. Starting the poller now ...");
-
             if (DISRUPTOR) {
               disruptor
                   .handleEventsWith(
@@ -146,7 +149,8 @@ class Main {
               doneSignal.countDown();
 
             } else {
-
+              final AtomicLong records = new AtomicLong(0);
+              final Instant then = Instant.now();
               final SpannerEventHandler handler =
                   (bucket, s, timestamp) -> {
                     ListenableFuture<Boolean> x =
@@ -161,6 +165,12 @@ class Main {
                                   publisher.publish(record.get(), metadata, timestamp);
                                   log.debug(
                                       "Published: " + record.get().toString() + " " + timestamp);
+                                  long count = records.incrementAndGet();
+                                  if (count % 1000 == 0) {
+                                    Instant now = Instant.now();
+                                    Duration d = Duration.between(then, now);
+                                    log.info("Processed {} records over the past {}", count, d);
+                                  }
 
                                   return Boolean.TRUE;
                                 });
@@ -183,7 +193,6 @@ class Main {
 
                     return Boolean.TRUE;
                   };
-
               tailer.start(
                   handler,
                   schemaSet.tsColName(),
@@ -212,6 +221,7 @@ class Main {
         l.get(l.size() % THREAD_POOL));
 
     try {
+      log.info("waiting for doneSignal");
       doneSignal.await();
     } catch (InterruptedException e) {
       e.printStackTrace();

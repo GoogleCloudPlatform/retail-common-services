@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ENV JVM_HEAP_SIZE=6g
 ARG JDK_VERSION=11
 FROM openjdk:${JDK_VERSION}-jdk-slim as build-env
 # Get gradle distribution
@@ -33,6 +32,7 @@ COPY --from=app-build /app/Main.jar /app/Main.jar
 ADD secrets /var/run/secret/cloud.google.com
 ENV GOOGLE_APPLICATION_CREDENTIALS /var/run/secret/cloud.google.com/service-account.json
 WORKDIR /app
+ENV JVM_HEAP_SIZE=6g
 ENTRYPOINT ["java", \
   "-ea", \
   "-Djava.net.preferIPv4Stack=true", \

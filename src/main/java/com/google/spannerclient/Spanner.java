@@ -78,7 +78,7 @@ public class Spanner {
   public static RowCursor execute(QueryOptions options, Database db, Query query) {
     final CountDownLatch doneSignal = new CountDownLatch(1);
     final ListenableFuture<RowCursor> executeFuture = executeAsync(options, db, query);
-    RowCursor[] rowCursor = new RowCursor[1];
+    final RowCursor[] rowCursor = new RowCursor[1];
 
     Futures.addCallback(
         executeFuture,

@@ -21,13 +21,11 @@ import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.protobuf.Empty;
-import com.google.spanner.v1.*;
+import com.google.pubsub.v1.*;
 import io.grpc.InternalWithLogId;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.auth.MoreCallCredentials;
-import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
@@ -42,18 +40,18 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GrpcClient {
-  private static final Logger log = LoggerFactory.getLogger(GrpcClient.class);
+public class PublisherGrpcClient {
+  private static final Logger log = LoggerFactory.getLogger(PublisherGrpcClient.class);
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
   private final ManagedChannel channel;
   private final GoogleCredentials credentials;
   private final String channelId;
-  private final SpannerGrpc.SpannerStub asyncStub;
-  private final SpannerGrpc.SpannerFutureStub futureStub;
+  private final PublisherGrpc.PublisherStub asyncStub;
+  private final PublisherGrpc.PublisherFutureStub futureStub;
   private final Duration timeout;
 
-  GrpcClient(ManagedChannel channel, GoogleCredentials credentials) {
+  PublisherGrpcClient(ManagedChannel channel, GoogleCredentials credentials) {
     Preconditions.checkNotNull(channel);
     Preconditions.checkNotNull(credentials);
 
@@ -62,9 +60,9 @@ public class GrpcClient {
 
     channelId = toChannelId(channel);
     asyncStub =
-        SpannerGrpc.newStub(channel).withCallCredentials(MoreCallCredentials.from(credentials));
+        PublisherGrpc.newStub(channel).withCallCredentials(MoreCallCredentials.from(credentials));
     futureStub =
-        SpannerGrpc.newFutureStub(channel)
+        PublisherGrpc.newFutureStub(channel)
             .withCallCredentials(MoreCallCredentials.from(credentials));
     timeout = DEFAULT_TIMEOUT;
   }
@@ -87,85 +85,19 @@ public class GrpcClient {
     }
   }
 
-  ListenableFuture<Session> createSession(Context ctx, CreateSessionRequest request) {
+  ListenableFuture<PublishResponse> publish(Context ctx, PublishRequest request) {
     Preconditions.checkNotNull(ctx);
     Preconditions.checkNotNull(request);
 
     return Futures.catchingAsync(
-        getFutureStub(ctx, credentials).createSession(request),
+        getFutureStub(ctx, credentials).publish(request),
         Exception.class,
-        new ExceptionConverter<Session>(),
+        new ExceptionConverter<PublishResponse>(),
         MoreExecutors.directExecutor());
   }
 
-  ListenableFuture<BatchCreateSessionsResponse> batchCreateSession(
-      Context ctx, BatchCreateSessionsRequest request) {
-    Preconditions.checkNotNull(ctx);
-    Preconditions.checkNotNull(request);
-
-    return Futures.catchingAsync(
-        getFutureStub(ctx, credentials).batchCreateSessions(request),
-        Exception.class,
-        new ExceptionConverter<BatchCreateSessionsResponse>(),
-        MoreExecutors.directExecutor());
-  }
-
-  ListenableFuture<Session> getSession(Context ctx, GetSessionRequest request) {
-    Preconditions.checkNotNull(ctx);
-    Preconditions.checkNotNull(request);
-
-    return Futures.catchingAsync(
-        getFutureStub(ctx, credentials).getSession(request),
-        Exception.class,
-        new ExceptionConverter<Session>(),
-        MoreExecutors.directExecutor());
-  }
-
-  ListenableFuture<Empty> deleteSession(Context ctx, DeleteSessionRequest request) {
-    Preconditions.checkNotNull(ctx);
-    Preconditions.checkNotNull(request);
-
-    return Futures.catchingAsync(
-        getFutureStub(ctx, credentials).deleteSession(request),
-        Exception.class,
-        new ExceptionConverter<Empty>(),
-        MoreExecutors.directExecutor());
-  }
-
-  ListenableFuture<ResultSet> executeSql(Context ctx, ExecuteSqlRequest request) {
-    Preconditions.checkNotNull(ctx);
-    Preconditions.checkNotNull(request);
-
-    return Futures.catchingAsync(
-        getFutureStub(ctx, credentials).executeSql(request),
-        Exception.class,
-        new ExceptionConverter<ResultSet>(),
-        MoreExecutors.directExecutor());
-  }
-
-  void executeStreamingSql(
-      Context ctx, ExecuteSqlRequest request, StreamObserver<PartialResultSet> responseObserver) {
-    Preconditions.checkNotNull(ctx);
-    Preconditions.checkNotNull(request);
-
-    log.info("Executing streaming request '{}'", request);
-    getAsyncStub(ctx, credentials).executeStreamingSql(request, responseObserver);
-  }
-
-  private SpannerGrpc.SpannerStub getAsyncStub(Context ctx, GoogleCredentials credentials) {
-    Duration timeout = ctx.getTimeout();
-    if (timeout == null) {
-      return asyncStub;
-    }
-
-    return asyncStub
-        .withCallCredentials(MoreCallCredentials.from(credentials))
-        .withDeadlineAfter(
-            TimeUnit.MILLISECONDS.convert(timeout.toNanos(), TimeUnit.NANOSECONDS),
-            TimeUnit.MILLISECONDS);
-  }
-
-  private SpannerGrpc.SpannerFutureStub getFutureStub(Context ctx, GoogleCredentials credentials) {
+  private PublisherGrpc.PublisherFutureStub getFutureStub(
+      Context ctx, GoogleCredentials credentials) {
     Duration timeout = ctx.getTimeout();
     if (timeout == null) {
       return futureStub;

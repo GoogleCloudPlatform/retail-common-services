@@ -26,6 +26,7 @@ import (
 	"cloud.google.com/go/storage"
 )
 
+
 // Archiver consumes a Pub/Sub message and writes it to an GCS Object.
 func Archiver(ctx context.Context, msg pubsub.Message) error {
 	if msg.Attributes["Replay"] == "True" {
@@ -66,8 +67,8 @@ func writeMessageToStorage(
 	writer := client.Bucket(bucketName).Object(fileName).NewWriter(ctx)
 	writer.ContentType = "protobuf/bytes"
 	writer.Metadata = map[string]string{
-		"EffectiveDate": msg.Attributes["EffectiveDate"],
-		"ItemNumber":    msg.Attributes["ItemNumber"],
+	//	"EffectiveDate": msg.Attributes["EffectiveDate"],
+	//	"ItemNumber":    msg.Attributes["ItemNumber"],
 		"Timestamp":     msg.Attributes["Timestamp"],
 	}
 	if _, err := writer.Write(msg.Data); err != nil {

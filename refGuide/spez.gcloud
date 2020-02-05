@@ -1,0 +1,51 @@
+
+
+
+# REFERENCE GUIDE: Leveraging Spez for continuous data export from Spanner
+
+gcloud iam service-accounts create spez-tailer-sa --display-name "Spez Tailer Service Account"
+gcloud spanner instances create spez-sink-instance --config=regional-us-central1 --description="Spez sink instance" --nodes=1
+gcloud spanner databases create spez-sink-database --instance=spez-sink-instance --ddl='CREATE TABLE sink_table(UUID STRING(MAX) NOT NULL, Timestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true)) PRIMARY KEY(UUID); CREATE TABLE lpts_table (Id INT64 NOT NULL, CommitTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true), LastProcessedTimestamp STRING(128) NOT NULL,) PRIMARY KEY (Id)'
+gcloud spanner instances set-iam-policy spez-sink-instance spez-sink-instance-policy.json
+
+gcloud pubsub topics create spez-ledger-topic --message-storage-policy-allowed-regions=us-central1
+gcloud pubsub topics add-iam-policy-binding spez-ledger-topic \
+--member="serviceAccount:spez-tailer-sa@${DEVSHELL_PROJECT_ID}.iam.gserviceaccount.com \
+--role=roles/pubsub.publisher
+
+gcloud container clusters create spez-tailer-cluster --region=us-central1 --machine-type=n1-standard-8
+gcloud container clusters get-credentials spez-tailer-cluster --region=us-central1
+cd ~/spez2/cdc/kubernetes
+gcloud iam service-accounts keys create service-account.json --iam-account="spez-tailer-sa@${DEVSHELL_PROJECT_ID}.iam.gserviceaccount.com"
+kubectl create secret generic service-account --from-file=service-account.json
+kubectl apply -f deployment.yaml
+kubectl apply -f service.yaml
+
+gcloud iam service-accounts create spez-lpts-function-sa
+gcloud pubsub topics add-iam-policy-binding spez-ledger-topic \
+--member="serviceAccount:spez-lpts-function-sa@${DEVSHELL_PROJECT_ID}.iam.gserviceaccount.com" \
+--role=roles/pubsub.subscriber
+gcloud functions deploy spez-lpts-function \
+--region=us-central1 \
+--entry-point=LastProcessedTimestamp \
+--runtime=go111 \
+--service-account="spez-lpts-function-sa@${DEVSHELL_PROJECT_ID}.iam.gserviceaccount.com" \
+--source=functions/lastprocessedtimestamp/. \
+--trigger-topic=spez-ledger-topic \
+--set-env-vars=INSTANCE_NAME="spez-sink-instance",DATABASE_NAME="spez-sink-database",TABLE_NAME="lpts_table"
+
+
+
+# REFERENCE GUIDE: Archiving Spanner data in Cloud Storage with Spez
+
+gcloud iam service-accounts create spez-archive-function-sa --display-name "Spez Archive Function Service Account"
+gsutil mb -l us-central1 "gs://${DEVSHELL_PROJECT_ID}-spez-archive-bucket"
+gsutil iam ch "serviceAccount:spez-archive-function-sa@${DEVSHELL_PROJECT_ID}.iam.gserviceaccount.com:roles/storage.objectCreator"
+
+gcloud functions deploy spez-archive-function \
+--region=us-central1 \
+--entry-point=Archiver \
+--runtime=go111 \
+--service-account="spez-archive-function-sa@${DEVSHELL_PROJECT_ID}.iam.gserviceaccount.com" \
+--source=functions/archiver/. \
+--trigger-topic=spez-ledger-topic

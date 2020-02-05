@@ -31,7 +31,7 @@ spec:
             secretName: "service-account"
       containers:
       - name: spanner-tail
-        image: gcr.io/<repo_name>
+        image: gcr.io/retail-common-services-249016/spez
         imagePullPolicy: Always
         volumeMounts:
             - name: "service-account"

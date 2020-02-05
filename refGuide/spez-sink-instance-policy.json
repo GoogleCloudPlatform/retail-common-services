@@ -1,0 +1,10 @@
+{
+  "bindings": [
+    {
+      "role": "roles/spanner.databaseReader",
+       "members": [
+         "serviceAccount:spez-poller-sa@ryanprice.iam.gserviceaccount.com"
+       ]
+    }
+  ]
+}

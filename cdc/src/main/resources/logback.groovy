@@ -1,4 +1,5 @@
 import ch.qos.logback.classic.filter.ThresholdFilter
+jmxConfigurator()
 
 // make changes for dev appender here
 appender("DEV-CONSOLE", ConsoleAppender) {

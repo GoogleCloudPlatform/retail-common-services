@@ -82,6 +82,10 @@ public class Publisher {
     return f;
   }
 
+  public String getTopicPath() {
+    return topicPath;
+  }
+
   public void close() throws IOException {
     stub.close();
   }

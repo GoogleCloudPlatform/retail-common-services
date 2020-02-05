@@ -15,63 +15,48 @@
  */
 package com.google.spez.core;
 
-import com.google.api.core.ApiFuture;
-import com.google.api.gax.retrying.RetrySettings;
-import com.google.cloud.pubsub.v1.Publisher;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.ProjectTopicName;
+import com.google.pubsub.v1.PublishRequest;
+import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PubsubMessage;
+import com.google.spannerclient.Options;
+import com.google.spannerclient.PubSub;
+import com.google.spannerclient.PublishOptions;
+import com.google.spannerclient.Publisher;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.threeten.bp.Duration;
 
 /** This class published events from Cloud Spanner to Pub/Sub */
 public class EventPublisher {
   private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
 
-  private final Publisher publisher;
+  private final String projectName;
+  private final String topicName;
 
-  public EventPublisher(String projectId, String topic) {
-    Preconditions.checkNotNull(projectId);
-    Preconditions.checkNotNull(topic);
+  private Publisher publisher;
 
-    this.publisher = configurePubSub(projectId, topic);
+  public EventPublisher(String projectName, String topicName) {
+    Preconditions.checkNotNull(projectName);
+    Preconditions.checkNotNull(topicName);
+    
+    this.projectName = projectName;
+    this.topicName = topicName;
+    this.publisher = configurePubSub(projectName, topicName);
   }
 
-  private Publisher configurePubSub(String projectId, String topic) {
-    Preconditions.checkNotNull(projectId);
-    Preconditions.checkNotNull(topic);
-
-    // TODO(XJDR): Convert these values to a config
-    final RetrySettings retrySettings =
-        RetrySettings.newBuilder()
-            .setInitialRpcTimeout(Duration.ofSeconds(10L))
-            .setMaxRpcTimeout(Duration.ofSeconds(20L))
-            .setMaxAttempts(5)
-            .setTotalTimeout(Duration.ofSeconds(30L))
-            .build();
-
-    final ProjectTopicName topicName = ProjectTopicName.of(projectId, topic);
-    try {
-      final Publisher publisher =
-          Publisher.newBuilder(topicName)
-              // TODO(XJDR): Determine if this transform is appropriate
-              // .setTransform(OpenCensusUtil.OPEN_CENSUS_MESSAGE_TRANSFORM)
-              .setRetrySettings(retrySettings)
-              .build();
-      return publisher;
-    } catch (IOException e) {
-      log.error("Was not able to create a publisher for topic: " + topicName, e);
-      System.exit(1);
-    }
+  private Publisher configurePubSub(String projectName, String topicName) {
+    Preconditions.checkNotNull(projectName);
+    Preconditions.checkNotNull(topicName);
 
     // TODO(xjdr): Don't do this
-    return null;
+    return PubSub.getPublisher(Options.DEFAULT(), projectName, topicName);
   }
 
   /**
@@ -82,28 +67,46 @@ public class EventPublisher {
    * @param attrMap Attribute Map of data to be published as metadata with your message
    * @param timestamp the Commit Timestamp of the Spanner Record to be published
    */
-  public List<ApiFuture<String>> publish(
-      ByteString data, Map<String, String> attrMap, String timestamp) {
-    Preconditions.checkNotNull(data);
+  public ListenableFuture<PublishResponse> publish(
+      ImmutableList<ByteString> datas, Map<String, String> attrMap, String timestamp) {
+    Preconditions.checkNotNull(datas);
     Preconditions.checkNotNull(attrMap);
+    Preconditions.checkNotNull(timestamp);
 
-    final List<ApiFuture<String>> pubSubFutureList = new ArrayList<>();
+    //final Publisher publisher = configurePubSub(projectName, topicName);
+    final List<PubsubMessage> messages = new ArrayList<>();
 
-    PubsubMessage.Builder messageBuilder = PubsubMessage.newBuilder().setData(data);
+    for (final ByteString data : datas) {
+      final PubsubMessage.Builder builder =
+          PubsubMessage.newBuilder().setData(data).setOrderingKey(publisher.getTopicPath());
 
-    messageBuilder.putAttributes("Timestamp", timestamp);
+      attrMap
+          .entrySet()
+          .forEach(
+              e -> {
+                builder.putAttributes(e.getKey(), e.getValue());
+              });
 
-    attrMap
-        .entrySet()
-        .forEach(
-            e -> {
-              messageBuilder.putAttributes(e.getKey(), e.getValue());
-            });
+      builder.putAttributes("Timestamp", timestamp);
 
-    final ApiFuture<String> pubSubFuture = publisher.publish(messageBuilder.build());
+      messages.add(builder.build());
+    }
 
-    pubSubFutureList.add(pubSubFuture);
+    ListenableFuture<PublishResponse> resp =
+        PubSub.publishAsync(
+            PublishOptions.DEFAULT(),
+            publisher,
+            PublishRequest.newBuilder()
+                .setTopic(publisher.getTopicPath())
+                .addAllMessages(messages)
+                .build());
 
-    return pubSubFutureList;
+    // try {
+    //   publisher.close();
+    // } catch (IOException e) {
+    //   log.error("BOOOO: ", e);
+    // }
+
+    return resp;
   }
 }

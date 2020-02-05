@@ -15,6 +15,7 @@
  */
 package com.google.spez.cdc;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -100,7 +101,9 @@ class Main {
                                           SpannerToAvro.MakeRecord(schemaSet, event.row());
                                       if (record.isPresent()) {
                                         publisher.publish(
-                                            record.get(), metadata, event.timestamp());
+                                            ImmutableList.of(record.get()),
+                                            metadata,
+                                            event.timestamp());
                                         log.info(
                                             "Published: "
                                                 + record.get().toString()
@@ -162,7 +165,8 @@ class Main {
                                   Optional<ByteString> record =
                                       SpannerToAvro.MakeRecord(schemaSet, s);
                                   log.debug("Record Processed, getting ready to publish");
-                                  publisher.publish(record.get(), metadata, timestamp);
+                                  publisher.publish(
+                                      ImmutableList.of(record.get()), metadata, timestamp);
                                   log.debug(
                                       "Published: " + record.get().toString() + " " + timestamp);
                                   long count = records.incrementAndGet();

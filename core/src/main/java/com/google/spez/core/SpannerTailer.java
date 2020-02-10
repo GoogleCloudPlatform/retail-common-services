@@ -344,6 +344,7 @@ public class SpannerTailer {
       running.decrementAndGet();
       return;
     }
+    log.debug("POLLER ACTIVE");
     try {
       if (firstRun) {
 
@@ -375,7 +376,9 @@ public class SpannerTailer {
         // }
 
         firstRun = false;
+        // lastProcessedTimestamp = "2020-02-06T23:57:58.602900Z";
       }
+
       log.info("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
@@ -413,17 +416,22 @@ public class SpannerTailer {
             }
 
             @Override
-            public void onError(Throwable t) {}
+            public void onError(Throwable t) {
+              log.error("Poller", t);
+              running.decrementAndGet();
+            }
 
             @Override
             public void onCompleted() {
               Instant now = Instant.now();
               Duration duration = Duration.between(then, now);
+              log.debug("SpannerTailer completed!");
               log.warn(
                   "Processed {} records in {} seconds for LPTS {}",
                   records.get(),
                   duration.toNanos() / 1000000000.0,
                   lastProcessedTimestamp);
+              running.decrementAndGet();
             }
           },
           Query.create(
@@ -435,6 +443,7 @@ public class SpannerTailer {
                   + "'"));
     } catch (Exception e) {
       log.error("Caught error while polling", e);
+      running.decrementAndGet();
     }
   }
 

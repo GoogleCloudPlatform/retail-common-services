@@ -17,6 +17,7 @@ package com.google.spez.cdc;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.AsyncFunction;
+import ch.qos.logback.classic.LoggerContext;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -36,6 +37,7 @@ import com.lmax.disruptor.YieldingWaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
 import com.lmax.disruptor.util.DaemonThreadFactory;
+import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -47,7 +49,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +175,36 @@ class Main {
 
             } else {
               final AtomicLong records = new AtomicLong(0);
+              final AtomicLong errors = new AtomicLong(0);
+              final AtomicLong published = new AtomicLong(0);
+              final AtomicReference lastProcessedTimestamp = new AtomicReference("");
               final Instant then = Instant.now();
+              final Runtime runtime = Runtime.getRuntime();
+              final NumberFormat formatter = NumberFormat.getInstance();
+              scheduler.scheduleAtFixedRate(
+                  () -> {
+                    Instant now = Instant.now();
+                    Duration d = Duration.between(then, now);
+                    long count = records.get();
+                    long err = errors.get();
+                    long pub = published.get();
+                    log.info(
+                        "Processed {} records [errors: {} / published: {}] over the past {}",
+                        formatter.format(count),
+                        err,
+                        pub,
+                        d);
+                    log.info("lastProcessedTimestamp: {}", lastProcessedTimestamp.get());
+                    log.info("forkJoinPool {}", workStealingPool);
+                    log.info(
+                        "Memory: {}free / {}tot / {}max",
+                        formatter.format(runtime.freeMemory()),
+                        formatter.format(runtime.totalMemory()),
+                        formatter.format(runtime.maxMemory()));
+                  },
+                  30,
+                  30,
+                  TimeUnit.SECONDS);
               final SpannerEventHandler handler =
                   (bucket, s, timestamp) -> {
                     ListenableFuture<Boolean> x =
@@ -180,6 +213,8 @@ class Main {
                             () -> {
                               // TODO(xjdr): Throw if empty optional
                               log.debug("Processing Record");
+                              lastProcessedTimestamp.set(
+                                  s.getTimestamp(schemaSet.tsColName()).toString());
 
                               ListenableFuture<Optional<ByteString>> record =
                                   forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
@@ -206,21 +241,18 @@ class Main {
 
                                     @Override
                                     public void onSuccess(PublishResponse result) {
-                                      // log.debug(
-                                      //  "Published: "
-                                      //      + record.get().toString()
-                                      //      + " "
-                                      //      + timestamp);
-                                      long count = records.incrementAndGet();
-                                      if (count % 1000 == 0) {
-                                        Instant now = Instant.now();
-                                        Duration d = Duration.between(then, now);
-                                        log.info("Processed {} records over the past {}", count, d);
-                                      }
+                                      // Once published, returns server-assigned message ids
+                                      // (unique within the topic)
+                                      log.debug(
+                                          "Published message for timestamp '{}' with message id '{}'",
+                                          timestamp,
+                                          result.getMessageIds());
+                                      published.incrementAndGet();
                                     }
 
                                     @Override
                                     public void onFailure(Throwable t) {
+                                      errors.incrementAndGet();
                                       log.error("Error Publishing Record: ", t);
                                     }
                                   },
@@ -275,6 +307,13 @@ class Main {
         l.get(l.size() % THREAD_POOL));
 
     try {
+      log.debug("Dumping all known Loggers");
+      LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
+      java.util.Iterator<ch.qos.logback.classic.Logger> it = lc.getLoggerList().iterator();
+      while (it.hasNext()) {
+        ch.qos.logback.classic.Logger thisLog = it.next();
+        log.debug("name: {} status: {}", thisLog.getName(), thisLog.getLevel());
+      }
       log.info("waiting for doneSignal");
       doneSignal.await();
     } catch (InterruptedException e) {

@@ -69,12 +69,22 @@ public class Publisher {
           public void onSuccess(PublishResponse result) {
             log.debug("Published Record: " + result);
             f.set(result);
+            try {
+              stub.close();
+            } catch (IOException e) {
+              log.error("Error Closing Managed Channel: ", e);
+            }
           }
 
           @Override
           public void onFailure(Throwable t) {
             f.setException(t);
             log.error("Exception Publishing Record: ", t);
+            try {
+              stub.close();
+            } catch (IOException e) {
+              log.error("Error Closing Managed Channel: ", e);
+            }
           }
         },
         MoreExecutors.directExecutor());

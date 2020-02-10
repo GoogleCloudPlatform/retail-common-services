@@ -1,3 +1,4 @@
+core/gen
 build/
 cloudrun/bin/
 .gradle/

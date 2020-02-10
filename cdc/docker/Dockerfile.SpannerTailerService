@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Google LLC.
+# Copyright (C) 2020 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,20 +13,26 @@
 # limitations under the License.
 
 ARG JDK_VERSION=11
-FROM openjdk:${JDK_VERSION}-jdk-slim as build-env
-# Get gradle distribution
-COPY *.gradle gradle.* gradlew /app/
-COPY gradle /app/gradle
-RUN /app/gradlew --version
-
-FROM build-env as app-build
+FROM spez/build-env as app-build
 ADD . /app
 WORKDIR /app
 USER root
 RUN ./gradlew clean :cdc:spannerTailerService && \
   mv cdc/build/libs/Main-fat-*.jar Main.jar
 
-FROM gcr.io/distroless/java:${JDK_VERSION}
+FROM openjdk:${JDK_VERSION}-jdk-stretch as dev
+RUN apt-get update && apt-get install -y libgtk-3-bin
+COPY --from=app-build /app/Main.jar /app/Main.jar
+## This line is for local testing and should be commented out !!!
+ADD secrets /var/run/secret/cloud.google.com
+ENV GOOGLE_APPLICATION_CREDENTIALS /var/run/secret/cloud.google.com/service-account.json
+ENV JVM_HEAP_SIZE=6g
+ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
+ADD cdc/docker/jvm-arguments /app/
+WORKDIR /app
+ENTRYPOINT ["java", "@/app/jvm-arguments", "-jar", "Main.jar"]
+
+FROM gcr.io/distroless/java:${JDK_VERSION} as prod
 COPY --from=app-build /app/Main.jar /app/Main.jar
 ## This line is for local testing and should be commented out !!!
 ADD secrets /var/run/secret/cloud.google.com

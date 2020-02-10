@@ -31,7 +31,7 @@ COPY --from=app-build /app/Main.jar /app/Main.jar
 ## This line is for local testing and should be commented out !!!
 ADD secrets /var/run/secret/cloud.google.com
 ENV GOOGLE_APPLICATION_CREDENTIALS /var/run/secret/cloud.google.com/service-account.json
-ENV JVM_HEAP_SIZE=6g
+ENV JVM_HEAP_SIZE=12g
 ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
 ADD cdc/docker/jvm-arguments /app/
 WORKDIR /app

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google LLC
+ * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.google.spez.core;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
@@ -26,7 +27,6 @@ import com.google.spannerclient.Options;
 import com.google.spannerclient.PubSub;
 import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,10 +42,12 @@ public class EventPublisher {
 
   private Publisher publisher;
 
+  private final List<PubsubMessage> messages = new ArrayList<>();
+
   public EventPublisher(String projectName, String topicName) {
     Preconditions.checkNotNull(projectName);
     Preconditions.checkNotNull(topicName);
-    
+
     this.projectName = projectName;
     this.topicName = topicName;
     this.publisher = configurePubSub(projectName, topicName);
@@ -73,40 +75,55 @@ public class EventPublisher {
     Preconditions.checkNotNull(attrMap);
     Preconditions.checkNotNull(timestamp);
 
-    //final Publisher publisher = configurePubSub(projectName, topicName);
-    final List<PubsubMessage> messages = new ArrayList<>();
-
+    PubsubMessage.Builder[] builder = new PubsubMessage.Builder[1];
+    SettableFuture<PublishResponse> r = SettableFuture.create();
     for (final ByteString data : datas) {
-      final PubsubMessage.Builder builder =
+      //      final PubsubMessage.Builder builder =
+      builder[0] =
           PubsubMessage.newBuilder().setData(data).setOrderingKey(publisher.getTopicPath());
 
       attrMap
           .entrySet()
           .forEach(
               e -> {
-                builder.putAttributes(e.getKey(), e.getValue());
+                builder[0].putAttributes(e.getKey(), e.getValue());
               });
 
-      builder.putAttributes("Timestamp", timestamp);
+      builder[0].putAttributes("Timestamp", timestamp);
 
-      messages.add(builder.build());
+      //      messages.add(builder.build());
     }
 
-    ListenableFuture<PublishResponse> resp =
-        PubSub.publishAsync(
-            PublishOptions.DEFAULT(),
-            publisher,
-            PublishRequest.newBuilder()
-                .setTopic(publisher.getTopicPath())
-                .addAllMessages(messages)
-                .build());
+    messages.add(builder[0].build());
 
-    // try {
-    //   publisher.close();
-    // } catch (IOException e) {
-    //   log.error("BOOOO: ", e);
+    if (messages.size() >= 950) {
+      r.setFuture(
+          PubSub.publishAsync(
+              PublishOptions.DEFAULT(),
+              publisher,
+              PublishRequest.newBuilder()
+                  .setTopic(publisher.getTopicPath())
+                  .addAllMessages(messages)
+                  .build()));
+
+      messages.clear();
+    } else {
+      r.set(PublishResponse.newBuilder().build());
+    }
+
+    // else {
+    //  messages.add(builder[0].build());
     // }
 
-    return resp;
+    // ListenableFuture<PublishResponse> resp =
+    //     PubSub.publishAsync(
+    //         PublishOptions.DEFAULT(),
+    //         publisher,
+    //         PublishRequest.newBuilder()
+    //             .setTopic(publisher.getTopicPath())
+    //             .addAllMessages(messages)
+    //             .build());
+
+    return r;
   }
 }

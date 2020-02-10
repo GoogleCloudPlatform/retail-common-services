@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google LLC
+ * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,9 @@ import com.google.protobuf.ByteString;
 import com.google.spannerclient.Row;
 import com.google.spannerclient.RowCursor;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufOutputStream;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Optional;
@@ -39,14 +40,15 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
-import org.apache.avro.io.JsonEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SpannerToAvro {
   private static final Logger log = LoggerFactory.getLogger(SpannerToAvro.class);
+  private static final ByteBufAllocator alloc = PooledByteBufAllocator.DEFAULT;
 
   private SpannerToAvro() {}
 
@@ -177,7 +179,8 @@ public class SpannerToAvro {
   }
 
   public static Optional<ByteString> MakeRecord(SchemaSet schemaSet, Row resultSet) {
-    final ByteBuf bb = Unpooled.directBuffer();
+    //    final ByteBuf bb = Unpooled.directBuffer();
+    final ByteBuf bb = alloc.directBuffer(1024); // fix this
     final Set<String> keySet = schemaSet.spannerSchema().keySet();
     final GenericRecord record = new GenericData.Record(schemaSet.avroSchema());
 
@@ -353,9 +356,7 @@ public class SpannerToAvro {
     log.debug(record.toString());
 
     try (final ByteBufOutputStream outputStream = new ByteBufOutputStream(bb)) {
-
-      final JsonEncoder encoder =
-          EncoderFactory.get().jsonEncoder(schemaSet.avroSchema(), outputStream, true);
+      final BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(outputStream, null);
       final DatumWriter<Object> writer = new GenericDatumWriter<>(schemaSet.avroSchema());
 
       log.debug("Serializing Record");
@@ -363,12 +364,11 @@ public class SpannerToAvro {
       encoder.flush();
       outputStream.flush();
       log.debug("Adding serialized record to list");
-      final byte[] ba = new byte[bb.readableBytes()];
       log.debug("--------------------------------- readableBytes " + bb.readableBytes());
       log.debug("--------------------------------- readerIndex " + bb.readerIndex());
       log.debug("--------------------------------- writerIndex " + bb.writerIndex());
-      bb.getBytes(bb.readerIndex(), ba);
-      final ByteString message = ByteString.copyFrom(ba);
+
+      final ByteString message = ByteString.copyFrom(bb.nioBuffer());
 
       return Optional.of(message);
 

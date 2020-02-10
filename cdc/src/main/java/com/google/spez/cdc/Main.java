@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google LLC
+ * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,14 @@
 package com.google.spez.cdc;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PublishResponse;
 import com.google.spez.core.EventPublisher;
 import com.google.spez.core.SpannerEvent;
 import com.google.spez.core.SpannerEventHandler;
@@ -40,6 +43,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -63,16 +69,18 @@ class Main {
         Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
 
     final SpannerTailer tailer = new SpannerTailer(THREAD_POOL, 200000000);
-    final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
+    // final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
+    final ThreadLocal<EventPublisher> publisher =
+        ThreadLocal.withInitial(
+            () -> {
+              return new EventPublisher(PROJECT_NAME, TOPIC_NAME);
+            });
+    final ExecutorService workStealingPool = Executors.newWorkStealingPool();
+    final ListeningExecutorService forkJoinPool =
+        MoreExecutors.listeningDecorator(workStealingPool);
     final Map<String, String> metadata = new HashMap<>();
     final CountDownLatch doneSignal = new CountDownLatch(1);
-    final Disruptor<SpannerEvent> disruptor =
-        new Disruptor<SpannerEvent>(
-            SpannerEvent::new,
-            BUFFER_SIZE,
-            DaemonThreadFactory.INSTANCE,
-            ProducerType.SINGLE,
-            new YieldingWaitStrategy());
+    final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     // Populate CDC Metadata
     metadata.put("SrcDatabase", DB_NAME);
@@ -90,6 +98,14 @@ class Main {
           public void onSuccess(SchemaSet schemaSet) {
             log.info("Successfully Processed the Table Schema. Starting the poller now ...");
             if (DISRUPTOR) {
+              final Disruptor<SpannerEvent> disruptor =
+                  new Disruptor<SpannerEvent>(
+                      SpannerEvent::new,
+                      BUFFER_SIZE,
+                      DaemonThreadFactory.INSTANCE,
+                      ProducerType.SINGLE,
+                      new YieldingWaitStrategy());
+
               disruptor
                   .handleEventsWith(
                       (event, sequence, endOfBatch) -> {
@@ -100,10 +116,12 @@ class Main {
                                       Optional<ByteString> record =
                                           SpannerToAvro.MakeRecord(schemaSet, event.row());
                                       if (record.isPresent()) {
-                                        publisher.publish(
-                                            ImmutableList.of(record.get()),
-                                            metadata,
-                                            event.timestamp());
+                                        publisher
+                                            .get()
+                                            .publish(
+                                                ImmutableList.of(record.get()),
+                                                metadata,
+                                                event.timestamp());
                                         log.info(
                                             "Published: "
                                                 + record.get().toString()
@@ -157,27 +175,59 @@ class Main {
               final SpannerEventHandler handler =
                   (bucket, s, timestamp) -> {
                     ListenableFuture<Boolean> x =
-                        l.get(bucket)
-                            .submit(
-                                () -> {
-                                  // TODO(xjdr): Throw if empty optional
-                                  log.debug("Processing Record");
-                                  Optional<ByteString> record =
-                                      SpannerToAvro.MakeRecord(schemaSet, s);
-                                  log.debug("Record Processed, getting ready to publish");
-                                  publisher.publish(
-                                      ImmutableList.of(record.get()), metadata, timestamp);
-                                  log.debug(
-                                      "Published: " + record.get().toString() + " " + timestamp);
-                                  long count = records.incrementAndGet();
-                                  if (count % 1000 == 0) {
-                                    Instant now = Instant.now();
-                                    Duration d = Duration.between(then, now);
-                                    log.info("Processed {} records over the past {}", count, d);
-                                  }
+                        // l.get(bucket)
+                        forkJoinPool.submit(
+                            () -> {
+                              // TODO(xjdr): Throw if empty optional
+                              log.debug("Processing Record");
 
-                                  return Boolean.TRUE;
-                                });
+                              ListenableFuture<Optional<ByteString>> record =
+                                  forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
+
+                              log.debug("Record Processed, getting ready to publish");
+
+                              AsyncFunction<Optional<ByteString>, PublishResponse> pub =
+                                  new AsyncFunction<Optional<ByteString>, PublishResponse>() {
+                                    public ListenableFuture<PublishResponse> apply(
+                                        Optional<ByteString> record) {
+                                      return publisher
+                                          .get()
+                                          .publish(
+                                              ImmutableList.of(record.get()), metadata, timestamp);
+                                    }
+                                  };
+
+                              ListenableFuture<PublishResponse> resp =
+                                  Futures.transformAsync(record, pub, forkJoinPool);
+
+                              Futures.addCallback(
+                                  resp,
+                                  new FutureCallback<PublishResponse>() {
+
+                                    @Override
+                                    public void onSuccess(PublishResponse result) {
+                                      // log.debug(
+                                      //  "Published: "
+                                      //      + record.get().toString()
+                                      //      + " "
+                                      //      + timestamp);
+                                      long count = records.incrementAndGet();
+                                      if (count % 1000 == 0) {
+                                        Instant now = Instant.now();
+                                        Duration d = Duration.between(then, now);
+                                        log.info("Processed {} records over the past {}", count, d);
+                                      }
+                                    }
+
+                                    @Override
+                                    public void onFailure(Throwable t) {
+                                      log.error("Error Publishing Record: ", t);
+                                    }
+                                  },
+                                  forkJoinPool);
+
+                              return Boolean.TRUE;
+                            });
 
                     Futures.addCallback(
                         x,

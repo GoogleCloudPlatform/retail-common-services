@@ -15,9 +15,9 @@
  */
 package com.google.spez.cdc;
 
+import ch.qos.logback.classic.LoggerContext;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.AsyncFunction;
-import ch.qos.logback.classic.LoggerContext;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -246,7 +246,7 @@ class Main {
                                       log.debug(
                                           "Published message for timestamp '{}' with message id '{}'",
                                           timestamp,
-                                          result.getMessageIds());
+                                          result.getMessageIds(0));
                                       published.incrementAndGet();
                                     }
 

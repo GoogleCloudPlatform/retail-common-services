@@ -16,42 +16,23 @@
 package com.google.spez.cdc;
 
 import ch.qos.logback.classic.LoggerContext;
-import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.PublishResponse;
 import com.google.spez.core.EventPublisher;
-import com.google.spez.core.SpannerEvent;
-import com.google.spez.core.SpannerEventHandler;
 import com.google.spez.core.SpannerTailer;
-import com.google.spez.core.SpannerToAvro;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.google.spez.core.Spez;
-import com.lmax.disruptor.RingBuffer;
-import com.lmax.disruptor.YieldingWaitStrategy;
-import com.lmax.disruptor.dsl.Disruptor;
-import com.lmax.disruptor.dsl.ProducerType;
-import com.lmax.disruptor.util.DaemonThreadFactory;
-import java.text.NumberFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,62 +83,9 @@ class Main {
           public void onSuccess(SchemaSet schemaSet) {
             log.info("Successfully Processed the Table Schema. Starting the poller now ...");
             if (DISRUPTOR) {
-              final Disruptor<SpannerEvent> disruptor =
-                  new Disruptor<SpannerEvent>(
-                      SpannerEvent::new,
-                      BUFFER_SIZE,
-                      DaemonThreadFactory.INSTANCE,
-                      ProducerType.SINGLE,
-                      new YieldingWaitStrategy());
-
-              disruptor
-                  .handleEventsWith(
-                      (event, sequence, endOfBatch) -> {
-                        ListenableFuture<Boolean> x =
-                            l.get(l.size() % THREAD_POOL)
-                                .submit(
-                                    () -> {
-                                      Optional<ByteString> record =
-                                          SpannerToAvro.MakeRecord(schemaSet, event.row());
-                                      if (record.isPresent()) {
-                                        publisher
-                                            .get()
-                                            .publish(
-                                                ImmutableList.of(record.get()),
-                                                metadata,
-                                                event.timestamp());
-                                        log.info(
-                                            "Published: "
-                                                + record.get().toString()
-                                                + " "
-                                                + event.timestamp());
-                                      }
-                                      return Boolean.TRUE;
-                                    });
-
-                        Futures.addCallback(
-                            x,
-                            new FutureCallback<Boolean>() {
-
-                              @Override
-                              public void onSuccess(Boolean result) {
-                                log.info("Record Successfully Published");
-                              }
-
-                              @Override
-                              public void onFailure(Throwable t) {
-                                log.error("Unable to process record", t);
-                              }
-                            },
-                            l.get(l.size() % THREAD_POOL));
-                      })
-                  .then((event, sequence, endOfBatch) -> event.clear());
-
-              disruptor.start();
-
-              final RingBuffer<SpannerEvent> ringBuffer = disruptor.getRingBuffer();
-
-              tailer.setRingBuffer(ringBuffer);
+              DisruptorHandler handler = new DisruptorHandler(schemaSet, publisher, metadata);
+              handler.start();
+              tailer.setRingBuffer(handler.getRingBuffer());
 
               ScheduledFuture<?> result =
                   tailer.start(
@@ -172,113 +100,9 @@ class Main {
                       "2000");
 
               doneSignal.countDown();
-
             } else {
-              final AtomicLong records = new AtomicLong(0);
-              final AtomicLong errors = new AtomicLong(0);
-              final AtomicLong published = new AtomicLong(0);
-              final AtomicReference lastProcessedTimestamp = new AtomicReference("");
-              final Instant then = Instant.now();
-              final Runtime runtime = Runtime.getRuntime();
-              final NumberFormat formatter = NumberFormat.getInstance();
-              scheduler.scheduleAtFixedRate(
-                  () -> {
-                    Instant now = Instant.now();
-                    Duration d = Duration.between(then, now);
-                    long count = records.get();
-                    long err = errors.get();
-                    long pub = published.get();
-                    log.info(
-                        "Processed {} records [errors: {} / published: {}] over the past {}",
-                        formatter.format(count),
-                        err,
-                        pub,
-                        d);
-                    log.info("lastProcessedTimestamp: {}", lastProcessedTimestamp.get());
-                    log.info("forkJoinPool {}", workStealingPool);
-                    log.info(
-                        "Memory: {}free / {}tot / {}max",
-                        formatter.format(runtime.freeMemory()),
-                        formatter.format(runtime.totalMemory()),
-                        formatter.format(runtime.maxMemory()));
-                  },
-                  30,
-                  30,
-                  TimeUnit.SECONDS);
-              final SpannerEventHandler handler =
-                  (bucket, s, timestamp) -> {
-                    ListenableFuture<Boolean> x =
-                        // l.get(bucket)
-                        forkJoinPool.submit(
-                            () -> {
-                              // TODO(xjdr): Throw if empty optional
-                              log.debug("Processing Record");
-                              lastProcessedTimestamp.set(
-                                  s.getTimestamp(schemaSet.tsColName()).toString());
-
-                              ListenableFuture<Optional<ByteString>> record =
-                                  forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
-
-                              log.debug("Record Processed, getting ready to publish");
-
-                              AsyncFunction<Optional<ByteString>, PublishResponse> pub =
-                                  new AsyncFunction<Optional<ByteString>, PublishResponse>() {
-                                    public ListenableFuture<PublishResponse> apply(
-                                        Optional<ByteString> record) {
-                                      return publisher
-                                          .get()
-                                          .publish(
-                                              ImmutableList.of(record.get()), metadata, timestamp);
-                                    }
-                                  };
-
-                              ListenableFuture<PublishResponse> resp =
-                                  Futures.transformAsync(record, pub, forkJoinPool);
-
-                              Futures.addCallback(
-                                  resp,
-                                  new FutureCallback<PublishResponse>() {
-
-                                    @Override
-                                    public void onSuccess(PublishResponse result) {
-                                      // Once published, returns server-assigned message ids
-                                      // (unique within the topic)
-                                      log.debug(
-                                          "Published message for timestamp '{}' with message id '{}'",
-                                          timestamp,
-                                          result.getMessageIds(0));
-                                      published.incrementAndGet();
-                                    }
-
-                                    @Override
-                                    public void onFailure(Throwable t) {
-                                      errors.incrementAndGet();
-                                      log.error("Error Publishing Record: ", t);
-                                    }
-                                  },
-                                  forkJoinPool);
-
-                              return Boolean.TRUE;
-                            });
-
-                    Futures.addCallback(
-                        x,
-                        new FutureCallback<Boolean>() {
-
-                          @Override
-                          public void onSuccess(Boolean result) {
-                            log.debug("Record Successfully Published");
-                          }
-
-                          @Override
-                          public void onFailure(Throwable t) {
-                            log.error("Unable to process record", t);
-                          }
-                        },
-                        l.get(l.size() % THREAD_POOL));
-
-                    return Boolean.TRUE;
-                  };
+              WorkStealingHandler handler =
+                  new WorkStealingHandler(scheduler, schemaSet, publisher, metadata);
               tailer.start(
                   handler,
                   schemaSet.tsColName(),

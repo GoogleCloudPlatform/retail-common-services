@@ -7,7 +7,6 @@
 -XX:ConcGCThreads=4
 -XX:+UseTransparentHugePages
 -XX:+UseNUMA
--XX:+AggressiveHeap
 -XX:+UseStringDeduplication
 -XX:+HeapDumpOnOutOfMemoryError
 -Dcom.sun.management.jmxremote

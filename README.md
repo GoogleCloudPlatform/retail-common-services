@@ -170,3 +170,7 @@ kubectl port-forward <your-app-pod> 9010
 ## Open jconsole connection to your local port 9010:
 jconsole 127.0.0.1:9010
 ```
+
+## JVM Tuning
+
+https://chriswhocodes.com/vm-options-explorer.html

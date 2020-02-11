@@ -144,10 +144,12 @@ class WorkStealingHandler implements SpannerEventHandler {
                     public void onSuccess(PublishResponse result) {
                       // Once published, returns server-assigned message ids
                       // (unique within the topic)
-                      log.debug(
-                          "Published message for timestamp '{}' with message id '{}'",
-                          timestamp,
-                          result.getMessageIds(0));
+                      if (result.getMessageIdsCount() > 0) {
+                        log.debug(
+                            "Published message for timestamp '{}' with message id '{}'",
+                            timestamp,
+                            result.getMessageIds(0));
+                      }
                       published.incrementAndGet();
                     }
 

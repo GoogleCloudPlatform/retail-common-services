@@ -15,7 +15,6 @@
  */
 package com.google.spez.cdc;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -37,6 +36,7 @@ import com.lmax.disruptor.util.DaemonThreadFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,12 +58,17 @@ class DisruptorHandler implements SpannerEventHandler, EventHandler<SpannerEvent
   private final SchemaSet schemaSet;
   private final ThreadLocal<EventPublisher> publisher;
   private final Map<String, String> metadata;
+  private final Executor executor;
 
   public DisruptorHandler(
-      SchemaSet schemaSet, ThreadLocal<EventPublisher> publisher, Map<String, String> metadata) {
+      SchemaSet schemaSet,
+      ThreadLocal<EventPublisher> publisher,
+      Map<String, String> metadata,
+      Executor executor) {
     this.schemaSet = schemaSet;
     this.publisher = publisher;
     this.metadata = metadata;
+    this.executor = executor;
   }
 
   public void start() {
@@ -94,7 +99,7 @@ class DisruptorHandler implements SpannerEventHandler, EventHandler<SpannerEvent
                 () -> {
                   Optional<ByteString> record = SpannerToAvro.MakeRecord(schemaSet, row);
                   if (record.isPresent()) {
-                    publisher.get().publish(ImmutableList.of(record.get()), metadata, timestamp);
+                    publisher.get().publish(record.get(), metadata, timestamp, executor);
                     log.info("Published: " + record.get().toString() + " " + timestamp);
                   }
                   return Boolean.TRUE;

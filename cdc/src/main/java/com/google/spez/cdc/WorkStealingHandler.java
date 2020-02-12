@@ -15,7 +15,6 @@
  */
 package com.google.spez.cdc;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -23,7 +22,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.PublishResponse;
 import com.google.spannerclient.Row;
 import com.google.spez.core.EventPublisher;
 import com.google.spez.core.SpannerEventHandler;
@@ -124,32 +122,29 @@ class WorkStealingHandler implements SpannerEventHandler {
 
               log.debug("Record Processed, getting ready to publish");
 
-              AsyncFunction<Optional<ByteString>, PublishResponse> pub =
-                  new AsyncFunction<Optional<ByteString>, PublishResponse>() {
-                    public ListenableFuture<PublishResponse> apply(Optional<ByteString> record) {
+              AsyncFunction<Optional<ByteString>, String> pub =
+                  new AsyncFunction<Optional<ByteString>, String>() {
+                    public ListenableFuture<String> apply(Optional<ByteString> record) {
                       return publisher
                           .get()
-                          .publish(ImmutableList.of(record.get()), metadata, timestamp);
+                          .publish(record.get(), metadata, timestamp, forkJoinPool);
                     }
                   };
 
-              ListenableFuture<PublishResponse> resp =
-                  Futures.transformAsync(record, pub, forkJoinPool);
+              ListenableFuture<String> resp = Futures.transformAsync(record, pub, forkJoinPool);
 
               Futures.addCallback(
                   resp,
-                  new FutureCallback<PublishResponse>() {
+                  new FutureCallback<String>() {
 
                     @Override
-                    public void onSuccess(PublishResponse result) {
+                    public void onSuccess(String result) {
                       // Once published, returns server-assigned message ids
                       // (unique within the topic)
-                      if (result.getMessageIdsCount() > 0) {
-                        log.debug(
-                            "Published message for timestamp '{}' with message id '{}'",
-                            timestamp,
-                            result.getMessageIds(0));
-                      }
+                      log.debug(
+                          "Published message for timestamp '{}' with message id '{}'",
+                          timestamp,
+                          result);
                       published.incrementAndGet();
                     }
 

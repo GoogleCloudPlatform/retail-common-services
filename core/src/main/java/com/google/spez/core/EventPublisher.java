@@ -16,9 +16,9 @@
 package com.google.spez.core;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
@@ -27,22 +27,19 @@ import com.google.spannerclient.Options;
 import com.google.spannerclient.PubSub;
 import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This class published events from Cloud Spanner to Pub/Sub */
 public class EventPublisher {
-  private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
+  private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
 
   private final String projectName;
   private final String topicName;
 
   private Publisher publisher;
-
-  private final List<PubsubMessage> messages = new ArrayList<>();
 
   public EventPublisher(String projectName, String topicName) {
     Preconditions.checkNotNull(projectName);
@@ -57,7 +54,6 @@ public class EventPublisher {
     Preconditions.checkNotNull(projectName);
     Preconditions.checkNotNull(topicName);
 
-    // TODO(xjdr): Don't do this
     return PubSub.getPublisher(Options.DEFAULT(), projectName, topicName);
   }
 
@@ -69,61 +65,43 @@ public class EventPublisher {
    * @param attrMap Attribute Map of data to be published as metadata with your message
    * @param timestamp the Commit Timestamp of the Spanner Record to be published
    */
-  public ListenableFuture<PublishResponse> publish(
-      ImmutableList<ByteString> datas, Map<String, String> attrMap, String timestamp) {
-    Preconditions.checkNotNull(datas);
+  public ListenableFuture<String> publish(
+      ByteString data, Map<String, String> attrMap, String timestamp, Executor executor) {
+    Preconditions.checkNotNull(data);
     Preconditions.checkNotNull(attrMap);
     Preconditions.checkNotNull(timestamp);
+    Preconditions.checkNotNull(executor);
 
-    PubsubMessage.Builder[] builder = new PubsubMessage.Builder[1];
-    SettableFuture<PublishResponse> r = SettableFuture.create();
-    for (final ByteString data : datas) {
-      //      final PubsubMessage.Builder builder =
-      builder[0] =
-          PubsubMessage.newBuilder().setData(data).setOrderingKey(publisher.getTopicPath());
+    final PubsubMessage.Builder builder =
+        PubsubMessage.newBuilder().setData(data).setOrderingKey(publisher.getTopicPath());
 
-      attrMap
-          .entrySet()
-          .forEach(
-              e -> {
-                builder[0].putAttributes(e.getKey(), e.getValue());
-              });
+    attrMap
+        .entrySet()
+        .forEach(
+            e -> {
+              builder.putAttributes(e.getKey(), e.getValue());
+            });
 
-      builder[0].putAttributes("Timestamp", timestamp);
+    builder.putAttributes("Timestamp", timestamp);
 
-      //      messages.add(builder.build());
-    }
+    ListenableFuture<PublishResponse> future =
+        PubSub.publishAsync(
+            PublishOptions.DEFAULT(),
+            publisher,
+            PublishRequest.newBuilder()
+                .setTopic(publisher.getTopicPath())
+                .addMessages(builder)
+                .build());
+    AsyncFunction<PublishResponse, String> getMessageId =
+        new AsyncFunction<>() {
+          public ListenableFuture<String> apply(PublishResponse response) {
+            if (response.getMessageIdsCount() > 0) {
+              return Futures.immediateFuture(response.getMessageIds(0));
+            }
+            return Futures.immediateFuture("");
+          }
+        };
 
-    messages.add(builder[0].build());
-
-    if (messages.size() >= 950) {
-      r.setFuture(
-          PubSub.publishAsync(
-              PublishOptions.DEFAULT(),
-              publisher,
-              PublishRequest.newBuilder()
-                  .setTopic(publisher.getTopicPath())
-                  .addAllMessages(messages)
-                  .build()));
-
-      messages.clear();
-    } else {
-      r.set(PublishResponse.newBuilder().build());
-    }
-
-    // else {
-    //  messages.add(builder[0].build());
-    // }
-
-    // ListenableFuture<PublishResponse> resp =
-    //     PubSub.publishAsync(
-    //         PublishOptions.DEFAULT(),
-    //         publisher,
-    //         PublishRequest.newBuilder()
-    //             .setTopic(publisher.getTopicPath())
-    //             .addAllMessages(messages)
-    //             .build());
-
-    return r;
+    return Futures.transformAsync(future, getMessageId, executor);
   }
 }

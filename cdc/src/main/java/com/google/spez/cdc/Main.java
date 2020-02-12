@@ -83,7 +83,8 @@ class Main {
           public void onSuccess(SchemaSet schemaSet) {
             log.info("Successfully Processed the Table Schema. Starting the poller now ...");
             if (DISRUPTOR) {
-              DisruptorHandler handler = new DisruptorHandler(schemaSet, publisher, metadata);
+              DisruptorHandler handler =
+                  new DisruptorHandler(schemaSet, publisher, metadata, l.get(0));
               handler.start();
               tailer.setRingBuffer(handler.getRingBuffer());
 

@@ -174,3 +174,50 @@ jconsole 127.0.0.1:9010
 ## JVM Tuning
 
 https://chriswhocodes.com/vm-options-explorer.html
+
+## Dynamic Logging
+
+```
+$ java -jar jmc/jmxterm-1.0.1-uber.jar
+Welcome to JMX terminal. Type "help" for available commands.
+$>jvms
+WARNING: An illegal reflective access operation has occurred
+WARNING: Illegal reflective access by org.cyclopsgroup.jmxterm.utils.WeakCastUtils$2 (file:/app/jmc/jmxterm-1.0.1-uber.jar) to method sun.tools.jconsole.LocalVirtualMachine.getAllVirtualMachines()
+WARNING: Please consider reporting this to the maintainers of org.cyclopsgroup.jmxterm.utils.WeakCastUtils$2
+WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+WARNING: All illegal access operations will be denied in a future release
+1        (m) - Main.jar
+79       ( ) - jmxterm-1.0.1-uber.jar
+$>open 1
+#Connection to 1 is opened
+$>domain ch.qos.logback.classic
+#domain is set to ch.qos.logback.classic
+$>beans
+#domain = ch.qos.logback.classic:
+ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator
+$>bean ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator
+#bean is set to ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator
+$>info
+#mbean = ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator
+#class name = ch.qos.logback.classic.jmx.JMXConfigurator
+# attributes
+  %0   - LoggerList (java.util.List, r)
+  %1   - Statuses (java.util.List, r)
+# operations
+  %0   - java.lang.String getLoggerEffectiveLevel(java.lang.String p1)
+  %1   - java.lang.String getLoggerLevel(java.lang.String p1)
+  %2   - void reloadByFileName(java.lang.String p1)
+  %3   - void reloadByURL(java.net.URL p1)
+  %4   - void reloadDefaultConfiguration()
+  %5   - void setLoggerLevel(java.lang.String p1,java.lang.String p2)
+#there's no notifications
+$>run setLoggerLevel com.google.spez.core.SpannerTailer DEBUG
+#calling operation setLoggerLevel of mbean ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator with params [com.google.spez.core.SpannerTailer, DEBUG]
+#operation returns:
+null
+$>run setLoggerLevel com.google.spez.core.SpannerTailer INFO
+#calling operation setLoggerLevel of mbean ch.qos.logback.classic:Name=default,Type=ch.qos.logback.classic.jmx.JMXConfigurator with params [com.google.spez.core.SpannerTailer, INFO]
+#operation returns:
+null
+$>
+```

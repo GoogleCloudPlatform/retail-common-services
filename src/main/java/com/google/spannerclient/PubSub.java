@@ -73,9 +73,9 @@ public class PubSub {
         new FutureCallback<PublishResponse>() {
 
           @Override
-          public void onSuccess(PublishResponse result) {
-            if (result != null) {
-              resp[0] = result;
+          public void onSuccess(PublishResponse response) {
+            if (response != null) {
+              resp[0] = response;
             }
             doneSignal.countDown();
           }

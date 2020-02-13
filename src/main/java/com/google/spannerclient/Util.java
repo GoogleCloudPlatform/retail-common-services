@@ -40,7 +40,7 @@ class Util {
     retryPolicy.put("retryableStatusCodes", Arrays.<Object>asList("UNAVAILABLE"));
     Map<String, Object> methodConfig = new HashMap<>();
     Map<String, Object> name = new HashMap<>();
-    name.put("service", "MyServer");
+    name.put("service", "Spez");
     methodConfig.put("name", Collections.<Object>singletonList(name));
     methodConfig.put("retryPolicy", retryPolicy);
     Map<String, Object> serviceConfig = new HashMap<>();

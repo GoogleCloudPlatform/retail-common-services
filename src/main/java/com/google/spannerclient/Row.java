@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google LLC
+ * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,6 +50,17 @@ public class Row implements RowBase {
     Preconditions.checkNotNull(values);
 
     return new Row(fields, values);
+  }
+
+  /**
+   * Returns the sum of the underlying Value objects by calling `getSerializedSize` on each of them.
+   */
+  public long getSize() {
+    long result = 0;
+    for (Value value : values) {
+      result += value.getSerializedSize();
+    }
+    return result;
   }
 
   /**

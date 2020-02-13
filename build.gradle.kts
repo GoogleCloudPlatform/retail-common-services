@@ -56,6 +56,9 @@ dependencies {
     errorprone("com.google.errorprone:error_prone_core:2.3.3")
     errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
 
+    // OpenCensus core
+    compile("io.opencensus:opencensus-api:0.24.0")
+
     if (JavaVersion.current().isJava9Compatible) {
         // Workaround for @javax.annotation.Generated
         // see: https://github.com/grpc/grpc-java/issues/3633

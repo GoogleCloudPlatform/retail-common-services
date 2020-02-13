@@ -104,6 +104,7 @@ class Main {
             } else {
               WorkStealingHandler handler =
                   new WorkStealingHandler(scheduler, schemaSet, publisher, metadata);
+              handler.start();
               tailer.start(
                   handler,
                   schemaSet.tsColName(),

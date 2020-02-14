@@ -94,7 +94,7 @@ public class EventPublisher {
         () -> {
           final Instant now = Instant.now();
           final Duration d = Duration.between(lastPublished, now);
-          
+
           if (buffer.size() > 0 && d.getSeconds() > bufferTime) {
             final ListenableFuture<PublishResponse> future =
                 PubSub.publishAsync(

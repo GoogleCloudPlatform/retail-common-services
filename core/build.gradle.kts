@@ -56,6 +56,10 @@ dependencies {
     annotationProcessor("com.uber.nullaway:nullaway:0.7.5")
     errorprone("com.google.errorprone:error_prone_core:2.3.3")
     errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
+
+    // OpenCensus core
+    compile("io.opencensus:opencensus-api:0.24.0")
+    runtime("io.opencensus:opencensus-impl:0.24.0")
 }
 
 // ErrorProne

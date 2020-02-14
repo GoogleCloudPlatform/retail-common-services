@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,7 +105,6 @@ class Main {
             } else {
               WorkStealingHandler handler =
                   new WorkStealingHandler(scheduler, schemaSet, publisher, metadata);
-              handler.start();
               tailer.start(
                   handler,
                   schemaSet.tsColName(),
@@ -119,6 +119,15 @@ class Main {
                   "2000",
                   500,
                   500);
+
+              scheduler.scheduleAtFixedRate(
+                  () -> {
+                    handler.logStats();
+                    tailer.logStats();
+                  },
+                  30,
+                  30,
+                  TimeUnit.SECONDS);
 
               doneSignal.countDown();
             }

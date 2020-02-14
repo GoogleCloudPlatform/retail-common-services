@@ -40,11 +40,28 @@ import com.google.spannerclient.Spanner;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.lmax.disruptor.RingBuffer;
 import io.grpc.stub.StreamObserver;
+import io.opencensus.common.Scope;
+import io.opencensus.stats.Aggregation;
+import io.opencensus.stats.BucketBoundaries;
+import io.opencensus.stats.Measure.MeasureLong;
+import io.opencensus.stats.Stats;
+import io.opencensus.stats.StatsRecorder;
+import io.opencensus.stats.View;
+import io.opencensus.stats.ViewData;
+import io.opencensus.stats.ViewManager;
+import io.opencensus.tags.TagKey;
+import io.opencensus.tags.TagValue;
+import io.opencensus.tags.Tagger;
+import io.opencensus.tags.Tags;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,6 +91,39 @@ import org.slf4j.LoggerFactory;
  */
 public class SpannerTailer {
   private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
+
+  private static final Tagger tagger = Tags.getTagger();
+  private static final ViewManager viewManager = Stats.getViewManager();
+  private static final StatsRecorder statsRecorder = Stats.getStatsRecorder();
+  private static final Tracer tracer = Tracing.getTracer();
+
+  // frontendKey allows us to break down the recorded data.
+  private static final TagKey TAILER_TABLE_KEY = TagKey.create("spez/keys/tailer-table");
+
+  // videoSize will measure the size of processed videos.
+  private static final MeasureLong MESSAGE_SIZE =
+      MeasureLong.create("message-size", "Spanner message size", "By");
+
+  private static final long MiB = 1 << 20;
+
+  // Create view to see the processed message size distribution broken down by table.
+  // The view has bucket boundaries (0, 16 * MiB, 65536 * MiB) that will group measure
+  // values into histogram buckets.
+  private static final View.Name MESSAGE_SIZE_VIEW_NAME =
+      View.Name.create("spez/views/message-size");
+  private static final View MESSAGE_SIZE_VIEW =
+      View.create(
+          MESSAGE_SIZE_VIEW_NAME,
+          "processed message size over time",
+          MESSAGE_SIZE,
+          Aggregation.Distribution.create(
+              BucketBoundaries.create(Arrays.asList(0.0, 16.0 * MiB, 256.0 * MiB))),
+          Collections.singletonList(TAILER_TABLE_KEY));
+
+  static {
+    viewManager.registerView(MESSAGE_SIZE_VIEW);
+  }
+
   private static final ImmutableList<String> DEFAULT_SERVICE_SCOPES =
       ImmutableList.<String>builder()
           .add("https://www.googleapis.com/auth/cloud-platform")
@@ -393,9 +443,16 @@ public class SpannerTailer {
               ListenableFuture<Boolean> x =
                   service.submit(
                       () -> {
-                        processRow(handler, row, tsColName);
-                        lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
-                        return Boolean.TRUE;
+                        try (Scope scopedTags =
+                            tagger
+                                .currentBuilder()
+                                .put(TAILER_TABLE_KEY, TagValue.create(tableName))
+                                .buildScoped()) {
+                          processRow(handler, row, tsColName);
+                          lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
+                          statsRecorder.newMeasureMap().put(MESSAGE_SIZE, row.getSize()).record();
+                          return Boolean.TRUE;
+                        }
                       });
 
               Futures.addCallback(
@@ -471,6 +528,12 @@ public class SpannerTailer {
     // }
 
     return true;
+  }
+
+  public void logStats() {
+    ViewData viewData = viewManager.getView(MESSAGE_SIZE_VIEW_NAME);
+    log.info(
+        String.format("Recorded stats for %s:\n %s", MESSAGE_SIZE_VIEW_NAME.asString(), viewData));
   }
 
   public void setRingBuffer(RingBuffer<SpannerEvent> ringBuffer) {

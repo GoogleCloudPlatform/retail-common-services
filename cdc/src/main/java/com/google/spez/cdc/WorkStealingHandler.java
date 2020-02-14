@@ -35,7 +35,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
@@ -71,31 +70,25 @@ class WorkStealingHandler implements SpannerEventHandler {
     this.metadata = metadata;
   }
 
-  public void start() {
-    scheduler.scheduleAtFixedRate(
-        () -> {
-          Instant now = Instant.now();
-          Duration d = Duration.between(then, now);
-          long count = records.get();
-          long err = errors.get();
-          long pub = published.get();
-          log.info(
-              "Processed {} records [errors: {} / published: {}] over the past {}",
-              formatter.format(count),
-              err,
-              pub,
-              d);
-          log.info("lastProcessedTimestamp: {}", lastProcessedTimestamp.get());
-          log.info("forkJoinPool {}", workStealingPool);
-          log.info(
-              "Memory: {}free / {}tot / {}max",
-              formatter.format(runtime.freeMemory()),
-              formatter.format(runtime.totalMemory()),
-              formatter.format(runtime.maxMemory()));
-        },
-        30,
-        30,
-        TimeUnit.SECONDS);
+  public void logStats() {
+    Instant now = Instant.now();
+    Duration d = Duration.between(then, now);
+    long count = records.get();
+    long err = errors.get();
+    long pub = published.get();
+    log.info(
+        "Processed {} records [errors: {} / published: {}] over the past {}",
+        formatter.format(count),
+        err,
+        pub,
+        d);
+    log.info("lastProcessedTimestamp: {}", lastProcessedTimestamp.get());
+    log.info("forkJoinPool {}", workStealingPool);
+    log.info(
+        "Memory: {}free / {}tot / {}max",
+        formatter.format(runtime.freeMemory()),
+        formatter.format(runtime.totalMemory()),
+        formatter.format(runtime.maxMemory()));
   }
 
   /**

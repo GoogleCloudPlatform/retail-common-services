@@ -18,19 +18,59 @@ package com.google.spannerclient;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.spanner.v1.Session;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 class SessionPool {
+  private final ScheduledExecutorService scheduler;
   private final int maxPoolSize;
   private final ConcurrentLinkedDeque<Session> pool;
+  private final Instant lastChecked;
+  private final SessionStaleHandler staleHandler;
+  private final NewSessionHandler newSessionHandler;
 
-  SessionPool(int maxPoolSize) {
+  SessionPool(
+      int maxPoolSize, SessionStaleHandler staleHandler, NewSessionHandler newSessionHandler) {
+    Preconditions.checkArgument(maxPoolSize > 1);
+    Preconditions.checkNotNull(staleHandler);
+    Preconditions.checkNotNull(newSessionHandler);
+
     this.maxPoolSize = maxPoolSize;
+    this.staleHandler = staleHandler;
+    this.newSessionHandler = newSessionHandler;
     this.pool = new ConcurrentLinkedDeque<>();
+    this.lastChecked = Instant.now();
+    this.scheduler = Executors.newScheduledThreadPool(2);
+
+    staleCheck();
+  }
+
+  void staleCheck() {
+    scheduler.scheduleAtFixedRate(
+        () -> {
+          final Instant now = Instant.now();
+          final Duration d = Duration.between(lastChecked, now);
+
+          if (d.toMinutes() >= 30) {
+            pool.forEach(
+                s -> {
+                  //               if (staleHandler.checkSession(s)) {
+                  // pool.addLast(newSessionHandler.newSession());
+                  // }
+                });
+          }
+        },
+        30,
+        30,
+        TimeUnit.MINUTES);
   }
 
   int getMaxPoolSize() {

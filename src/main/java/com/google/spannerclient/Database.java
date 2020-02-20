@@ -25,8 +25,13 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.*;
 import com.google.spanner.v1.*;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +44,10 @@ public class Database {
 
   private final String dbPath;
   private final String dbName;
+  private final Instant lastChecked;
   private final GoogleCredentials credentials;
   private final CreateSessionRequest createSessionRequest;
+  private final ScheduledExecutorService scheduler;
 
   private GrpcClient stub;
   private ConcurrentRingBuffer<SessionContext> sessionPool;
@@ -51,7 +58,9 @@ public class Database {
 
     this.dbPath = dbPath;
     this.dbName = dbPath.substring(dbPath.lastIndexOf('/') + 1);
+    this.lastChecked = Instant.now();
     this.credentials = credentials;
+    this.scheduler = Executors.newScheduledThreadPool(2);
     this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(dbPath).build();
   }
 
@@ -64,7 +73,9 @@ public class Database {
     this.dbPath =
         String.format("projects/%s/instances/%s/databases/%s", projectId, instance, database);
     this.dbName = database;
+    this.lastChecked = Instant.now();
     this.credentials = credentials;
+    this.scheduler = Executors.newScheduledThreadPool(2);
     this.createSessionRequest = CreateSessionRequest.newBuilder().setDatabase(dbPath).build();
   }
 
@@ -84,6 +95,14 @@ public class Database {
 
     this.stub = stub;
     this.sessionPool = sessionPool;
+
+    createSession(poolSize, f);
+
+    return f;
+  }
+
+  public void createSession(int poolSize, SettableFuture<Database> f) {
+    final List<ListenableFuture<Session>> createSessionFutureList = new ArrayList<>();
 
     log.info("Creating {} sessions", poolSize);
     IntStream.range(0, poolSize)
@@ -113,22 +132,64 @@ public class Database {
                       }
                     }
                   });
-              f.set(getClazz());
+              if (f != null) {
+                f.set(getClazz());
+              }
             }
           }
 
           @Override
           public void onFailure(Throwable t) {
-            f.setException(t);
+            if (f != null) {
+              f.setException(t);
+            }
           }
         },
         MoreExecutors.directExecutor());
-
-    return f;
   }
 
   public void close() throws IOException {
     stub.close();
+  }
+
+  void staleCheck() {
+    scheduler.scheduleAtFixedRate(
+        () -> {
+          final Instant now = Instant.now();
+          final Duration d = Duration.between(lastChecked, now);
+
+          if (d.toMinutes() >= 30) {
+            sessionPool
+                .getSessionList()
+                .forEach(
+                    s -> {
+                      Futures.addCallback(
+                          stub.getSession(
+                              Context.getDefault(),
+                              GetSessionRequest.newBuilder().setName(s.getName()).build()),
+                          new FutureCallback<Session>() {
+
+                            @Override
+                            public void onSuccess(Session s) {
+                              if (!sessionPool.tryPut(new SessionContext(s))) {
+                                // Log prolly?
+                                log.error("Couldn't put session {}", s);
+                              }
+                            }
+
+                            @Override
+                            public void onFailure(Throwable t) {
+                              createSession(1, null);
+                              log.error("Error creating new Session:", t);
+                            }
+                          },
+                          MoreExecutors.directExecutor());
+                    });
+          }
+        },
+        30,
+        30,
+        TimeUnit.MINUTES);
   }
 
   private Database getClazz() {

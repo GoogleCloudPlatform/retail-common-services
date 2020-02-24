@@ -81,9 +81,9 @@ tasks.register<Jar>("spannerTailerService") {
     archiveClassifier.set("uber")
     manifest {
         attributes(mapOf(
-                       "Implementation-Title" to "Spanner Tailer Service",
-                       "Implementation-Version" to "version",
-                       "Main-Class" to "com.google.spez.cdc.Main"
+          "Implementation-Title" to "Spanner Tailer Service",
+          "Implementation-Version" to "version",
+          "Main-Class" to "com.google.spez.cdc.Main"
         ))
     }
     baseName = "Main"

@@ -1,0 +1,24 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '.' ]
+- name: 'ubuntu'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    mkdir config-all
+
+    # rename config files to be appended with the environment, e.g. staging-service.yaml
+    for env in config/prod config/staging; do
+      if [ -d $env ]; then
+        for file in $env/*; do
+          envsubst < $file > config-all/$(basename $env)-$(basename $file)
+        done
+      fi
+    done
+artifacts:
+  objects:
+    location: gs://${_BUCKET_NAME}/${REPO_NAME}-manifests/$SHORT_SHA
+    paths: [ 'config-all/*' ]
+images:
+  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'

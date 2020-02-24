@@ -1,6 +1,6 @@
-import com.google.protobuf.gradle.*
-import net.ltgt.gradle.errorprone.errorprone
+import com.google.protobuf.gradle.* // ktlint-disable no-wildcard-imports
 import net.ltgt.gradle.errorprone.CheckSeverity
+import net.ltgt.gradle.errorprone.errorprone
 
 buildscript {
     dependencies {
@@ -66,7 +66,6 @@ dependencies {
     }
     testCompile(Config.Libs.junit_api)
     testRuntime(Config.Libs.junit_engine)
-
 }
 
 tasks.named<Test>("test") {
@@ -145,9 +144,9 @@ tasks.register<Jar>("spannerClientTest") {
     archiveClassifier.set("uber")
     manifest {
         attributes(mapOf(
-                       "Implementation-Title" to "Spanner Client Testin",
-                       "Implementation-Version" to "version",
-                       "Main-Class" to "com.google.spannerclient.Main"
+          "Implementation-Title" to "Spanner Client Testin",
+          "Implementation-Version" to "version",
+          "Main-Class" to "com.google.spannerclient.Main"
         ))
     }
     baseName = "Main"

@@ -102,6 +102,7 @@ class WorkStealingHandler implements SpannerEventHandler {
    */
   @Override
   public Boolean process(int bucket, Row s, String timestamp) {
+    records.incrementAndGet();
 
     ListenableFuture<Boolean> x =
         forkJoinPool.submit(

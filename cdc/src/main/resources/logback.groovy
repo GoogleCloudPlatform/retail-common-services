@@ -20,9 +20,6 @@ jmxConfigurator()
 appender("DEV-CONSOLE", ConsoleAppender) {
   withJansi = true
 
-//  filter(ThresholdFilter) {
-//    level = DEBUG
-//  }
   encoder(PatternLayoutEncoder) {
     pattern = "%-4relative [%thread] %-5level %logger{30} - %msg%n"
     outputPatternAsHeader = false
@@ -33,28 +30,17 @@ appender("DEV-CONSOLE", ConsoleAppender) {
 appender("PROD-CONSOLE", ConsoleAppender) {
   withJansi = true
 
-//  filter(ThresholdFilter) {
-//    level = INFO
-//  }
-  //encoder(LogstashEncoder)
 }
 
 // used for logging during test coverage
 appender("DEVNULL", FileAppender) {
   file = "/dev/null"
-//  filter(ThresholdFilter) {
-//    level = DEBUG
-//  }
   encoder(PatternLayoutEncoder) {
     pattern = "%-4relative [%thread] %-5level %logger{30} - %msg%n"
     outputPatternAsHeader = false
   }
 }
 
-//logger("io.netty.channel.DefaultChannelPipeline", OFF)
-//logger("io.netty.util.internal.NativeLibraryLoader", OFF)
-//logger("io.netty.handler.ssl.CipherSuiteConverter", OFF)
-logger("ROOT status: ALL", INFO)
 logger("com", INFO)
 logger("com.google", INFO)
 logger("com.google.spannerclient", INFO)
@@ -64,7 +50,9 @@ logger("com.google.spannerclient.Spanner", INFO)
 logger("com.google.spannerclient.Util", INFO)
 logger("com.google.spez", INFO)
 logger("com.google.spez.cdc", INFO)
+logger("com.google.spez.cdc.DisruptorHandler", INFO)
 logger("com.google.spez.cdc.Main", INFO)
+logger("com.google.spez.cdc.WorkStealingHandler", INFO)
 logger("com.google.spez.core", INFO)
 logger("com.google.spez.core.SpannerTailer", INFO)
 logger("com.google.spez.core.Spez", INFO)
@@ -120,5 +108,4 @@ switch (System.getProperty("PRICE-ENV")) {
     root(ALL, ["DEV-CONSOLE"])
     break
 }
-
 

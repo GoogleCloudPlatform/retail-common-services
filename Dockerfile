@@ -29,9 +29,6 @@ RUN ./gradlew clean :cdc:spannerTailerService && \
 FROM openjdk:${JDK_VERSION}-jdk-stretch as dev
 RUN apt-get update && apt-get install -y libgtk-3-bin
 COPY --from=app-build /app/Main.jar /app/Main.jar
-## This line is for local testing and should be commented out !!!
-ADD secrets /var/run/secret/cloud.google.com
-ENV GOOGLE_APPLICATION_CREDENTIALS /var/run/secret/cloud.google.com/service-account.json
 ENV JVM_HEAP_SIZE=6g
 ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
 ADD cdc/docker/jvm-arguments /app/
@@ -40,9 +37,6 @@ ENTRYPOINT ["java", "@/app/jvm-arguments", "-jar", "Main.jar"]
 
 FROM gcr.io/distroless/java:${JDK_VERSION} as prod
 COPY --from=app-build /app/Main.jar /app/Main.jar
-## This line is for local testing and should be commented out !!!
-ADD secrets /var/run/secret/cloud.google.com
-ENV GOOGLE_APPLICATION_CREDENTIALS /var/run/secret/cloud.google.com/service-account.json
 ENV JVM_HEAP_SIZE=12g
 ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
 ADD cdc/docker/jvm-arguments /app/

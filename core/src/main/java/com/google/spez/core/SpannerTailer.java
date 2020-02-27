@@ -55,7 +55,6 @@ import io.opencensus.tags.Tagger;
 import io.opencensus.tags.Tags;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.time.Duration;
@@ -142,7 +141,7 @@ public class SpannerTailer {
   private boolean firstRun = true;
   private RingBuffer<SpannerEvent> ringBuffer;
 
-  private GoogleCredentials credentials;
+  private final GoogleCredentials credentials;
   private Database database;
   private final AtomicLong running = new AtomicLong(0);
 
@@ -163,19 +162,15 @@ public class SpannerTailer {
     this.bloomFilter = BloomFilter.create(eventFunnel, maxEventCount, 0.01);
     this.eventMap = new ConcurrentHashMap<>(maxEventCount);
 
-    getCreds();
+    this.credentials = getCreds();
   }
 
-  void getCreds() {
+  private GoogleCredentials getCreds() {
     try {
-      credentials =
-          GoogleCredentials.fromStream(
-                  new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
-              // new FileInputStream(
-              //   "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
-              .createScoped(DEFAULT_SERVICE_SCOPES);
+      return GoogleCredentials.getApplicationDefault().createScoped(DEFAULT_SERVICE_SCOPES);
     } catch (IOException e) {
       log.error("Could not find or parse credential file", e);
+      throw new RuntimeException(e);
     }
   }
 

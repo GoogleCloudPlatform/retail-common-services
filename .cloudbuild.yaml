@@ -23,6 +23,7 @@ steps:
     for env in config/prod config/staging; do
       if [ -d $env ]; then
         for file in $env/*; do
+          echo "envsubst < $file > config-all/$(basename $env)-$(basename $file)"
           envsubst < $file > config-all/$(basename $env)-$(basename $file)
         done
       fi

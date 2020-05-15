@@ -55,17 +55,17 @@ public class GaxEventPublisher {
     // TODO(XJDR): Convert these values to a config
     final RetrySettings retrySettings =
         RetrySettings.newBuilder()
-            .setInitialRpcTimeout(Duration.ofSeconds(10L))
-            .setMaxRpcTimeout(Duration.ofSeconds(20L))
-            .setMaxAttempts(5)
-            .setTotalTimeout(Duration.ofSeconds(30L))
+            .setInitialRpcTimeout(Duration.ofSeconds(10L)) // TODO(pdex): move to config
+            .setMaxRpcTimeout(Duration.ofSeconds(20L)) // TODO(pdex): move to config
+            .setMaxAttempts(5) // TODO(pdex): move to config
+            .setTotalTimeout(Duration.ofSeconds(30L)) // TODO(pdex): move to config
             .build();
     final BatchingSettings batchingSettings =
         BatchingSettings.newBuilder()
-            .setElementCountThreshold(100L)
-            .setDelayThreshold(Duration.ofSeconds(30))
-            .setRequestByteThreshold(10 * 1024L)
-            .setIsEnabled(true)
+            .setElementCountThreshold(100L) // TODO(pdex): move to config
+            .setDelayThreshold(Duration.ofSeconds(30)) // TODO(pdex): move to config
+            .setRequestByteThreshold(10 * 1024L) // TODO(pdex): move to config
+            .setIsEnabled(true) // TODO(pdex): move to config
             .build();
 
     final ProjectTopicName topicName = ProjectTopicName.of(projectId, topic);

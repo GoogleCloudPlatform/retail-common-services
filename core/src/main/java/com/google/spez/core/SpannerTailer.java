@@ -159,7 +159,7 @@ public class SpannerTailer {
                 into.putString(event.uuid(), Charsets.UTF_8)
                     .putString(event.timestamp().toString(), Charsets.UTF_8);
 
-    this.bloomFilter = BloomFilter.create(eventFunnel, maxEventCount, 0.01);
+    this.bloomFilter = BloomFilter.create(eventFunnel, maxEventCount, 0.01); // TODO(pdex): move to config
     this.eventMap = new ConcurrentHashMap<>(maxEventCount);
 
     this.credentials = getCreds();
@@ -167,7 +167,7 @@ public class SpannerTailer {
 
   private GoogleCredentials getCreds() {
     try {
-      return GoogleCredentials.getApplicationDefault().createScoped(DEFAULT_SERVICE_SCOPES);
+      return GoogleCredentials.getApplicationDefault().createScoped(DEFAULT_SERVICE_SCOPES); // TODO(pdex): move to config
     } catch (IOException e) {
       log.error("Could not find or parse credential file", e);
       throw new RuntimeException(e);
@@ -192,7 +192,7 @@ public class SpannerTailer {
     Preconditions.checkNotNull(tableName);
 
     final String databasePath =
-        String.format("projects/%s/instances/test-db/databases/test", projectId);
+        String.format("projects/%s/instances/test-db/databases/test", projectId); // TODO(pdex): move to config
     final String tsQuery =
         "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '" + tableName + "'";
     final String pkQuery =
@@ -246,7 +246,7 @@ public class SpannerTailer {
             }
 
             // TODO(xjdr): Should make custom exception types
-            throw new InvalidObjectException("Spanner Table Must contan Commit_Timestamp");
+            throw new InvalidObjectException("Spanner Table Must contain Commit_Timestamp");
           }
         };
 
@@ -323,7 +323,7 @@ public class SpannerTailer {
     Preconditions.checkArgument(eventCacheTTL > 0);
 
     final String databasePath =
-        String.format("projects/%s/instances/test-db/databases/test", projectId);
+        String.format("projects/%s/instances/test-db/databases/test", projectId); // TODO(pdex): move to config
 
     log.info("Building database with path '{}'", databasePath);
     final ListenableFuture<Database> dbFuture =
@@ -352,7 +352,7 @@ public class SpannerTailer {
                             bucketSize);
                       },
                       0,
-                      30, // TODO(pdex): I should be a runtime option
+                      30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
                       TimeUnit.SECONDS);
               // return poller;
 
@@ -403,7 +403,7 @@ public class SpannerTailer {
 
         RowCursor lptsCursor =
             Spanner.execute(
-                QueryOptions.DEFAULT(), database, Query.create("SELECT * FROM " + lptsTableName));
+                QueryOptions.DEFAULT(), database, Query.create("SELECT * FROM " + lptsTableName)); // TODO(pdex): move to config
 
         // while (lptsColNameCursor.next()) {
         //   if
@@ -428,7 +428,7 @@ public class SpannerTailer {
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
       Spanner.executeStreaming(
-          QueryOptions.newBuilder().setReadOnly(true).setStale(true).setMaxStaleness(500).build(),
+          QueryOptions.newBuilder().setReadOnly(true).setStale(true).setMaxStaleness(500).build(), // TODO(pdex): move to config
           database,
           new StreamObserver<Row>() {
             @Override
@@ -609,7 +609,7 @@ public class SpannerTailer {
       String recordLimit) {
 
     final String databasePath =
-        String.format("projects/%s/instances/test-db/databases/test", projectId);
+        String.format("projects/%s/instances/test-db/databases/test", projectId); // TODO(pdex): move to config
 
     final ListenableFuture<Database> dbFuture =
         Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
@@ -633,7 +633,7 @@ public class SpannerTailer {
 
                 RowCursor lptsCursor =
                     Spanner.execute(
-                        QueryOptions.DEFAULT(), db, Query.create("SELECT * FROM " + lptsTableName));
+                        QueryOptions.DEFAULT(), db, Query.create("SELECT * FROM " + lptsTableName)); // TODO(pdex): move to config
 
                 // while (lptsColNameCursor.next()) {
                 //   if
@@ -657,7 +657,7 @@ public class SpannerTailer {
                   QueryOptions.newBuilder()
                       .setReadOnly(true)
                       .setStale(true)
-                      .setMaxStaleness(15)
+                      .setMaxStaleness(15) // TODO(pdex): move to config
                       .build(),
                   db,
                   new StreamObserver<Row>() {

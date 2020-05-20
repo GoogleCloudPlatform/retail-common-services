@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG JDK_VERSION=11
-FROM openjdk:${JDK_VERSION}-jdk-slim as build-env
+ARG JDK_VERSION=11-jdk-slim
+FROM openjdk:${JDK_VERSION} as build-env
 # Get gradle distribution
 COPY *.gradle gradle.* gradlew /app/
 COPY gradle /app/gradle

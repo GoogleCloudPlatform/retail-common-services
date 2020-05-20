@@ -43,8 +43,8 @@ import org.slf4j.LoggerFactory;
 /** This class published events from Cloud Spanner to Pub/Sub */
 public class EventPublisher {
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
-  private static final int DEFAULT_BUFFER_SIZE = 950;
-  private static final int DEFAULT_BUFFER_TIME = 30;
+  private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
+  private static final int DEFAULT_BUFFER_TIME = 30; // TODO(pdex): move to config
 
   private final List<PubsubMessage> buffer;
   private final ScheduledExecutorService scheduler;

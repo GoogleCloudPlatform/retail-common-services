@@ -29,4 +29,28 @@ if [[ "$BUILD" = "y" ]]; then
   docker build --target dev       -t spez/spanner-tailer-service-dev $DOCKERFILE .
   docker build --target prod      -t spez/spanner-tailer-service $DOCKERFILE .
 fi
-docker run --name $CONTAINER_NAME -v $XSOCK:$XSOCK -v $JMC:/app/jmc -p 9010:9010 -t --rm $IMAGE
+
+export SPEZ_PROJECT_ID=${SPEZ_PROJECT_ID:-retail-common-services-249016}
+export SPEZ_AUTH_SERVICE_ACCOUNT=${SPEZ_AUTH_SERVICE_ACCOUNT:-}
+export SPEZ_PUBSUB_TOPIC=${SPEZ_PUBSUB_TOPIC:-test-topic}
+export SPEZ_SPANNERDB_INSTANCE=${SPEZ_SPANNERDB_INSTANCE:-test-db}
+export SPEZ_SPANNERDB_DATABASE=${SPEZ_SPANNERDB_DATABASE:-test}
+export SPEZ_SPANNERDB_TABLE=${SPEZ_SPANNERDB_TABLE:-test}
+export SPEZ_SPANNERDB_UUID_FIELD_NAME
+export SPEZ_SPANNERDB_TIMESTAMP_FIELD_NAME
+
+docker run \
+           --env SPEZ_PROJECT_ID \
+           --env SPEZ_AUTH_SERVICE_ACCOUNT \
+           --env SPEZ_PUBSUB_TOPIC \
+           --env SPEZ_SPANNERDB_INSTANCE \
+           --env SPEZ_SPANNERDB_DATABASE \
+           --env SPEZ_SPANNERDB_TABLE \
+           --env SPEZ_SPANNERDB_UUID_FIELD_NAME \
+           --env SPEZ_SPANNERDB_TIMESTAMP_FIELD_NAME \
+           --name $CONTAINER_NAME \
+	   -v $XSOCK:$XSOCK \
+	   -v $JMC:/app/jmc \
+	   -p 9010:9010 \
+	   -t \
+	   --rm $IMAGE

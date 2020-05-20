@@ -25,6 +25,8 @@ import com.google.spez.core.EventPublisher;
 import com.google.spez.core.SpannerTailer;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.google.spez.core.Spez;
+import com.google.spez.core.SpezConfig;
+import com.typesafe.config.ConfigFactory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,27 +41,25 @@ import org.slf4j.LoggerFactory;
 
 class Main {
   private static final Logger log = LoggerFactory.getLogger(Main.class);
-  private static final String PROJECT_NAME = "retail-common-services-249016";
-  private static final String INSTANCE_NAME = "test-db";
-  private static final String DB_NAME = "test";
-  private static final String TABLE_NAME = "test";
-  private static final String TOPIC_NAME = "test-topic";
-  private static final int BUFFER_SIZE = 1024;
-  private static final int THREAD_POOL = 12;
+  private static final int BUFFER_SIZE = 1024; // TODO(pdex): move to config
+  private static final int THREAD_POOL = 12; // TODO(pdex): move to config
 
   private static final boolean DISRUPTOR = false;
 
   public static void main(String[] args) {
+    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
     // TODO(pdex): why are we making our own threadpool?
     final List<ListeningExecutorService> l =
         Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
 
-    final SpannerTailer tailer = new SpannerTailer(THREAD_POOL, 200000000);
+    final SpannerTailer tailer =
+        new SpannerTailer(THREAD_POOL, 200000000); // TODO(pdex): move to config
     // final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
     final ThreadLocal<EventPublisher> publisher =
         ThreadLocal.withInitial(
             () -> {
-              return new EventPublisher(PROJECT_NAME, TOPIC_NAME);
+              return new EventPublisher(
+                  config.getPubSub().getProjectId(), config.getPubSub().getTopic());
             });
     final ExecutorService workStealingPool = Executors.newWorkStealingPool();
     final ListeningExecutorService forkJoinPool =
@@ -68,13 +68,22 @@ class Main {
     final CountDownLatch doneSignal = new CountDownLatch(1);
     final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
+    // TODO(pdex): unify input parameter names with metadata key names
     // Populate CDC Metadata
-    metadata.put("SrcDatabase", DB_NAME);
-    metadata.put("SrcTablename", TABLE_NAME);
-    metadata.put("DstTopic", TOPIC_NAME);
+    metadata.put("SrcInstance", config.getSpannerDb().getInstance());
+    metadata.put("SrcDatabase", config.getSpannerDb().getDatabase());
+    metadata.put("SrcTablename", config.getSpannerDb().getTable());
+    metadata.put("DstTopic", config.getPubSub().getTopic());
+    // TODO(pdex): add UUID to metadata
+    // TODO(pdex): add timestamp to metadata
 
     final ListenableFuture<SchemaSet> schemaSetFuture =
-        tailer.getSchema(PROJECT_NAME, INSTANCE_NAME, DB_NAME, TABLE_NAME);
+        tailer.getSchema(
+            config.getSpannerDb().getProjectId(),
+            config.getSpannerDb().getInstance(),
+            config.getSpannerDb().getDatabase(),
+            config.getSpannerDb().getTable(),
+            config.getSpannerDb());
 
     Futures.addCallback(
         schemaSetFuture,
@@ -93,10 +102,10 @@ class Main {
                   tailer.start(
                       2,
                       500,
-                      PROJECT_NAME,
-                      INSTANCE_NAME,
-                      DB_NAME,
-                      TABLE_NAME,
+                      config.getSpannerDb().getProjectId(),
+                      config.getSpannerDb().getInstance(),
+                      config.getSpannerDb().getDatabase(),
+                      config.getSpannerDb().getTable(),
                       "lpts_table",
                       schemaSet.tsColName(),
                       "2000");
@@ -111,14 +120,15 @@ class Main {
                   l.size(),
                   THREAD_POOL,
                   500,
-                  PROJECT_NAME,
-                  INSTANCE_NAME,
-                  DB_NAME,
-                  TABLE_NAME,
+                  config.getSpannerDb().getProjectId(),
+                  config.getSpannerDb().getInstance(),
+                  config.getSpannerDb().getDatabase(),
+                  config.getSpannerDb().getTable(),
                   "lpts_table",
                   "2000",
                   500,
-                  500);
+                  500,
+                  config.getSpannerDb());
 
               scheduler.scheduleAtFixedRate(
                   () -> {

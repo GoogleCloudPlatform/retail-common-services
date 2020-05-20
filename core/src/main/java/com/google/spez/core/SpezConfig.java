@@ -140,6 +140,21 @@ public class SpezConfig {
           + timestamp_field_name
           + "]";
     }
+
+    public String databasePath() {
+      return new StringBuilder()
+          .append("projects/")
+          .append(project_id)
+          .append("/instances/")
+          .append(instance)
+          .append("/databases/")
+          .append(database)
+          .toString();
+    }
+
+    public String tablePath() {
+      return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
+    }
   }
 
   private final AuthConfig auth;

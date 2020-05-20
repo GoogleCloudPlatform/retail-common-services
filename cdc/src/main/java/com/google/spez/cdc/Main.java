@@ -68,7 +68,9 @@ class Main {
     final CountDownLatch doneSignal = new CountDownLatch(1);
     final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
+    // TODO(pdex): unify input parameter names with metadata key names
     // Populate CDC Metadata
+    metadata.put("SrcInstance", config.getSpannerDb().getInstance());
     metadata.put("SrcDatabase", config.getSpannerDb().getDatabase());
     metadata.put("SrcTablename", config.getSpannerDb().getTable());
     metadata.put("DstTopic", config.getPubSub().getTopic());
@@ -125,7 +127,8 @@ class Main {
                   "lpts_table",
                   "2000",
                   500,
-                  500);
+                  500,
+                  config.getSpannerDb());
 
               scheduler.scheduleAtFixedRate(
                   () -> {

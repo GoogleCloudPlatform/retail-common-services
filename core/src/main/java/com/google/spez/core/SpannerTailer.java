@@ -56,7 +56,6 @@ import io.opencensus.tags.Tags;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -176,6 +175,99 @@ public class SpannerTailer {
     }
   }
 
+  private static class TimestampColumnChecker {
+    private final SpezConfig.SpannerDbConfig config;
+    private boolean tableExists = false;
+    private boolean columnExists = false;
+    private boolean optionExists = false;
+    private boolean valueTrue = false;
+
+    public TimestampColumnChecker(SpezConfig.SpannerDbConfig config) {
+      this.config = config;
+    }
+
+    public void checkRow(RowCursor rc) {
+      tableExists = true;
+      if (rc.getString("COLUMN_NAME").equals(config.getTimestampFieldName())) {
+        columnExists = true;
+        if (rc.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
+          optionExists = true;
+        }
+        if (rc.getString("OPTION_VALUE").equals("TRUE")) {
+          valueTrue = true;
+        }
+      }
+    }
+
+    public void throwIfInvalid() {
+      if (tableExists && columnExists && optionExists && valueTrue) {
+        return;
+      }
+
+      String tableDescription = (tableExists ? "it does" : "it doesn't");
+      String columnDescription = (columnExists ? "it does" : "it doesn't");
+      String optionDescription = (optionExists ? "it does" : "it doesn't");
+      String valueDescription = (valueTrue ? "it is" : "it isn't");
+      throw new IllegalStateException(
+          "Spanner table '"
+              + config.tablePath()
+              + "' must exist ("
+              + tableDescription
+              + ") and contain a column named '"
+              + config.getTimestampFieldName()
+              + "' ("
+              + columnDescription
+              + ") of type TIMESTAMP with the allow_commit_timestamp option ("
+              + optionDescription
+              + ") set to TRUE ("
+              + valueDescription
+              + ")");
+    }
+  }
+
+  private static class UuidColumnChecker {
+    private final SpezConfig.SpannerDbConfig config;
+    private boolean tableExists = false;
+    private boolean columnExists = false;
+    private boolean columnIsPrimaryKey = false;
+
+    public UuidColumnChecker(SpezConfig.SpannerDbConfig config) {
+      this.config = config;
+    }
+
+    public void checkRow(RowCursor rc) {
+      tableExists = true;
+      if (rc.getString("COLUMN_NAME").equals(config.getUuidFieldName())) {
+        columnExists = true;
+        if (rc.getString("INDEX_TYPE").equals("PRIMARY_KEY")) {
+          columnIsPrimaryKey = true;
+        }
+      }
+    }
+
+    public void throwIfInvalid() {
+      if (tableExists && columnExists && columnIsPrimaryKey) {
+        return;
+      }
+
+      String tableDescription = (tableExists ? "it does" : "it doesn't");
+      String columnDescription = (columnExists ? "it does" : "it doesn't");
+      String pkDescription = (columnIsPrimaryKey ? "it is" : "it is not");
+      throw new IllegalStateException(
+          "Spanner table '"
+              + config.tablePath()
+              + "' must exist ("
+              + tableDescription
+              + ") and contain a column named '"
+              + config.getUuidFieldName()
+              + "' ("
+              + columnDescription
+              + ") which is a PRIMARY_KEY ("
+              + pkDescription
+              + ")");
+    }
+  }
+
   /**
    * Parses the schema from the Cloud Spanner table and creates an Avro {@code SchemSet} to enable
    * you to dynamically serialize Cloud Spanner events as an Avro record for publshing to an event
@@ -197,24 +289,16 @@ public class SpannerTailer {
     Preconditions.checkNotNull(dbName);
     Preconditions.checkNotNull(tableName);
 
-    final String databasePath =
-        new StringBuilder()
-            .append("projects/")
-            .append(projectId)
-            .append("/instances/")
-            .append(instanceName)
-            .append("/databases/")
-            .append(dbName)
-            .toString();
+    final String databasePath = config.databasePath();
 
-    final String tsQuery =
-        "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '" + tableName + "'";
-    final String pkQuery =
-        "SELECT * FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME = '" + tableName + "'";
     final String schemaQuery =
         "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='"
             + tableName
             + "' ORDER BY ORDINAL_POSITION";
+    final String pkQuery =
+        "SELECT * FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME = '" + tableName + "'";
+    final String tsQuery =
+        "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '" + tableName + "'";
 
     final SettableFuture<SchemaSet> result = SettableFuture.create();
     final ListenableFuture<Database> dbFuture =
@@ -249,32 +333,22 @@ public class SpannerTailer {
 
           @Override
           public ListenableFuture<SchemaSet> apply(List<RowCursor> rowCursors) throws Exception {
-            final RowCursor rc = rowCursors.get(2);
-            log.info("called with rowCursors: " + rowCursors);
-            log.info("rc before: " + rc);
-            while (rc.next()) {
-              log.info("rc: " + rc);
-              log.info(
-                  "column name: "
-                      + rc.getString("COLUMN_NAME")
-                      + " option name: "
-                      + rc.getString("OPTION_NAME")
-                      + " option value: "
-                      + rc.getString("OPTION_VALUE"));
-              if (rc.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
-                if (rc.getString("OPTION_VALUE").equals("TRUE")) {
-                  return SpannerToAvro.GetSchemaAsync(
-                      tableName, "avroNamespace", rowCursors.get(0), rc.getString("COLUMN_NAME"));
-                }
-              }
+            RowCursor columnOptions = rowCursors.get(2);
+            TimestampColumnChecker timestampChecker = new TimestampColumnChecker(config);
+            while (columnOptions.next()) {
+              timestampChecker.checkRow(columnOptions);
             }
+            timestampChecker.throwIfInvalid();
 
-            // TODO(xjdr): Should make custom exception types
-            throw new InvalidObjectException(
-                "Spanner table '" + databasePath + "/" + tableName
-                    + "' must exist and contain a column named '"
-                    + config.getTimestampFieldName()
-                    + "' of type TIMESTAMP with the allow_commit_timestamp option set to TRUE");
+            RowCursor indexColumns = rowCursors.get(1);
+            UuidColumnChecker uuidChecker = new UuidColumnChecker(config);
+            while (indexColumns.next()) {
+              uuidChecker.checkRow(indexColumns);
+            }
+            uuidChecker.throwIfInvalid();
+
+            return SpannerToAvro.GetSchemaAsync(
+                tableName, "avroNamespace", rowCursors.get(0), config.getTimestampFieldName());
           }
         };
 
@@ -334,7 +408,8 @@ public class SpannerTailer {
       String lptsTableName,
       String recordLimit,
       int vacuumRate,
-      long eventCacheTTL) {
+      long eventCacheTTL,
+      SpezConfig.SpannerDbConfig config) {
 
     Preconditions.checkNotNull(handler);
     Preconditions.checkNotNull(tsColName);
@@ -350,15 +425,7 @@ public class SpannerTailer {
     Preconditions.checkArgument(vacuumRate > 0);
     Preconditions.checkArgument(eventCacheTTL > 0);
 
-    final String databasePath =
-        new StringBuilder()
-            .append("projects/")
-            .append(projectId)
-            .append("/instances/")
-            .append(instanceName)
-            .append("/databases/")
-            .append(dbName)
-            .toString();
+    final String databasePath = config.databasePath();
 
     log.info("Building database with path '{}'", databasePath);
     final ListenableFuture<Database> dbFuture =
@@ -384,7 +451,8 @@ public class SpannerTailer {
                             recordLimit,
                             handler,
                             tsColName,
-                            bucketSize);
+                            bucketSize,
+                            config);
                       },
                       0,
                       30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
@@ -416,7 +484,8 @@ public class SpannerTailer {
       String recordLimit,
       SpannerEventHandler handler,
       String tsColName,
-      int bucketSize) {
+      int bucketSize,
+      SpezConfig.SpannerDbConfig config) {
 
     long num = running.incrementAndGet();
     if (num > 1) {
@@ -442,6 +511,10 @@ public class SpannerTailer {
                 database,
                 Query.create("SELECT * FROM " + lptsTableName)); // TODO(pdex): move to config
 
+        // TODO(pdex): remove id column from lpts
+        // TODO(pdex): add spanner instance column to lpts
+        // TODO(pdex): add spanner database column to lpts
+        // TODO(pdex): add spanner table column to lpts
         // while (lptsColNameCursor.next()) {
         //   if
         // (lptsColNameCursor.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
@@ -484,7 +557,7 @@ public class SpannerTailer {
                                 .currentBuilder()
                                 .put(TAILER_TABLE_KEY, TagValue.create(tableName))
                                 .buildScoped()) {
-                          processRow(handler, row, tsColName);
+                          processRow(handler, row, tsColName, config);
                           lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
                           statsRecorder.newMeasureMap().put(MESSAGE_SIZE, row.getSize()).record();
                           return Boolean.TRUE;
@@ -550,8 +623,9 @@ public class SpannerTailer {
     }
   }
 
-  private Boolean processRow(SpannerEventHandler handler, Row row, String tsColName) {
-    final String uuid = Long.toString(row.getLong(0));
+  private Boolean processRow(
+      SpannerEventHandler handler, Row row, String tsColName, SpezConfig.SpannerDbConfig config) {
+    final String uuid = Long.toString(row.getLong(config.getUuidFieldName()));
     final Timestamp ts = row.getTimestamp(tsColName);
     final Event e = Event.create(uuid, ts);
 

@@ -497,38 +497,37 @@ public class SpannerTailer {
     try {
       if (firstRun) {
 
-        final String tsQuery =
-            "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '"
-                + lptsTableName
-                + "'";
-
-        // RowCursor lptsColNameCursor =
-        //     Spanner.execute(QueryOptions.DEFAULT(), db, Query.create(tsQuery));
+        String lptsQuery =
+            new StringBuilder()
+                .append("SELECT * FROM ")
+                .append(lptsTableName)
+                .append(" WHERE instance = '")
+                .append(config.getInstance())
+                .append("' AND database = '")
+                .append(config.getDatabase())
+                .append("' AND table = '")
+                .append(config.getTable())
+                .append("'")
+                .toString();
 
         RowCursor lptsCursor =
-            Spanner.execute(
-                QueryOptions.DEFAULT(),
-                database,
-                Query.create("SELECT * FROM " + lptsTableName)); // TODO(pdex): move to config
+            Spanner.execute(QueryOptions.DEFAULT(), database, Query.create(lptsQuery));
 
         // TODO(pdex): remove id column from lpts
-        // TODO(pdex): add spanner instance column to lpts
-        // TODO(pdex): add spanner database column to lpts
-        // TODO(pdex): add spanner table column to lpts
-        // while (lptsColNameCursor.next()) {
-        //   if
-        // (lptsColNameCursor.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
-        //     if (lptsColNameCursor.getString("OPTION_VALUE").equals("TRUE")) {
+
+        boolean gotTimestamp = false;
         while (lptsCursor.next()) {
-          String startingTimestamp =
-              lptsCursor.getString(
-                  "LastProcessedTimestamp"); // lptsColNameCursor.getString("COLUMN_NAME"));
+          if (gotTimestamp) {
+            log.error(
+                "Got more than one row from lpts_table, using the first value {}",
+                lastProcessedTimestamp);
+            break;
+          }
+          String startingTimestamp = lptsCursor.getString("LastProcessedTimestamp");
           Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
           lastProcessedTimestamp = tt.toString();
+          gotTimestamp = true;
         }
-        //     }
-        //   }
-        // }
 
         firstRun = false;
         // lastProcessedTimestamp = "2020-02-06T23:57:58.602900Z";

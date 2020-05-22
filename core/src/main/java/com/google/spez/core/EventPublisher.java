@@ -46,6 +46,7 @@ public class EventPublisher {
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
   private static final int DEFAULT_BUFFER_TIME = 30; // TODO(pdex): move to config
 
+  private final SpezConfig config;
   private final List<PubsubMessage> buffer;
   private final ScheduledExecutorService scheduler;
   private final String projectName;
@@ -56,10 +57,12 @@ public class EventPublisher {
   private Publisher publisher;
   private Instant lastPublished;
 
-  public EventPublisher(String projectName, String topicName) {
+  public EventPublisher(String projectName, String topicName, SpezConfig config) {
     Preconditions.checkNotNull(projectName);
     Preconditions.checkNotNull(topicName);
+    Preconditions.checkNotNull(config);
 
+    this.config = config;
     this.buffer = new ArrayList<>();
     this.scheduler = Executors.newScheduledThreadPool(2);
     this.projectName = projectName;
@@ -70,12 +73,14 @@ public class EventPublisher {
     this.lastPublished = Instant.now();
   }
 
-  public EventPublisher(String projectName, String topicName, int bufferSize, int bufferTime) {
+  public EventPublisher(
+      String projectName, String topicName, int bufferSize, int bufferTime, SpezConfig config) {
     Preconditions.checkNotNull(projectName);
     Preconditions.checkNotNull(topicName);
     Preconditions.checkArgument(bufferSize > 0);
     Preconditions.checkArgument(bufferTime > 0);
 
+    this.config = config;
     this.buffer = new ArrayList<>();
     this.scheduler = Executors.newScheduledThreadPool(2);
     this.projectName = projectName;
@@ -113,7 +118,8 @@ public class EventPublisher {
         30,
         TimeUnit.SECONDS);
 
-    return PubSub.getPublisher(Options.DEFAULT(), projectName, topicName);
+    return PubSub.getPublisher(
+        config.getAuth().getCredentials(), Options.DEFAULT(), projectName, topicName);
   }
 
   /**

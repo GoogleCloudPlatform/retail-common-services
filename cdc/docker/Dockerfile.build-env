@@ -18,3 +18,5 @@ FROM openjdk:${JDK_VERSION} as build-env
 COPY *.gradle gradle.* gradlew /app/
 COPY gradle /app/gradle
 RUN /app/gradlew --version
+RUN apt-get update
+RUN apt-get install -y build-essential

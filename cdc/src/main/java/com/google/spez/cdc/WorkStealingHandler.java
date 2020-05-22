@@ -24,13 +24,13 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.spannerclient.Row;
 import com.google.spez.core.EventPublisher;
+import com.google.spez.core.MetadataExtractor;
 import com.google.spez.core.SpannerEventHandler;
 import com.google.spez.core.SpannerToAvro;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -57,17 +57,17 @@ class WorkStealingHandler implements SpannerEventHandler {
   private final ScheduledExecutorService scheduler;
   private final SchemaSet schemaSet;
   private final ThreadLocal<EventPublisher> publisher;
-  private final Map<String, String> metadata;
+  private final MetadataExtractor extractor;
 
   public WorkStealingHandler(
       ScheduledExecutorService scheduler,
       SchemaSet schemaSet,
       ThreadLocal<EventPublisher> publisher,
-      Map<String, String> metadata) {
+      MetadataExtractor extractor) {
     this.scheduler = scheduler;
     this.schemaSet = schemaSet;
     this.publisher = publisher;
-    this.metadata = metadata;
+    this.extractor = extractor;
   }
 
   public void logStats() {
@@ -115,6 +115,8 @@ class WorkStealingHandler implements SpannerEventHandler {
                   forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
 
               log.debug("Record Processed, getting ready to publish");
+
+              var metadata = extractor.extract(s);
 
               AsyncFunction<Optional<ByteString>, String> pub =
                   new AsyncFunction<Optional<ByteString>, String>() {

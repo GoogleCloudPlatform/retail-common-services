@@ -17,49 +17,28 @@ package com.google.spannerclient;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.pubsub.v1.*;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PubSub {
   private static final Logger log = LoggerFactory.getLogger(PubSub.class);
-  private static final ImmutableList<String> DEFAULT_SERVICE_SCOPES =
-      ImmutableList.<String>builder()
-          .add("https://www.googleapis.com/auth/cloud-platform")
-          .add("https://www.googleapis.com/auth/pubsub")
-          .build();
 
   private PubSub() {}
 
-  public static Publisher getPublisher(Options options, String projectName, String topicName) {
+  public static Publisher getPublisher(
+      GoogleCredentials credentials, Options options, String projectName, String topicName) {
+    Preconditions.checkNotNull(credentials);
     Preconditions.checkNotNull(projectName);
     Preconditions.checkNotNull(topicName);
 
-    final GoogleCredentials credentials = getCreds();
     final String topicPath = String.format("projects/%s/topics/%s", projectName, topicName);
     return new Publisher(topicPath, credentials);
-  }
-
-  static GoogleCredentials getCreds() {
-    try {
-      return GoogleCredentials.fromStream(
-              new FileInputStream("/var/run/secret/cloud.google.com/service-account.json"))
-          // new FileInputStream(
-          //   "/home/xjdr/src/google/spannerclient/secrets/service-account.json"))
-          .createScoped(DEFAULT_SERVICE_SCOPES);
-    } catch (IOException e) {
-      log.error("Could not find or parse credential file", e);
-    }
-
-    return null;
   }
 
   public static PublishResponse publish(

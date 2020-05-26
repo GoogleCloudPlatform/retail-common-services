@@ -122,12 +122,7 @@ public class SpannerTailer {
     viewManager.registerView(MESSAGE_SIZE_VIEW);
   }
 
-  private static final ImmutableList<String> DEFAULT_SERVICE_SCOPES =
-      ImmutableList.<String>builder()
-          .add("https://www.googleapis.com/auth/cloud-platform")
-          .add("https://www.googleapis.com/auth/spanner.data")
-          .build();
-
+  private final GoogleCredentials credentials;
   private final ListeningExecutorService service;
   private final ScheduledExecutorService scheduler;
   private final HashFunction hasher;
@@ -140,11 +135,11 @@ public class SpannerTailer {
   private boolean firstRun = true;
   private RingBuffer<SpannerEvent> ringBuffer;
 
-  private final GoogleCredentials credentials;
   private Database database;
   private final AtomicLong running = new AtomicLong(0);
 
-  public SpannerTailer(int threadPool, int maxEventCount) {
+  public SpannerTailer(GoogleCredentials credentials, int threadPool, int maxEventCount) {
+    this.credentials = credentials;
     this.scheduler = Executors.newScheduledThreadPool(threadPool);
     this.service =
         MoreExecutors.listeningDecorator(
@@ -161,18 +156,6 @@ public class SpannerTailer {
     this.bloomFilter =
         BloomFilter.create(eventFunnel, maxEventCount, 0.01); // TODO(pdex): move to config
     this.eventMap = new ConcurrentHashMap<>(maxEventCount);
-
-    this.credentials = getCreds();
-  }
-
-  private GoogleCredentials getCreds() {
-    try {
-      return GoogleCredentials.getApplicationDefault()
-          .createScoped(DEFAULT_SERVICE_SCOPES); // TODO(pdex): move to config
-    } catch (IOException e) {
-      log.error("Could not find or parse credential file", e);
-      throw new RuntimeException(e);
-    }
   }
 
   private static class TimestampColumnChecker {
@@ -188,7 +171,7 @@ public class SpannerTailer {
 
     public void checkRow(RowCursor rc) {
       tableExists = true;
-      if (rc.getString("COLUMN_NAME").equals(config.getTimestampFieldName())) {
+      if (rc.getString("COLUMN_NAME").equals(config.getTimestampColumn())) {
         columnExists = true;
         if (rc.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
           optionExists = true;
@@ -214,7 +197,7 @@ public class SpannerTailer {
               + "' must exist ("
               + tableDescription
               + ") and contain a column named '"
-              + config.getTimestampFieldName()
+              + config.getTimestampColumn()
               + "' ("
               + columnDescription
               + ") of type TIMESTAMP with the allow_commit_timestamp option ("
@@ -237,7 +220,7 @@ public class SpannerTailer {
 
     public void checkRow(RowCursor rc) {
       tableExists = true;
-      if (rc.getString("COLUMN_NAME").equals(config.getUuidFieldName())) {
+      if (rc.getString("COLUMN_NAME").equals(config.getUuidColumn())) {
         columnExists = true;
         if (rc.getString("INDEX_TYPE").equals("PRIMARY_KEY")) {
           columnIsPrimaryKey = true;
@@ -259,7 +242,7 @@ public class SpannerTailer {
               + "' must exist ("
               + tableDescription
               + ") and contain a column named '"
-              + config.getUuidFieldName()
+              + config.getUuidColumn()
               + "' ("
               + columnDescription
               + ") which is a PRIMARY_KEY ("
@@ -348,7 +331,7 @@ public class SpannerTailer {
             uuidChecker.throwIfInvalid();
 
             return SpannerToAvro.GetSchemaAsync(
-                tableName, "avroNamespace", rowCursors.get(0), config.getTimestampFieldName());
+                tableName, "avroNamespace", rowCursors.get(0), config.getTimestampColumn());
           }
         };
 
@@ -624,17 +607,13 @@ public class SpannerTailer {
 
   private Boolean processRow(
       SpannerEventHandler handler, Row row, String tsColName, SpezConfig.SpannerDbConfig config) {
-    final String uuid = Long.toString(row.getLong(config.getUuidFieldName()));
-    final Timestamp ts = row.getTimestamp(tsColName);
-    final Event e = Event.create(uuid, ts);
-
-    // if (uniq(e)) {
+    final String uuid = Long.toString(row.getLong(config.getUuidColumn()));
+    final Timestamp ts = row.getTimestamp(config.getTimestampColumn());
     final HashCode sortingKeyHashCode = hasher.newHasher().putBytes(uuid.getBytes(UTF_8)).hash();
     final int bucket = Hashing.consistentHash(sortingKeyHashCode, 12);
 
     handler.process(bucket, row, ts.toString());
     lastProcessedTimestamp = ts.toString();
-    // }
 
     return true;
   }

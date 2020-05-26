@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spez.core.EventPublisher;
+import com.google.spez.core.MetadataExtractor;
 import com.google.spez.core.SpannerTailer;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.google.spez.core.Spez;
@@ -53,13 +54,16 @@ class Main {
         Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
 
     final SpannerTailer tailer =
-        new SpannerTailer(THREAD_POOL, 200000000); // TODO(pdex): move to config
+        new SpannerTailer(
+            config.getAuth().getCredentials(),
+            THREAD_POOL,
+            200000000); // TODO(pdex): move to config
     // final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
     final ThreadLocal<EventPublisher> publisher =
         ThreadLocal.withInitial(
             () -> {
               return new EventPublisher(
-                  config.getPubSub().getProjectId(), config.getPubSub().getTopic());
+                  config.getPubSub().getProjectId(), config.getPubSub().getTopic(), config);
             });
     final ExecutorService workStealingPool = Executors.newWorkStealingPool();
     final ListeningExecutorService forkJoinPool =
@@ -67,15 +71,7 @@ class Main {
     final Map<String, String> metadata = new HashMap<>();
     final CountDownLatch doneSignal = new CountDownLatch(1);
     final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-    // TODO(pdex): unify input parameter names with metadata key names
-    // Populate CDC Metadata
-    metadata.put("SrcInstance", config.getSpannerDb().getInstance());
-    metadata.put("SrcDatabase", config.getSpannerDb().getDatabase());
-    metadata.put("SrcTablename", config.getSpannerDb().getTable());
-    metadata.put("DstTopic", config.getPubSub().getTopic());
-    // TODO(pdex): add UUID to metadata
-    // TODO(pdex): add timestamp to metadata
+    var extractor = new MetadataExtractor(config);
 
     final ListenableFuture<SchemaSet> schemaSetFuture =
         tailer.getSchema(
@@ -113,7 +109,7 @@ class Main {
               doneSignal.countDown();
             } else {
               WorkStealingHandler handler =
-                  new WorkStealingHandler(scheduler, schemaSet, publisher, metadata);
+                  new WorkStealingHandler(scheduler, schemaSet, publisher, extractor);
               tailer.start(
                   handler,
                   schemaSet.tsColName(),

@@ -9,11 +9,18 @@ plugins {
     id("com.github.spotbugs") version "2.0.1"
     id("com.diffplug.gradle.spotless") version "3.24.0"
     id("net.ltgt.errorprone") version "0.8.1"
+    id("com.google.cloud.artifactregistry.gradle-plugin") version "2.1.0"
+}
+
+repositories {
+  mavenCentral()
+  google()
+  maven("artifactregistry://us-central1-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
 }
 
 dependencies {
-    implementation(project(":spannerclient"))
     implementation(project(":core"))
+    implementation("com.google.spannerclient:spannerclient:0.1.0")
     implementation(Config.Libs.typesafe_config)
     implementation(Config.Libs.slf4j)
     implementation(Config.Libs.logback_classic)

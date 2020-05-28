@@ -21,9 +21,9 @@ plugins {
 }
 
 repositories {
-  mavenCentral()
-  google()
-  maven("artifactregistry://us-central1-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
+    mavenCentral()
+    google()
+    maven("artifactregistry://us-central1-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
 }
 
 dependencies {

@@ -221,3 +221,11 @@ $>run setLoggerLevel com.google.spez.core.SpannerTailer INFO
 null
 $>
 ```
+
+## building with spannerclient source
+
+[Use composite builds](https://docs.gradle.org/current/userguide/composite_builds.html)
+
+```
+./gradlew --include-build ../spannerclient build
+```

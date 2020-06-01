@@ -15,12 +15,12 @@ plugins {
 repositories {
     mavenCentral()
     google()
-    maven("artifactregistry://us-central1-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
+    maven("artifactregistry://us-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
 }
 
 dependencies {
     implementation(project(":core"))
-    implementation("com.google.spannerclient:spannerclient:0.1.0")
+    implementation("com.google.spannerclient:spannerclient:0.1.1")
     implementation(Config.Libs.typesafe_config)
     implementation(Config.Libs.slf4j)
     implementation(Config.Libs.logback_classic)

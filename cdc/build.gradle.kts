@@ -37,9 +37,6 @@ dependencies {
     // implementation(Config.Libs.storage)
     // implementation(Config.Libs.rocksdb)
 
-    // LMAX
-    implementation("com.lmax:disruptor:3.4.2")
-
     // AutoValue
     compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")
     annotationProcessor("com.google.auto.value:auto-value:1.6.2")

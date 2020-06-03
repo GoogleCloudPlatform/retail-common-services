@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.google.spez.core;
 
 import com.google.auth.oauth2.GoogleCredentials;
@@ -283,12 +284,7 @@ public class SpezConfig {
     this.lpts = lpts;
   }
 
-  public static SpezConfig parse(Config config) {
-    AuthConfig auth = AuthConfig.parse(config);
-    PubSubConfig pubsub = PubSubConfig.parse(config);
-    SpannerDbConfig spannerdb = SpannerDbConfig.parse(config);
-    LptsConfig lpts = LptsConfig.parse(config);
-
+  public static void logParsedValues(Config config) {
     log.info("=============================================");
     log.info("Spez configured with the following properties");
     for (var key : CONFIG_KEYS) {
@@ -299,6 +295,14 @@ public class SpezConfig {
       }
     }
     log.info("=============================================");
+  }
+
+  public static SpezConfig parse(Config config) {
+    AuthConfig auth = AuthConfig.parse(config);
+    PubSubConfig pubsub = PubSubConfig.parse(config);
+    SpannerDbConfig spannerdb = SpannerDbConfig.parse(config);
+    LptsConfig lpts = LptsConfig.parse(config);
+    logParsedValues(config);
 
     return new SpezConfig(auth, pubsub, spannerdb, lpts);
   }

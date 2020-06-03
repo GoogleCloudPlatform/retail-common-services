@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.google.spez.cdc;
 
 import ch.qos.logback.classic.LoggerContext;
@@ -27,6 +28,7 @@ import com.google.spez.core.SpannerTailer;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.google.spez.core.Spez;
 import com.google.spez.core.SpezConfig;
+import com.google.spez.core.WorkStealingHandler;
 import com.typesafe.config.ConfigFactory;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +37,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,56 +89,35 @@ class Main {
           @Override
           public void onSuccess(SchemaSet schemaSet) {
             log.info("Successfully Processed the Table Schema. Starting the poller now ...");
-            if (DISRUPTOR) {
-              DisruptorHandler handler =
-                  new DisruptorHandler(schemaSet, publisher, metadata, l.get(0));
-              handler.start();
-              tailer.setRingBuffer(handler.getRingBuffer());
+            WorkStealingHandler handler =
+                new WorkStealingHandler(scheduler, schemaSet, publisher, extractor);
+            tailer.start(
+                handler,
+                schemaSet.tsColName(),
+                l.size(),
+                THREAD_POOL,
+                500,
+                config.getSpannerDb().getProjectId(),
+                config.getSpannerDb().getInstance(),
+                config.getSpannerDb().getDatabase(),
+                config.getSpannerDb().getTable(),
+                "lpts_table",
+                "2000",
+                500,
+                500,
+                config.getSpannerDb(),
+                config.getLpts());
 
-              ScheduledFuture<?> result =
-                  tailer.start(
-                      2,
-                      500,
-                      config.getSpannerDb().getProjectId(),
-                      config.getSpannerDb().getInstance(),
-                      config.getSpannerDb().getDatabase(),
-                      config.getSpannerDb().getTable(),
-                      "lpts_table",
-                      schemaSet.tsColName(),
-                      "2000");
+            scheduler.scheduleAtFixedRate(
+                () -> {
+                  handler.logStats();
+                  tailer.logStats();
+                },
+                30,
+                30,
+                TimeUnit.SECONDS);
 
-              doneSignal.countDown();
-            } else {
-              WorkStealingHandler handler =
-                  new WorkStealingHandler(scheduler, schemaSet, publisher, extractor);
-              tailer.start(
-                  handler,
-                  schemaSet.tsColName(),
-                  l.size(),
-                  THREAD_POOL,
-                  500,
-                  config.getSpannerDb().getProjectId(),
-                  config.getSpannerDb().getInstance(),
-                  config.getSpannerDb().getDatabase(),
-                  config.getSpannerDb().getTable(),
-                  "lpts_table",
-                  "2000",
-                  500,
-                  500,
-                  config.getSpannerDb(),
-                  config.getLpts());
-
-              scheduler.scheduleAtFixedRate(
-                  () -> {
-                    handler.logStats();
-                    tailer.logStats();
-                  },
-                  30,
-                  30,
-                  TimeUnit.SECONDS);
-
-              doneSignal.countDown();
-            }
+            doneSignal.countDown();
           }
 
           @Override

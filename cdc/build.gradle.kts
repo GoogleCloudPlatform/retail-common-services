@@ -20,7 +20,6 @@ repositories {
 
 dependencies {
     implementation(project(":core"))
-    implementation("com.google.spannerclient:spannerclient:0.1.1")
     implementation(Config.Libs.typesafe_config)
     implementation(Config.Libs.slf4j)
     implementation(Config.Libs.logback_classic)
@@ -36,9 +35,6 @@ dependencies {
     implementation(Config.Libs.pubsub)
     // implementation(Config.Libs.storage)
     // implementation(Config.Libs.rocksdb)
-
-    // LMAX
-    implementation("com.lmax:disruptor:3.4.2")
 
     // AutoValue
     compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")

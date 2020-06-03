@@ -13,18 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.google.spez.core;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.auto.value.AutoValue;
 import com.google.cloud.Timestamp;
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.hash.BloomFilter;
-import com.google.common.hash.Funnel;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -38,7 +35,6 @@ import com.google.spannerclient.Row;
 import com.google.spannerclient.RowCursor;
 import com.google.spannerclient.Spanner;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
-import com.lmax.disruptor.RingBuffer;
 import io.grpc.stub.StreamObserver;
 import io.opencensus.common.Scope;
 import io.opencensus.stats.Aggregation;
@@ -127,14 +123,11 @@ public class SpannerTailer {
   private final ListeningExecutorService service;
   private final ScheduledExecutorService scheduler;
   private final HashFunction hasher;
-  private final Funnel<Event> eventFunnel;
-  private final BloomFilter<Event> bloomFilter;
   private final Map<HashCode, Timestamp> eventMap;
 
   // We should set an official Spez epoch
   private String lastProcessedTimestamp = "2019-08-08T20:30:39.802644Z";
   private boolean firstRun = true;
-  private RingBuffer<SpannerEvent> ringBuffer;
 
   private Database database;
   private final AtomicLong running = new AtomicLong(0);
@@ -148,14 +141,6 @@ public class SpannerTailer {
                 threadPool,
                 new ThreadFactoryBuilder().setNameFormat("SpannerTailer Acceptor").build()));
     this.hasher = Hashing.murmur3_128();
-    this.eventFunnel =
-        (Funnel<Event>)
-            (event, into) ->
-                into.putString(event.uuid(), Charsets.UTF_8)
-                    .putString(event.timestamp().toString(), Charsets.UTF_8);
-
-    this.bloomFilter =
-        BloomFilter.create(eventFunnel, maxEventCount, 0.01); // TODO(pdex): move to config
     this.eventMap = new ConcurrentHashMap<>(maxEventCount);
   }
 
@@ -337,25 +322,6 @@ public class SpannerTailer {
         };
 
     return Futures.transformAsync(rowCursorsFuture, schemaSetFunction, service);
-  }
-
-  private boolean uniq(Event e) {
-    final HashCode eventHashCode = hasher.newHasher().putObject(e, eventFunnel).hash();
-
-    if (bloomFilter.mightContain(e)) {
-      if (eventMap.putIfAbsent(eventHashCode, e.timestamp()) == null) {
-        bloomFilter.put(e);
-
-        return true;
-      }
-    } else {
-      bloomFilter.put(e);
-      eventMap.put(eventHashCode, e.timestamp());
-
-      return true;
-    }
-
-    return false;
   }
 
   /**
@@ -667,201 +633,5 @@ public class SpannerTailer {
     ViewData viewData = viewManager.getView(MESSAGE_SIZE_VIEW_NAME);
     log.info(
         String.format("Recorded stats for %s:\n %s", MESSAGE_SIZE_VIEW_NAME.asString(), viewData));
-  }
-
-  public void setRingBuffer(RingBuffer<SpannerEvent> ringBuffer) {
-    this.ringBuffer = ringBuffer;
-  }
-
-  /**
-   * Starts the tailing process by scheduling a query at a configurable fixed delay with a read only
-   * query. To maintain state to allow only new events to be processed, a {@code Timestamp} field is
-   * required in the table and will be maintained here. As of now, that field is hardcoded as
-   * `Timestamp`.
-   *
-   * @param threadCount xx
-   * @param pollRate Time delay in Milliseconds between polls
-   * @param projectId GCP Project ID
-   * @param instanceName Cloud Spanner Instance Name
-   * @param dbName Cloud Spanner Database Name
-   * @param tableName Cloud Spanner table Name
-   * @param lptsTableName Cloud Spanner table name for lastProcessedTimestamp (as populated by the
-   *     lastProcessedTimestamp Cloud Function
-   * @param tsColName the name of the column holding the true time commit timestamp for processing
-   * @param recordLimit The limit for the max number of records returned for a given query
-   */
-  public ScheduledFuture<?> start(
-      int threadCount,
-      int pollRate,
-      String projectId,
-      String instanceName,
-      String dbName,
-      String tableName,
-      String lptsTableName,
-      String tsColName,
-      String recordLimit) {
-
-    Preconditions.checkArgument(threadCount > 0);
-    Preconditions.checkArgument(pollRate > 0);
-    Preconditions.checkNotNull(projectId);
-    Preconditions.checkNotNull(instanceName);
-    Preconditions.checkNotNull(dbName);
-    Preconditions.checkNotNull(tableName);
-    Preconditions.checkNotNull(lptsTableName);
-    Preconditions.checkNotNull(tsColName);
-    Preconditions.checkNotNull(recordLimit);
-
-    try {
-      final ScheduledFuture<?> poller =
-          scheduler.scheduleAtFixedRate(
-              () -> {
-                poll(
-                    projectId,
-                    instanceName,
-                    dbName,
-                    tableName,
-                    lptsTableName,
-                    tsColName,
-                    recordLimit);
-              },
-              0,
-              30,
-              TimeUnit.SECONDS);
-      return poller;
-
-    } catch (Exception e) {
-
-    }
-
-    // TODO(xjdr): Don't do this.
-    return null;
-  }
-
-  private void poll(
-      String projectId,
-      String instanceName,
-      String dbName,
-      String tableName,
-      String lptsTableName,
-      String tsColName,
-      String recordLimit) {
-
-    final String databasePath =
-        new StringBuilder()
-            .append("projects/")
-            .append(projectId)
-            .append("/instances/")
-            .append(instanceName)
-            .append("/databases/")
-            .append(dbName)
-            .toString();
-
-    final ListenableFuture<Database> dbFuture =
-        Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
-
-    Futures.addCallback(
-        dbFuture,
-        new FutureCallback<Database>() {
-
-          @Override
-          public void onSuccess(Database db) {
-            try {
-              if (firstRun) {
-
-                final String tsQuery =
-                    "SELECT * FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '"
-                        + lptsTableName
-                        + "'";
-
-                // RowCursor lptsColNameCursor =
-                //     Spanner.execute(QueryOptions.DEFAULT(), db, Query.create(tsQuery));
-
-                RowCursor lptsCursor =
-                    Spanner.execute(
-                        QueryOptions.DEFAULT(),
-                        db,
-                        Query.create(
-                            "SELECT * FROM " + lptsTableName)); // TODO(pdex): move to config
-
-                // while (lptsColNameCursor.next()) {
-                //   if
-                // (lptsColNameCursor.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
-                //     if (lptsColNameCursor.getString("OPTION_VALUE").equals("TRUE")) {
-                while (lptsCursor.next()) {
-                  String startingTimestamp =
-                      lptsCursor.getString(
-                          "LastProcessedTimestamp"); // lptsColNameCursor.getString("COLUMN_NAME"));
-                  Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
-                  lastProcessedTimestamp = tt.toString();
-                }
-                //     }
-                //   }
-                // }
-
-                firstRun = false;
-              }
-
-              Spanner.executeStreaming(
-                  QueryOptions.newBuilder()
-                      .setReadOnly(true)
-                      .setStale(true)
-                      .setMaxStaleness(15) // TODO(pdex): move to config
-                      .build(),
-                  db,
-                  new StreamObserver<Row>() {
-                    @Override
-                    public void onNext(Row row) {
-                      final long seq = ringBuffer.next();
-                      try {
-                        SpannerEvent event = ringBuffer.get(seq);
-                        event.set(row, tsColName);
-                      } catch (Exception e) {
-                        log.error("Error processing event", e);
-                      } finally {
-                        ringBuffer.publish(seq);
-                        lastProcessedTimestamp = row.getTimestamp(tsColName).toString();
-                      }
-                    }
-
-                    @Override
-                    public void onError(Throwable t) {}
-
-                    @Override
-                    public void onCompleted() {}
-                  },
-                  Query.create(
-                      "SELECT * FROM "
-                          + tableName
-                          + " "
-                          + "WHERE Timestamp > '"
-                          + lastProcessedTimestamp
-                          + "'"));
-
-            } finally {
-              try {
-                db.close();
-              } catch (IOException e) {
-                log.error("Error Closing Managed Channel", e);
-              }
-            }
-          }
-
-          @Override
-          public void onFailure(Throwable t) {
-            log.error("Failure Polling DB: ", t);
-          }
-        },
-        service);
-  }
-
-  @AutoValue
-  abstract static class Event {
-    static Event create(String uuid, Timestamp timestamp) {
-      return new AutoValue_SpannerTailer_Event(uuid, timestamp);
-    }
-
-    abstract String uuid();
-
-    abstract Timestamp timestamp();
   }
 }

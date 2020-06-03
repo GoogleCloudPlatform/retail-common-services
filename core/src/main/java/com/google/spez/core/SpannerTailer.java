@@ -440,8 +440,7 @@ public class SpannerTailer {
 
   private String parseLastProcessedTimestamp(RowCursor lptsCursor) {
     try {
-      // TODO(pdex): Timestamp timestamp = lptsCursor.getTimestamp(LPTS_COLUMN_NAME);
-      Timestamp timestamp = Timestamp.parseTimestamp(lptsCursor.getString(LPTS_COLUMN_NAME));
+      Timestamp timestamp = lptsCursor.getTimestamp(LPTS_COLUMN_NAME);
       return timestamp.toString();
     } catch (Exception e) {
       log.error("Couldn't retrieve " + LPTS_COLUMN_NAME, e);

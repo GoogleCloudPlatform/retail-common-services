@@ -42,6 +42,10 @@ public class SpezConfig {
   public static final String SPANNERDB_TABLE_KEY = "spez.spannerdb.table";
   public static final String SPANNERDB_UUID_COLUMN_KEY = "spez.spannerdb.uuid_column";
   public static final String SPANNERDB_TIMESTAMP_COLUMN_KEY = "spez.spannerdb.timestamp_column";
+  public static final String LPTS_PROJECT_ID_KEY = "spez.lpts.project_id";
+  public static final String LPTS_INSTANCE_KEY = "spez.lpts.instance";
+  public static final String LPTS_DATABASE_KEY = "spez.lpts.database";
+  public static final String LPTS_TABLE_KEY = "spez.lpts.table";
   public static final List<String> CONFIG_KEYS =
       Arrays.asList(
           PROJECT_ID_KEY,
@@ -55,7 +59,11 @@ public class SpezConfig {
           SPANNERDB_DATABASE_KEY,
           SPANNERDB_TABLE_KEY,
           SPANNERDB_UUID_COLUMN_KEY,
-          SPANNERDB_TIMESTAMP_COLUMN_KEY);
+          SPANNERDB_TIMESTAMP_COLUMN_KEY,
+          LPTS_PROJECT_ID_KEY,
+          LPTS_INSTANCE_KEY,
+          LPTS_DATABASE_KEY,
+          LPTS_TABLE_KEY);
   public static final String SPANNERDB_UUID_KEY = "spez.spannerdb.uuid";
   public static final String SPANNERDB_TIMESTAMP_KEY = "spez.spannerdb.commit_timestamp";
 
@@ -87,6 +95,10 @@ public class SpezConfig {
         var path = Paths.get(cloudSecretsDir, credentialsFile);
         if (!path.toFile().exists()) {
           var dir = new java.io.File(cloudSecretsDir);
+          if (!dir.exists()) {
+            throw new RuntimeException(
+                AUTH_CLOUD_SECRETS_DIR_KEY + " '" + cloudSecretsDir + "' does not exist");
+          }
           var listing = java.util.Arrays.asList(dir.list());
           var suggest = "";
           if (listing.size() > 0) {
@@ -205,20 +217,77 @@ public class SpezConfig {
     }
   }
 
+  public static class LptsConfig {
+    private final String projectId;
+    private final String instance;
+    private final String database;
+    private final String table;
+
+    public LptsConfig(String projectId, String instance, String database, String table) {
+      this.projectId = projectId;
+      this.instance = instance;
+      this.database = database;
+      this.table = table;
+    }
+
+    public static LptsConfig parse(Config config) {
+      return new LptsConfig(
+          config.getString(LPTS_PROJECT_ID_KEY),
+          config.getString(LPTS_INSTANCE_KEY),
+          config.getString(LPTS_DATABASE_KEY),
+          config.getString(LPTS_TABLE_KEY));
+    }
+
+    public String getProjectId() {
+      return projectId;
+    }
+
+    public String getInstance() {
+      return instance;
+    }
+
+    public String getDatabase() {
+      return database;
+    }
+
+    public String getTable() {
+      return table;
+    }
+
+    public String databasePath() {
+      return new StringBuilder()
+          .append("projects/")
+          .append(projectId)
+          .append("/instances/")
+          .append(instance)
+          .append("/databases/")
+          .append(database)
+          .toString();
+    }
+
+    public String tablePath() {
+      return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
+    }
+  }
+
   private final AuthConfig auth;
   private final PubSubConfig pubsub;
   private final SpannerDbConfig spannerdb;
+  private final LptsConfig lpts;
 
-  public SpezConfig(AuthConfig auth, PubSubConfig pubsub, SpannerDbConfig spannerdb) {
+  public SpezConfig(
+      AuthConfig auth, PubSubConfig pubsub, SpannerDbConfig spannerdb, LptsConfig lpts) {
     this.auth = auth;
     this.pubsub = pubsub;
     this.spannerdb = spannerdb;
+    this.lpts = lpts;
   }
 
   public static SpezConfig parse(Config config) {
     AuthConfig auth = AuthConfig.parse(config);
     PubSubConfig pubsub = PubSubConfig.parse(config);
     SpannerDbConfig spannerdb = SpannerDbConfig.parse(config);
+    LptsConfig lpts = LptsConfig.parse(config);
 
     log.info("=============================================");
     log.info("Spez configured with the following properties");
@@ -231,7 +300,7 @@ public class SpezConfig {
     }
     log.info("=============================================");
 
-    return new SpezConfig(auth, pubsub, spannerdb);
+    return new SpezConfig(auth, pubsub, spannerdb, lpts);
   }
 
   public AuthConfig getAuth() {
@@ -244,6 +313,10 @@ public class SpezConfig {
 
   public SpannerDbConfig getSpannerDb() {
     return spannerdb;
+  }
+
+  public LptsConfig getLpts() {
+    return lpts;
   }
 
   public Map<String, String> getBaseMetadata() {

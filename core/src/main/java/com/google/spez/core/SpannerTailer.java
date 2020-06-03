@@ -90,6 +90,7 @@ import org.slf4j.LoggerFactory;
 public class SpannerTailer {
   private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
 
+  private static final String LPTS_COLUMN_NAME = "LastProcessedTimestamp";
   private static final Tagger tagger = Tags.getTagger();
   private static final ViewManager viewManager = Stats.getViewManager();
   private static final StatsRecorder statsRecorder = Stats.getStatsRecorder();
@@ -392,7 +393,8 @@ public class SpannerTailer {
       String recordLimit,
       int vacuumRate,
       long eventCacheTTL,
-      SpezConfig.SpannerDbConfig config) {
+      SpezConfig.SpannerDbConfig config,
+      SpezConfig.LptsConfig lpts) {
 
     Preconditions.checkNotNull(handler);
     Preconditions.checkNotNull(tsColName);
@@ -435,7 +437,8 @@ public class SpannerTailer {
                             handler,
                             tsColName,
                             bucketSize,
-                            config);
+                            config,
+                            lpts);
                       },
                       0,
                       30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
@@ -458,6 +461,72 @@ public class SpannerTailer {
     return null;
   }
 
+  private String parseLastProcessedTimestamp(RowCursor lptsCursor) {
+    try {
+      Timestamp timestamp = lptsCursor.getTimestamp(LPTS_COLUMN_NAME);
+      return timestamp.toString();
+    } catch (Exception e) {
+      log.error("Couldn't retrieve " + LPTS_COLUMN_NAME, e);
+      return null;
+    }
+  }
+
+  private String getLastProcessedTimestamp(
+      SpezConfig.SpannerDbConfig config, SpezConfig.LptsConfig lpts) {
+    final ListenableFuture<Database> dbFuture =
+        Spanner.openDatabaseAsync(Options.DEFAULT(), lpts.databasePath(), credentials);
+
+    Database lptsDatabase;
+    try {
+      lptsDatabase = dbFuture.get();
+      log.info("LPTS Database returned!");
+    } catch (Exception e) {
+      log.error("Failed to get Database, throwing");
+      throw new RuntimeException(e);
+    }
+    String lptsQuery =
+        new StringBuilder()
+            .append("SELECT * FROM ")
+            .append(lpts.getTable())
+            .append(" WHERE instance = '")
+            .append(config.getInstance())
+            .append("' AND database = '")
+            .append(config.getDatabase())
+            .append("' AND table = '")
+            .append(config.getTable())
+            .append("'")
+            .toString();
+
+    log.info(
+        "Looking for last processed timestamp with query {} against database {}",
+        lptsQuery,
+        lpts.databasePath());
+
+    RowCursor lptsCursor =
+        Spanner.execute(QueryOptions.DEFAULT(), lptsDatabase, Query.create(lptsQuery));
+
+    if (lptsCursor == null) {
+      throw new RuntimeException("Couldn't find lpts row");
+    }
+
+    boolean gotTimestamp = false;
+    String timestamp = null;
+    while (lptsCursor.next()) {
+      if (gotTimestamp) {
+        log.error(
+            "Got more than one row from table '{}', using the first value {}",
+            lpts.getTable(),
+            lastProcessedTimestamp);
+        break;
+      }
+      timestamp = parseLastProcessedTimestamp(lptsCursor);
+      if (timestamp != null) {
+        gotTimestamp = true;
+      }
+    }
+    return timestamp;
+  }
+
   private void poll(
       String projectId,
       String instanceName,
@@ -468,7 +537,8 @@ public class SpannerTailer {
       SpannerEventHandler handler,
       String tsColName,
       int bucketSize,
-      SpezConfig.SpannerDbConfig config) {
+      SpezConfig.SpannerDbConfig config,
+      SpezConfig.LptsConfig lpts) {
 
     long num = running.incrementAndGet();
     if (num > 1) {
@@ -479,39 +549,11 @@ public class SpannerTailer {
     log.debug("POLLER ACTIVE");
     try {
       if (firstRun) {
+        lastProcessedTimestamp = getLastProcessedTimestamp(config, lpts);
 
-        String lptsQuery =
-            new StringBuilder()
-                .append("SELECT * FROM ")
-                .append(lptsTableName)
-                .append(" WHERE instance = '")
-                .append(config.getInstance())
-                .append("' AND database = '")
-                .append(config.getDatabase())
-                .append("' AND table = '")
-                .append(config.getTable())
-                .append("'")
-                .toString();
-
-        RowCursor lptsCursor =
-            Spanner.execute(QueryOptions.DEFAULT(), database, Query.create(lptsQuery));
-
-        // TODO(pdex): remove id column from lpts
-
-        boolean gotTimestamp = false;
-        while (lptsCursor.next()) {
-          if (gotTimestamp) {
-            log.error(
-                "Got more than one row from lpts_table, using the first value {}",
-                lastProcessedTimestamp);
-            break;
-          }
-          String startingTimestamp = lptsCursor.getString("LastProcessedTimestamp");
-          Timestamp tt = Timestamp.parseTimestamp(startingTimestamp);
-          lastProcessedTimestamp = tt.toString();
-          gotTimestamp = true;
+        if (lastProcessedTimestamp == null) {
+          throw new RuntimeException(LPTS_COLUMN_NAME + " was unavailable");
         }
-
         firstRun = false;
         // lastProcessedTimestamp = "2020-02-06T23:57:58.602900Z";
       }
@@ -586,12 +628,15 @@ public class SpannerTailer {
               "SELECT * FROM "
                   + tableName
                   + " "
-                  + "WHERE Timestamp > '"
+                  + "WHERE "
+                  + config.getTimestampColumn()
+                  + " > '"
                   + lastProcessedTimestamp
                   + "'"));
     } catch (Exception e) {
       log.error("Caught error while polling", e);
       running.decrementAndGet();
+      throw e;
     }
   }
 

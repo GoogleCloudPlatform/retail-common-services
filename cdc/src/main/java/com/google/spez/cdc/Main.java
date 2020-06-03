@@ -124,7 +124,8 @@ class Main {
                   "2000",
                   500,
                   500,
-                  config.getSpannerDb());
+                  config.getSpannerDb(),
+                  config.getLpts());
 
               scheduler.scheduleAtFixedRate(
                   () -> {

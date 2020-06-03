@@ -38,12 +38,12 @@ public class MetadataExtractor {
   public Map<String, String> extract(Row row) {
     var metadata = Maps.newHashMap(base);
 
-    String uuid = Long.toString(row.getLong(config.getSpannerDb().getUuidColumn()));
+    String uuid = Long.toString(row.getLong(config.getSink().getUuidColumn()));
     String commitTimestamp =
-        row.getTimestamp(config.getSpannerDb().getTimestampColumn()).toString();
+        row.getTimestamp(config.getSink().getTimestampColumn()).toString();
 
-    metadata.put(config.SPANNERDB_UUID_KEY, uuid);
-    metadata.put(config.SPANNERDB_TIMESTAMP_KEY, uuid);
+    metadata.put(config.SINK_UUID_KEY, uuid);
+    metadata.put(config.SINK_TIMESTAMP_KEY, uuid);
 
     return metadata;
   }

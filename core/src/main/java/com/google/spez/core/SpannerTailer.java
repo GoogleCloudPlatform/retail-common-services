@@ -145,13 +145,13 @@ public class SpannerTailer {
   }
 
   private static class TimestampColumnChecker {
-    private final SpezConfig.SpannerDbConfig config;
+    private final SpezConfig.SinkConfig config;
     private boolean tableExists = false;
     private boolean columnExists = false;
     private boolean optionExists = false;
     private boolean valueTrue = false;
 
-    public TimestampColumnChecker(SpezConfig.SpannerDbConfig config) {
+    public TimestampColumnChecker(SpezConfig.SinkConfig config) {
       this.config = config;
     }
 
@@ -195,13 +195,13 @@ public class SpannerTailer {
   }
 
   private static class UuidColumnChecker {
-    private final SpezConfig.SpannerDbConfig config;
+    private final SpezConfig.SinkConfig config;
     private boolean tableExists = false;
     private boolean columnExists = false;
     private boolean columnIsPrimaryKey = false;
     private boolean columnIsInt64 = false;
 
-    public UuidColumnChecker(SpezConfig.SpannerDbConfig config) {
+    public UuidColumnChecker(SpezConfig.SinkConfig config) {
       this.config = config;
     }
 
@@ -259,7 +259,7 @@ public class SpannerTailer {
       String instanceName,
       String dbName,
       String tableName,
-      SpezConfig.SpannerDbConfig config) {
+      SpezConfig.SinkConfig config) {
     Preconditions.checkNotNull(projectId);
     Preconditions.checkNotNull(instanceName);
     Preconditions.checkNotNull(dbName);
@@ -370,7 +370,7 @@ public class SpannerTailer {
       String recordLimit,
       int vacuumRate,
       long eventCacheTTL,
-      SpezConfig.SpannerDbConfig config,
+      SpezConfig.SinkConfig config,
       SpezConfig.LptsConfig lpts) {
 
     Preconditions.checkNotNull(handler);
@@ -450,7 +450,7 @@ public class SpannerTailer {
   }
 
   private String getLastProcessedTimestamp(
-      SpezConfig.SpannerDbConfig config, SpezConfig.LptsConfig lpts) {
+      SpezConfig.SinkConfig config, SpezConfig.LptsConfig lpts) {
     final ListenableFuture<Database> dbFuture =
         Spanner.openDatabaseAsync(Options.DEFAULT(), lpts.databasePath(), credentials);
 
@@ -515,7 +515,7 @@ public class SpannerTailer {
       SpannerEventHandler handler,
       String tsColName,
       int bucketSize,
-      SpezConfig.SpannerDbConfig config,
+      SpezConfig.SinkConfig config,
       SpezConfig.LptsConfig lpts) {
 
     long num = running.incrementAndGet();
@@ -629,7 +629,7 @@ public class SpannerTailer {
   }
 
   private Boolean processRow(
-      SpannerEventHandler handler, Row row, String tsColName, SpezConfig.SpannerDbConfig config) {
+      SpannerEventHandler handler, Row row, String tsColName, SpezConfig.SinkConfig config) {
     final String uuid = Long.toString(row.getLong(config.getUuidColumn()));
     final Timestamp ts = row.getTimestamp(config.getTimestampColumn());
     final HashCode sortingKeyHashCode = hasher.newHasher().putBytes(uuid.getBytes(UTF_8)).hash();

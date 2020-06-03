@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.spez.cdc;
+
+package com.google.spez.core;
 
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
@@ -23,10 +24,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.spannerclient.Row;
-import com.google.spez.core.EventPublisher;
-import com.google.spez.core.MetadataExtractor;
-import com.google.spez.core.SpannerEventHandler;
-import com.google.spez.core.SpannerToAvro;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -40,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class WorkStealingHandler implements SpannerEventHandler {
+public class WorkStealingHandler implements SpannerEventHandler {
   private static final Logger log = LoggerFactory.getLogger(WorkStealingHandler.class);
 
   private final ExecutorService workStealingPool = Executors.newWorkStealingPool();
@@ -59,6 +56,14 @@ class WorkStealingHandler implements SpannerEventHandler {
   private final ThreadLocal<EventPublisher> publisher;
   private final MetadataExtractor extractor;
 
+  /**
+   * Constructor.
+   *
+   * @param scheduler description
+   * @param schemaSet description
+   * @param publisher description
+   * @param extractor description
+   */
   public WorkStealingHandler(
       ScheduledExecutorService scheduler,
       SchemaSet schemaSet,
@@ -70,6 +75,7 @@ class WorkStealingHandler implements SpannerEventHandler {
     this.extractor = extractor;
   }
 
+  /** log stats. */
   public void logStats() {
     Instant now = Instant.now();
     Duration d = Duration.between(then, now);
@@ -96,8 +102,6 @@ class WorkStealingHandler implements SpannerEventHandler {
    *
    * @param bucket Consistent Hash Table bucket id to aid in construction of method specific thread
    *     pooling strategies
-   * @param event The Cloud Spanner {@code Struct} to create an immutable representation of the
-   *     event.
    * @param timestamp the Cloud Spanner Commit Timestamp for the event
    */
   @Override

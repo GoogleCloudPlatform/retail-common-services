@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.google.spez.cdc;
 
 import ch.qos.logback.classic.LoggerContext;
@@ -27,6 +28,7 @@ import com.google.spez.core.SpannerTailer;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import com.google.spez.core.Spez;
 import com.google.spez.core.SpezConfig;
+import com.google.spez.core.WorkStealingHandler;
 import com.typesafe.config.ConfigFactory;
 import java.util.HashMap;
 import java.util.List;

@@ -35,6 +35,11 @@ public class SpezConfig {
   public static final String AUTH_CLOUD_SECRETS_DIR_KEY = "spez.auth.cloud_secrets_dir";
   public static final String AUTH_CREDENTIALS_KEY = "spez.auth.credentials";
   public static final String AUTH_SCOPES_KEY = "spez.auth.scopes";
+  public static final String LOGLEVEL_DEFAULT_KEY = "spez.loglevel.default";
+  public static final String LOGLEVEL_CDC_KEY = "spez.loglevel.cdc";
+  public static final String LOGLEVEL_CORE_KEY = "spez.loglevel.core";
+  public static final String LOGLEVEL_NETTY_KEY = "spez.loglevel.netty";
+  public static final String LOGLEVEL_SPANNERCLIENT_KEY = "spez.loglevel.spannerclient";
   public static final String PUBSUB_PROJECT_ID_KEY = "spez.pubsub.project_id";
   public static final String PUBSUB_TOPIC_KEY = "spez.pubsub.topic";
   public static final String SINK_PROJECT_ID_KEY = "spez.sink.project_id";
@@ -53,6 +58,11 @@ public class SpezConfig {
           AUTH_CLOUD_SECRETS_DIR_KEY,
           AUTH_CREDENTIALS_KEY,
           AUTH_SCOPES_KEY,
+          LOGLEVEL_DEFAULT_KEY,
+          LOGLEVEL_CDC_KEY,
+          LOGLEVEL_CORE_KEY,
+          LOGLEVEL_NETTY_KEY,
+          LOGLEVEL_SPANNERCLIENT_KEY,
           PUBSUB_PROJECT_ID_KEY,
           PUBSUB_TOPIC_KEY,
           SINK_PROJECT_ID_KEY,

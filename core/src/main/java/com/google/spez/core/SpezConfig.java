@@ -37,12 +37,12 @@ public class SpezConfig {
   public static final String AUTH_SCOPES_KEY = "spez.auth.scopes";
   public static final String PUBSUB_PROJECT_ID_KEY = "spez.pubsub.project_id";
   public static final String PUBSUB_TOPIC_KEY = "spez.pubsub.topic";
-  public static final String SPANNERDB_PROJECT_ID_KEY = "spez.spannerdb.project_id";
-  public static final String SPANNERDB_INSTANCE_KEY = "spez.spannerdb.instance";
-  public static final String SPANNERDB_DATABASE_KEY = "spez.spannerdb.database";
-  public static final String SPANNERDB_TABLE_KEY = "spez.spannerdb.table";
-  public static final String SPANNERDB_UUID_COLUMN_KEY = "spez.spannerdb.uuid_column";
-  public static final String SPANNERDB_TIMESTAMP_COLUMN_KEY = "spez.spannerdb.timestamp_column";
+  public static final String SINK_PROJECT_ID_KEY = "spez.sink.project_id";
+  public static final String SINK_INSTANCE_KEY = "spez.sink.instance";
+  public static final String SINK_DATABASE_KEY = "spez.sink.database";
+  public static final String SINK_TABLE_KEY = "spez.sink.table";
+  public static final String SINK_UUID_COLUMN_KEY = "spez.sink.uuid_column";
+  public static final String SINK_TIMESTAMP_COLUMN_KEY = "spez.sink.timestamp_column";
   public static final String LPTS_PROJECT_ID_KEY = "spez.lpts.project_id";
   public static final String LPTS_INSTANCE_KEY = "spez.lpts.instance";
   public static final String LPTS_DATABASE_KEY = "spez.lpts.database";
@@ -55,18 +55,18 @@ public class SpezConfig {
           AUTH_SCOPES_KEY,
           PUBSUB_PROJECT_ID_KEY,
           PUBSUB_TOPIC_KEY,
-          SPANNERDB_PROJECT_ID_KEY,
-          SPANNERDB_INSTANCE_KEY,
-          SPANNERDB_DATABASE_KEY,
-          SPANNERDB_TABLE_KEY,
-          SPANNERDB_UUID_COLUMN_KEY,
-          SPANNERDB_TIMESTAMP_COLUMN_KEY,
+          SINK_PROJECT_ID_KEY,
+          SINK_INSTANCE_KEY,
+          SINK_DATABASE_KEY,
+          SINK_TABLE_KEY,
+          SINK_UUID_COLUMN_KEY,
+          SINK_TIMESTAMP_COLUMN_KEY,
           LPTS_PROJECT_ID_KEY,
           LPTS_INSTANCE_KEY,
           LPTS_DATABASE_KEY,
           LPTS_TABLE_KEY);
-  public static final String SPANNERDB_UUID_KEY = "spez.spannerdb.uuid";
-  public static final String SPANNERDB_TIMESTAMP_KEY = "spez.spannerdb.commit_timestamp";
+  public static final String SINK_UUID_KEY = "spez.sink.uuid";
+  public static final String SINK_TIMESTAMP_KEY = "spez.sink.commit_timestamp";
 
   public static class AuthConfig {
     private final String cloudSecretsDir;
@@ -145,7 +145,7 @@ public class SpezConfig {
     }
   }
 
-  public static class SpannerDbConfig {
+  public static class SinkConfig {
     private final String projectId;
     private final String instance;
     private final String database;
@@ -153,7 +153,7 @@ public class SpezConfig {
     private final String uuidColumn;
     private final String timestampColumn;
 
-    public SpannerDbConfig(
+    public SinkConfig(
         String projectId,
         String instance,
         String database,
@@ -168,14 +168,14 @@ public class SpezConfig {
       this.timestampColumn = timestampColumn;
     }
 
-    public static SpannerDbConfig parse(Config config) {
-      return new SpannerDbConfig(
-          config.getString(SPANNERDB_PROJECT_ID_KEY),
-          config.getString(SPANNERDB_INSTANCE_KEY),
-          config.getString(SPANNERDB_DATABASE_KEY),
-          config.getString(SPANNERDB_TABLE_KEY),
-          config.getString(SPANNERDB_UUID_COLUMN_KEY),
-          config.getString(SPANNERDB_TIMESTAMP_COLUMN_KEY));
+    public static SinkConfig parse(Config config) {
+      return new SinkConfig(
+          config.getString(SINK_PROJECT_ID_KEY),
+          config.getString(SINK_INSTANCE_KEY),
+          config.getString(SINK_DATABASE_KEY),
+          config.getString(SINK_TABLE_KEY),
+          config.getString(SINK_UUID_COLUMN_KEY),
+          config.getString(SINK_TIMESTAMP_COLUMN_KEY));
     }
 
     public String getProjectId() {
@@ -273,14 +273,14 @@ public class SpezConfig {
 
   private final AuthConfig auth;
   private final PubSubConfig pubsub;
-  private final SpannerDbConfig spannerdb;
+  private final SinkConfig sink;
   private final LptsConfig lpts;
 
   public SpezConfig(
-      AuthConfig auth, PubSubConfig pubsub, SpannerDbConfig spannerdb, LptsConfig lpts) {
+      AuthConfig auth, PubSubConfig pubsub, SinkConfig sink, LptsConfig lpts) {
     this.auth = auth;
     this.pubsub = pubsub;
-    this.spannerdb = spannerdb;
+    this.sink = sink;
     this.lpts = lpts;
   }
 
@@ -300,11 +300,11 @@ public class SpezConfig {
   public static SpezConfig parse(Config config) {
     AuthConfig auth = AuthConfig.parse(config);
     PubSubConfig pubsub = PubSubConfig.parse(config);
-    SpannerDbConfig spannerdb = SpannerDbConfig.parse(config);
+    SinkConfig sink = SinkConfig.parse(config);
     LptsConfig lpts = LptsConfig.parse(config);
     logParsedValues(config);
 
-    return new SpezConfig(auth, pubsub, spannerdb, lpts);
+    return new SpezConfig(auth, pubsub, sink, lpts);
   }
 
   public AuthConfig getAuth() {
@@ -315,8 +315,8 @@ public class SpezConfig {
     return pubsub;
   }
 
-  public SpannerDbConfig getSpannerDb() {
-    return spannerdb;
+  public SinkConfig getSink() {
+    return sink;
   }
 
   public LptsConfig getLpts() {
@@ -325,9 +325,9 @@ public class SpezConfig {
 
   public Map<String, String> getBaseMetadata() {
     Map<String, String> base = Maps.newHashMap();
-    base.put(SPANNERDB_INSTANCE_KEY, spannerdb.getInstance());
-    base.put(SPANNERDB_DATABASE_KEY, spannerdb.getDatabase());
-    base.put(SPANNERDB_TABLE_KEY, spannerdb.getTable());
+    base.put(SINK_INSTANCE_KEY, sink.getInstance());
+    base.put(SINK_DATABASE_KEY, sink.getDatabase());
+    base.put(SINK_TABLE_KEY, sink.getTable());
     base.put(PUBSUB_TOPIC_KEY, pubsub.getTopic());
     return base;
   }

@@ -76,11 +76,11 @@ class Main {
 
     final ListenableFuture<SchemaSet> schemaSetFuture =
         tailer.getSchema(
-            config.getSpannerDb().getProjectId(),
-            config.getSpannerDb().getInstance(),
-            config.getSpannerDb().getDatabase(),
-            config.getSpannerDb().getTable(),
-            config.getSpannerDb());
+            config.getSink().getProjectId(),
+            config.getSink().getInstance(),
+            config.getSink().getDatabase(),
+            config.getSink().getTable(),
+            config.getSink());
 
     Futures.addCallback(
         schemaSetFuture,
@@ -97,15 +97,15 @@ class Main {
                 l.size(),
                 THREAD_POOL,
                 500,
-                config.getSpannerDb().getProjectId(),
-                config.getSpannerDb().getInstance(),
-                config.getSpannerDb().getDatabase(),
-                config.getSpannerDb().getTable(),
+                config.getSink().getProjectId(),
+                config.getSink().getInstance(),
+                config.getSink().getDatabase(),
+                config.getSink().getTable(),
                 "lpts_table",
                 "2000",
                 500,
                 500,
-                config.getSpannerDb(),
+                config.getSink(),
                 config.getLpts());
 
             scheduler.scheduleAtFixedRate(

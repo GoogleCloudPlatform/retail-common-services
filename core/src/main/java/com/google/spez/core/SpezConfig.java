@@ -286,8 +286,7 @@ public class SpezConfig {
   private final SinkConfig sink;
   private final LptsConfig lpts;
 
-  public SpezConfig(
-      AuthConfig auth, PubSubConfig pubsub, SinkConfig sink, LptsConfig lpts) {
+  public SpezConfig(AuthConfig auth, PubSubConfig pubsub, SinkConfig sink, LptsConfig lpts) {
     this.auth = auth;
     this.pubsub = pubsub;
     this.sink = sink;

@@ -43,7 +43,7 @@ public class MetadataExtractor {
         row.getTimestamp(config.getSink().getTimestampColumn()).toString();
 
     metadata.put(config.SINK_UUID_KEY, uuid);
-    metadata.put(config.SINK_TIMESTAMP_KEY, uuid);
+    metadata.put(config.SINK_TIMESTAMP_KEY, commitTimestamp);
 
     return metadata;
   }

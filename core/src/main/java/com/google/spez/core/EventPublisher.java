@@ -152,7 +152,6 @@ public class EventPublisher {
               });
     }
 
-    builder.putAttributes("Timestamp", timestamp);
     buffer.add(builder.build());
 
     if (buffer.size() >= bufferSize || d.getSeconds() > bufferTime) {

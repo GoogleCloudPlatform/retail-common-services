@@ -17,6 +17,7 @@
 package com.google.spez.core;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -31,9 +32,8 @@ import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -48,7 +48,7 @@ public class EventPublisher {
   private static final int DEFAULT_BUFFER_TIME = 30; // TODO(pdex): move to config
 
   private final SpezConfig config;
-  private final List<PubsubMessage> buffer;
+  private final ConcurrentLinkedDeque<PubsubMessage> buffer;
   private final ScheduledExecutorService scheduler;
   private final String projectName;
   private final String topicName;
@@ -64,7 +64,7 @@ public class EventPublisher {
     Preconditions.checkNotNull(config);
 
     this.config = config;
-    this.buffer = new ArrayList<>();
+    this.buffer = new ConcurrentLinkedDeque<>();
     this.scheduler = Executors.newScheduledThreadPool(2);
     this.projectName = projectName;
     this.topicName = topicName;
@@ -82,7 +82,7 @@ public class EventPublisher {
     Preconditions.checkArgument(bufferTime > 0);
 
     this.config = config;
-    this.buffer = new ArrayList<>();
+    this.buffer = new ConcurrentLinkedDeque<>();
     this.scheduler = Executors.newScheduledThreadPool(2);
     this.projectName = projectName;
     this.topicName = topicName;
@@ -108,19 +108,27 @@ public class EventPublisher {
                     publisher,
                     PublishRequest.newBuilder()
                         .setTopic(publisher.getTopicPath())
-                        .addAllMessages(buffer)
+                        .addAllMessages(queueToList(buffer))
                         .build());
 
             lastPublished = Instant.now();
-            buffer.clear();
+            //         buffer.clear();
           }
         },
-        30,
-        30,
+        0,
+        bufferTime,
         TimeUnit.SECONDS);
 
     return PubSub.getPublisher(
         config.getAuth().getCredentials(), Options.DEFAULT(), projectName, topicName);
+  }
+
+  private ImmutableList<PubsubMessage> queueToList(ConcurrentLinkedDeque<PubsubMessage> q) {
+    final PubsubMessage[] messageArray = new PubsubMessage[q.size()];
+    q.toArray(messageArray);
+    q.clear();
+
+    return ImmutableList.copyOf(messageArray);
   }
 
   /**
@@ -161,11 +169,11 @@ public class EventPublisher {
               publisher,
               PublishRequest.newBuilder()
                   .setTopic(publisher.getTopicPath())
-                  .addAllMessages(buffer)
+                  .addAllMessages(queueToList(buffer))
                   .build());
 
       lastPublished = Instant.now();
-      buffer.clear();
+      // buffer.clear();
 
       AsyncFunction<PublishResponse, String> getMessageId =
           new AsyncFunction<>() {

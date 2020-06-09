@@ -22,12 +22,13 @@ fi
 
 XSOCK=/tmp/.X11-unix
 JMC=$PWD/../jmc
+DOCKERFILE_DEV="-f cdc/docker/Dockerfile.SpannerTailerService.dev"
 DOCKERFILE="-f cdc/docker/Dockerfile.SpannerTailerService"
 BASEFILE="-f cdc/docker/Dockerfile.build-env"
 set -x
 if [[ "$BUILD" = "y" ]]; then
   docker image inspect spez/build-env > /dev/null || docker build --target build-env -t spez/build-env $BASEFILE .
-  docker build --target dev       -t spez/spanner-tailer-service-dev $DOCKERFILE .
+  docker build --target dev       -t spez/spanner-tailer-service-dev $DOCKERFILE_DEV .
   docker build --target prod      -t spez/spanner-tailer-service $DOCKERFILE .
 fi
 

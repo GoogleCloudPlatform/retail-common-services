@@ -9,13 +9,13 @@ plugins {
     id("com.github.spotbugs") version "2.0.1"
     id("com.diffplug.gradle.spotless") version "3.24.0"
     id("net.ltgt.errorprone") version "0.8.1"
-    id("com.google.cloud.artifactregistry.gradle-plugin") version "2.1.0"
+    //id("com.google.cloud.artifactregistry.gradle-plugin") version "2.1.0"
 }
 
 repositories {
     mavenCentral()
     google()
-    maven("artifactregistry://us-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
+    //maven("artifactregistry://us-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
 }
 
 dependencies {
@@ -25,13 +25,13 @@ dependencies {
     implementation(Config.Libs.logback_classic)
     implementation(Config.Libs.logback_core)
     implementation(Config.Libs.groovy) // For logback
-    implementation(Config.Libs.protobuf)
+    //implementation(Config.Libs.protobuf)
     implementation(Config.Libs.grpc_core)
-    implementation(Config.Libs.grpc_protobuf)
-    implementation(Config.Libs.grpc_stub)
-    implementation(Config.Libs.grpc_netty)
+    //implementation(Config.Libs.grpc_protobuf)
+    //implementation(Config.Libs.grpc_stub)
+    //implementation(Config.Libs.grpc_netty)
     implementation(Config.Libs.guava)
-    implementation(Config.Libs.spanner)
+    //implementation(Config.Libs.spanner)
     implementation(Config.Libs.pubsub)
     // implementation(Config.Libs.storage)
     // implementation(Config.Libs.rocksdb)

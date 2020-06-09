@@ -1,0 +1,37 @@
+# Copyright (C) 2020 Google LLC.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# ARG has to occur before the first FROM statement
+ARG JDK_VERSION=11-jdk-stretch
+
+FROM google/spanner-client-dev as client-build
+
+FROM spez/build-env as app-build
+COPY --from=client-build /app/spannerclient /app/spannerclient
+ADD . /app/spez
+WORKDIR /app/spez
+USER root
+RUN ./gradlew --include-build ../spannerclient clean :cdc:spannerTailerService && \
+  mv cdc/build/libs/Main-fat-*.jar Main.jar
+RUN make -C ./scripts
+
+FROM openjdk:${JDK_VERSION} as dev
+RUN apt-get update && apt-get install -y libgtk-3-bin
+COPY --from=app-build /app/spez/Main.jar /app/Main.jar
+COPY --from=app-build /app/spez/scripts/run-spez /app/run-spez
+ENV JVM_HEAP_SIZE=6g
+ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
+ADD cdc/docker/jvm-arguments /app/
+WORKDIR /app
+ENTRYPOINT ["/app/run-spez"]

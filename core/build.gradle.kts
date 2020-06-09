@@ -27,7 +27,8 @@ repositories {
 }
 
 dependencies {
-    implementation("com.google.spannerclient:spannerclient:0.1.1")
+    //implementation("com.google.spannerclient:spannerclient:0.1.1")
+    implementation(files("../libs/spannerclient-0.1.1.jar"))
     implementation(Config.Libs.typesafe_config)
     implementation(Config.Libs.slf4j)
     implementation(Config.Libs.logback_classic)

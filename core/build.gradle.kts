@@ -17,13 +17,13 @@ plugins {
     id("com.google.protobuf") version "0.8.10"
     id("com.diffplug.gradle.spotless") version "3.24.0"
     id("net.ltgt.errorprone") version "0.8.1"
-    id("com.google.cloud.artifactregistry.gradle-plugin") version "2.1.0"
+    //id("com.google.cloud.artifactregistry.gradle-plugin") version "2.1.0"
 }
 
 repositories {
     mavenCentral()
     google()
-    maven("artifactregistry://us-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
+    //maven("artifactregistry://us-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
 }
 
 dependencies {

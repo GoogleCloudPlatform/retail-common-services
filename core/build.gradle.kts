@@ -21,29 +21,33 @@ plugins {
 }
 
 repositories {
+    maven {
+       url = uri("file://${rootProject.projectDir}/libs/maven")
+    }
     mavenCentral()
     google()
     //maven("artifactregistry://us-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")
 }
 
+
 dependencies {
-    //implementation("com.google.spannerclient:spannerclient:0.1.1")
-    implementation(files("../libs/spannerclient-0.1.1.jar"))
+    implementation("com.google.spannerclient:spannerclient:0.1.2")
     implementation(Config.Libs.typesafe_config)
     implementation(Config.Libs.slf4j)
-    implementation(Config.Libs.logback_classic)
-    implementation(Config.Libs.logback_core)
+    //implementation(Config.Libs.logback_classic)
+    //implementation(Config.Libs.logback_core)
     implementation(Config.Libs.protobuf)
     implementation(Config.Libs.grpc_core)
     implementation(Config.Libs.grpc_protobuf)
     implementation(Config.Libs.grpc_stub)
     implementation(Config.Libs.grpc_netty)
     implementation(Config.Libs.guava)
-    implementation(Config.Libs.spanner)
+    //implementation(Config.Libs.spanner)
     implementation(Config.Libs.pubsub)
     // implementation(Config.Libs.storage)
     implementation(Config.Libs.bigquery)
     // implementation(Config.Libs.rocksdb)
+    implementation("com.google.api.grpc:proto-google-cloud-spanner-v1:1.55.1")
 
     // AutoValue
     compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")

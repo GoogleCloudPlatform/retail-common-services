@@ -13,6 +13,9 @@ plugins {
 }
 
 repositories {
+    maven {
+       url = uri("file://${rootProject.projectDir}/libs/maven")
+    }
     mavenCentral()
     google()
     //maven("artifactregistry://us-maven.pkg.dev/retail-common-services-249016/spez-maven-repo")

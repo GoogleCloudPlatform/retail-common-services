@@ -25,8 +25,13 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.google.common.util.concurrent.*;
+import com.google.common.util.concurrent.AsyncFunction;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.spannerclient.Database;
 import com.google.spannerclient.Options;
 import com.google.spannerclient.Query;
@@ -57,8 +62,6 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -123,7 +126,6 @@ public class SpannerTailer {
   private final ListeningExecutorService service;
   private final ScheduledExecutorService scheduler;
   private final HashFunction hasher;
-  private final Map<HashCode, Timestamp> eventMap;
 
   // We should set an official Spez epoch
   private String lastProcessedTimestamp = "2019-08-08T20:30:39.802644Z";
@@ -141,7 +143,6 @@ public class SpannerTailer {
                 threadPool,
                 new ThreadFactoryBuilder().setNameFormat("SpannerTailer Acceptor").build()));
     this.hasher = Hashing.murmur3_128();
-    this.eventMap = new ConcurrentHashMap<>(maxEventCount);
   }
 
   private static class TimestampColumnChecker {
@@ -280,7 +281,6 @@ public class SpannerTailer {
             + tableName
             + "'";
 
-    final SettableFuture<SchemaSet> result = SettableFuture.create();
     final ListenableFuture<Database> dbFuture =
         Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
 
@@ -401,25 +401,25 @@ public class SpannerTailer {
             SpannerTailer.this.database = db;
             log.info("Built database, starting scheduler");
             try {
-              final ScheduledFuture<?> poller =
-                  scheduler.scheduleAtFixedRate(
-                      () -> {
-                        poll(
-                            projectId,
-                            instanceName,
-                            dbName,
-                            tableName,
-                            lptsTableName,
-                            recordLimit,
-                            handler,
-                            tsColName,
-                            bucketSize,
-                            config,
-                            lpts);
-                      },
-                      0,
-                      30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
-                      TimeUnit.SECONDS);
+              // final ScheduledFuture<?> poller =
+              scheduler.scheduleAtFixedRate(
+                  () -> {
+                    poll(
+                        projectId,
+                        instanceName,
+                        dbName,
+                        tableName,
+                        lptsTableName,
+                        recordLimit,
+                        handler,
+                        tsColName,
+                        bucketSize,
+                        config,
+                        lpts);
+                  },
+                  0,
+                  30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
+                  TimeUnit.SECONDS);
               // return poller;
 
             } catch (Exception e) {
@@ -634,10 +634,28 @@ public class SpannerTailer {
     final HashCode sortingKeyHashCode = hasher.newHasher().putBytes(uuid.getBytes(UTF_8)).hash();
     final int bucket = Hashing.consistentHash(sortingKeyHashCode, 12);
 
-    handler.process(bucket, row, ts.toString());
-    lastProcessedTimestamp = ts.toString();
+    try (Scope ss = tracer.spanBuilder("SpannerTailer.processRow").startScopedSpan()) {
+      ListenableFuture<Boolean> result =
+          handler.process(bucket, row, ts.toString(), tracer.getCurrentSpan());
+      lastProcessedTimestamp = ts.toString();
+      Futures.addCallback(
+          result,
+          new FutureCallback<Boolean>() {
 
-    return true;
+            @Override
+            public void onSuccess(Boolean result) {
+              ss.close();
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+              ss.close();
+            }
+          },
+          MoreExecutors.directExecutor());
+
+      return true;
+    }
   }
 
   public void logStats() {

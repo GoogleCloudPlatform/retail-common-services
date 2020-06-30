@@ -16,7 +16,9 @@
 
 package com.google.spez.core;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.spannerclient.Row;
+import io.opencensus.trace.Span;
 
 /** Interface to specific a call back method that is for each new event. */
 public interface SpannerEventHandler {
@@ -30,5 +32,5 @@ public interface SpannerEventHandler {
    *     event.
    * @param timestamp the Cloud Spanner Commit Timestamp for the event
    */
-  Boolean process(int bucket, Row event, String timestamp);
+  ListenableFuture<Boolean> process(int bucket, Row event, String timestamp, Span parent);
 }

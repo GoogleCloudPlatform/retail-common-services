@@ -48,8 +48,26 @@ class Main {
 
   private static final boolean DISRUPTOR = false;
 
+  private static void setupStackdriver(String projectId) throws IOException {
+    // For demo purposes, always sample
+    TraceConfig traceConfig = Tracing.getTraceConfig();
+    traceConfig.updateActiveTraceParams(
+        traceConfig
+            .getActiveTraceParams()
+            .toBuilder()
+            .setSampler(Samplers.alwaysSample()) // TODO(pdex): move to config
+            .build());
+
+    // Create the Stackdriver trace exporter
+    StackdriverTraceExporter.createAndRegister(
+        StackdriverTraceConfiguration.builder().setProjectId(projectId).build());
+  }
+
   public static void main(String[] args) {
     SpezConfig config = SpezConfig.parse(ConfigFactory.load());
+
+    setupStackdriver(config.getProjectId());
+
     // TODO(pdex): why are we making our own threadpool?
     final List<ListeningExecutorService> l =
         Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
@@ -139,7 +157,8 @@ class Main {
       log.info("waiting for doneSignal");
       doneSignal.await();
     } catch (InterruptedException e) {
-      e.printStackTrace();
+      log.error(e);
+      throw e;
     }
   }
 }

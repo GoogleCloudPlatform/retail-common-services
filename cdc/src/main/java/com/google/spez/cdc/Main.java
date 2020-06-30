@@ -30,6 +30,12 @@ import com.google.spez.core.Spez;
 import com.google.spez.core.SpezConfig;
 import com.google.spez.core.WorkStealingHandler;
 import com.typesafe.config.ConfigFactory;
+import io.opencensus.exporter.trace.stackdriver.StackdriverTraceConfiguration;
+import io.opencensus.exporter.trace.stackdriver.StackdriverTraceExporter;
+import io.opencensus.trace.Tracing;
+import io.opencensus.trace.config.TraceConfig;
+import io.opencensus.trace.samplers.Samplers;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,10 +69,10 @@ class Main {
         StackdriverTraceConfiguration.builder().setProjectId(projectId).build());
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     SpezConfig config = SpezConfig.parse(ConfigFactory.load());
 
-    setupStackdriver(config.getProjectId());
+    setupStackdriver(config.getPubSub().getProjectId());
 
     // TODO(pdex): why are we making our own threadpool?
     final List<ListeningExecutorService> l =
@@ -157,7 +163,7 @@ class Main {
       log.info("waiting for doneSignal");
       doneSignal.await();
     } catch (InterruptedException e) {
-      log.error(e);
+      log.error("Interrupted", e);
       throw e;
     }
   }

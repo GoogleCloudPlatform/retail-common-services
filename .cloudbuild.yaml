@@ -22,6 +22,7 @@ steps:
   - --app=$REPO_NAME-ci
   - --version=$SHORT_SHA
   - --cluster=spez
+  - --location=us-central1
   - --namespace=default
   - --output=output
   - --annotation=gcb-build-id=$BUILD_ID

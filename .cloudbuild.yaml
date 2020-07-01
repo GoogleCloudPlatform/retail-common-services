@@ -37,6 +37,6 @@ steps:
   args: [ '-c', 'ls -l output' ]
 - id: 'test force'
   name: 'bash'
-  args: [ '-c', 'echo force build again' ]
+  args: [ '-c', 'echo force build again, again' ]
 #images:
 #  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'

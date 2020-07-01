@@ -35,7 +35,7 @@ steps:
 - id: 'test'
   name: 'bash'
   args: [ '-c', 'ls -l output' ]
-- id: 'test'
+- id: 'test force'
   name: 'bash'
   args: [ '-c', 'echo force build' ]
 #images:

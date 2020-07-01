@@ -2,6 +2,12 @@ steps:
 - id: 'build spez prod image'
   name: 'gcr.io/cloud-builders/docker'
   args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '.' ]
+#docker tag $IMAGE:$TAG $GCR_REPO/$IMAGE:$TAG
+#docker tag $IMAGE:$TAG $GCR_REPO/$IMAGE:latest
+#docker push $GCR_REPO/$IMAGE:$TAG
+- id: 'push spez prod image'
+  name: 'gcr.io/cloud-builders/docker'
+  args: [ 'push', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA' ]
 #- id: 'install lpts function'
 #  name: 'gcr.io/cloud-builders/gcloud'
 #  args:
@@ -29,5 +35,5 @@ steps:
 - id: 'test'
   name: 'bash'
   args: [ '-c', 'ls output' ]
-images:
-  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'
+#images:
+#  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'

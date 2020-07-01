@@ -8,6 +8,7 @@ steps:
   - functions
   - deploy
   - lastprocessedtimestamp
+  - --quiet
   - --runtime=go111
   - --entry-point=LastProcessedTimestamp
   - --trigger-topic=updates

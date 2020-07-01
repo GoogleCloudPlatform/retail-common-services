@@ -24,8 +24,8 @@ steps:
   - --namespace=default
   - --output=output
   - --annotation=gcb-build-id=$BUILD_ID
+- id: 'test'
+  name: 'bash'
+  args: [ '-c' 'ls output']
 images:
   - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'
-artifacts:
-  objects:
-    paths: ['/workspace/output/*']

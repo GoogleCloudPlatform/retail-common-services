@@ -15,7 +15,10 @@
 ARG JDK_VERSION=11-jdk-slim
 ARG DISTROLESS_JAVA_VERSION=11
 FROM openjdk:${JDK_VERSION} as build-env
-RUN /workspace/gradlew --version
+WORKDIR /app
+COPY *.gradle gradle.* gradlew /app/
+COPY gradle /app/gradle
+RUN /app/gradlew --version
 RUN apt-get update
 RUN apt-get install -y build-essential
 

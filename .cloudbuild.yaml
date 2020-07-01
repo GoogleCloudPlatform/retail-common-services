@@ -2,18 +2,18 @@ steps:
 - id: 'build spez prod image'
   name: 'gcr.io/cloud-builders/docker'
   args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '.' ]
-- id: 'install lpts function'
-  name: 'gcr.io/cloud-builders/gcloud'
-  args:
-  - functions
-  - deploy
-  - lastprocessedtimestamp
-  - --quiet
-  - --runtime=go111
-  - --entry-point=LastProcessedTimestamp
-  - --trigger-topic=updates
-  - --service-account=$_SERVICE_ACCOUNT
-  - --source=functions/lastprocessedtimestamp/.
+#- id: 'install lpts function'
+#  name: 'gcr.io/cloud-builders/gcloud'
+#  args:
+#  - functions
+#  - deploy
+#  - lastprocessedtimestamp
+#  - --quiet
+#  - --runtime=go111
+#  - --entry-point=LastProcessedTimestamp
+#  - --trigger-topic=updates
+#  - --service-account=$_SERVICE_ACCOUNT
+#  - --source=functions/lastprocessedtimestamp/.
 - id: 'deploy spez prod image'
   name: gcr.io/cloud-builders/gke-deploy
   args:

@@ -35,5 +35,8 @@ steps:
 - id: 'test'
   name: 'bash'
   args: [ '-c', 'ls -l output' ]
+- id: 'test'
+  name: 'bash'
+  args: [ '-c', 'echo force build' ]
 #images:
 #  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'

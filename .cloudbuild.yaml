@@ -26,6 +26,6 @@ steps:
   - --annotation=gcb-build-id=$BUILD_ID
 - id: 'test'
   name: 'bash'
-  args: [ '-c' 'ls output']
+  args: [ '-c', 'ls output' ]
 images:
   - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'

@@ -27,7 +27,7 @@ steps:
   - --image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA
   - --app=$REPO_NAME-ci
   - --version=$SHORT_SHA
-  - --cluster=spez
+  - --cluster=test-garbage
   - --location=us-central1
   - --namespace=default
   - --output=output

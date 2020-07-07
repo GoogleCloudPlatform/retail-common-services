@@ -26,9 +26,9 @@ steps:
   name: hashicorp/terraform:0.12.28
   args:
   - plan
-  - '-var="tailer_image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA"'
-  - '-var="cluster_location=us-central1"'
-  - '-var="cluster_name=spez"'
+  - '-var=tailer_image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'
+  - '-var=cluster_location=us-central1'
+  - '-var=cluster_name=spez'
   - '-out=tf.out'
   - gke-deploy
 - id: 'deploy spez prod image: tf apply'

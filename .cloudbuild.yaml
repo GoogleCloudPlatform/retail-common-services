@@ -2,9 +2,6 @@ steps:
 - id: 'build spez prod image'
   name: 'gcr.io/cloud-builders/docker'
   args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '.' ]
-#docker tag $IMAGE:$TAG $GCR_REPO/$IMAGE:$TAG
-#docker tag $IMAGE:$TAG $GCR_REPO/$IMAGE:latest
-#docker push $GCR_REPO/$IMAGE:$TAG
 - id: 'push spez prod image'
   name: 'gcr.io/cloud-builders/docker'
   args: [ 'push', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA' ]
@@ -20,21 +17,25 @@ steps:
 #  - --trigger-topic=updates
 #  - --service-account=$_SERVICE_ACCOUNT
 #  - --source=functions/lastprocessedtimestamp/.
-- id: 'deploy spez prod image'
-  name: gcr.io/cloud-builders/gke-deploy
+- id: 'deploy spez prod image: tf init'
+  name: hashicorp/terraform:0.12.28
   args:
-  - run
-  - --image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA
-  - --app=$REPO_NAME-ci
-  - --version=$SHORT_SHA
-  - --cluster=test-garbage
-  - --location=us-central1
-  - --namespace=default
-  - --output=output
-  - --annotation=gcb-build-id=$BUILD_ID
-- id: 'test'
-  name: 'bash'
-  args: [ '-c', 'ls -l output' ]
+  - init
+  - gke-deploy
+- id: 'deploy spez prod image: tf plan'
+  name: hashicorp/terraform:0.12.28
+  args:
+  - plan
+  - '-var="tailer_image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA"'
+  - '-var="cluster_location=us-central1"'
+  - '-var="cluster_name=spez"'
+  - '-out=tf.out'
+  - gke-deploy
+- id: 'deploy spez prod image: tf apply'
+  name: hashicorp/terraform:0.12.28
+  args:
+  - apply
+  - tf.out
 - id: 'test force'
   name: 'bash'
   args: [ '-c', 'echo force build again, again, again' ]

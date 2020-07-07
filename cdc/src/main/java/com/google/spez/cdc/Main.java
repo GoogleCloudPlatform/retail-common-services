@@ -54,7 +54,7 @@ class Main {
 
   private static final boolean DISRUPTOR = false;
 
-  private static void setupStackdriver(String projectId) throws IOException {
+  private static void setupStackdriver(SpezConfig config) throws IOException {
     // For demo purposes, always sample
     TraceConfig traceConfig = Tracing.getTraceConfig();
     traceConfig.updateActiveTraceParams(
@@ -66,13 +66,16 @@ class Main {
 
     // Create the Stackdriver trace exporter
     StackdriverTraceExporter.createAndRegister(
-        StackdriverTraceConfiguration.builder().setProjectId(projectId).build());
+        StackdriverTraceConfiguration.builder()
+            .setProjectId(config.getPubSub().getProjectId())
+            .setCredentials(config.getAuth().getCredentials())
+            .build());
   }
 
   public static void main(String[] args) throws Exception {
     SpezConfig config = SpezConfig.parse(ConfigFactory.load());
 
-    setupStackdriver(config.getPubSub().getProjectId());
+    setupStackdriver(config);
 
     // TODO(pdex): why are we making our own threadpool?
     final List<ListeningExecutorService> l =

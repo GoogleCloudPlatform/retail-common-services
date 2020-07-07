@@ -29,7 +29,6 @@ steps:
   - '-var=tailer_image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'
   - '-var=cluster_location=us-central1'
   - '-var=cluster_name=spez'
-  - '-out=tf.out'
   - '-auto-approve'
   - gke-deploy
 - id: 'deploy spez prod image: tf plan'

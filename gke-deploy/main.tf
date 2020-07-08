@@ -177,7 +177,7 @@ resource "kubernetes_deployment" "spez-tailer-deployment" {
             "-Dspez.lpts.instance=${var.lpts_instance}",
             "-Dspez.lpts.database=${var.lpts_database}",
             "-Dspez.lpts.table=${var.lpts_table}",
-            "-Dspez.loglevel.default=INFO",
+            "-Dspez.loglevel.default=DEBUG",
           ]
         }
       }

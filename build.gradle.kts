@@ -32,6 +32,6 @@ allprojects {
 
 release {
     val gitConfig = getProperty("git") as GitAdapter.GitConfig
-    gitConfig.pushToRemote = true
+    gitConfig.pushToRemote = "origin"
     gitConfig.pushOptions = listOf("--tags")
 }

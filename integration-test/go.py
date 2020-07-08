@@ -2,6 +2,7 @@
 
 from google.cloud import spanner
 from google.cloud.spanner_v1 import COMMIT_TIMESTAMP
+import sys
 
 # Instantiate a client.
 spanner_client = spanner.Client()
@@ -36,6 +37,6 @@ def insert_rows(transaction, offset):
     ],
   )
 
-offset = 10
+offset = int(sys.argv[1])
 
 database.run_in_transaction(insert_rows, offset)

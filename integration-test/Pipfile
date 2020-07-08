@@ -7,6 +7,11 @@ verify_ssl = true
 
 [packages]
 google-cloud-spanner = "*"
+google-cloud-pubsub = "*"
+avro-python3 = "*"
+opencensus = "*"
+google-cloud-trace = "*"
+opencensus-ext-stackdriver = "*"
 
 [requires]
 python_version = "3.7"

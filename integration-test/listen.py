@@ -5,13 +5,17 @@ from google.cloud import pubsub_v1
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
 import io
+import logging
 
 from opencensus.common.transports.async_ import AsyncTransport
 from opencensus.ext.stackdriver import trace_exporter as stackdriver_exporter
 from opencensus.trace.tracer import Tracer
 from opencensus.trace.samplers import AlwaysOnSampler
 from opencensus.trace.span_context import SpanContext
+from opencensus.trace.trace_options import TraceOptions
 
+
+logging.basicConfig(level=logging.DEBUG)
 
 project_id = 'spanner-event-exporter'
 
@@ -30,25 +34,29 @@ try:
 except:
   subscriber.create_subscription(name=subscription_name, topic=topic_name)
 
+def get_context(attributes):
+  encoded = attributes.get(TRACE_KEY)
+  version, trace_id, span_id, options = encoded.split('-')
+  trace_options = TraceOptions(trace_options_byte=options)
+  context = SpanContext(trace_id=trace_id, span_id=span_id, trace_options=trace_options, from_header=True)
+
 
 exporter = stackdriver_exporter.StackdriverExporter(project_id=project_id, transport=AsyncTransport)
 
 def callback(message):
-  print("message", message)
-  print("attributes", message.attributes)
-  print("message_id", message.message_id)
-  print("publish_time", message.publish_time)
-  print("ordering_key", message.ordering_key)
   trace_id = message.attributes.get(TRACE_KEY)
-  context = SpanContext(trace_id=trace_id, from_header=True)
-  tracer = Tracer(exporter=exporter, sampler=AlwaysOnSampler())
-  '''
-  reader = DataFileReader(io.BytesIO(message.data), DatumReader())
-  for msg in reader:
-    print(msg)
-  reader.close()
-  '''
-  message.ack()
+  context = get_context(message.attributes)
+  tracer = Tracer(span_context=context, exporter=exporter, sampler=AlwaysOnSampler())
+  with tracer.span(name='listener_ack') as span:
+    payload = []
+    try:
+      reader = DataFileReader(io.BytesIO(message.data), DatumReader())
+      payload = [msg for msg in reader]
+      reader.close()
+    except:
+      logging.exception("got exception")
+    logging.debug("message %s data %s payload %s", message, message.data, payload)
+    message.ack()
 
 future = subscriber.subscribe(subscription_name, callback)
 

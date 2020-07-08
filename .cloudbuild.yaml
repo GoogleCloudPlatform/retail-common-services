@@ -38,7 +38,7 @@ steps:
   name: 'gcr.io/cloud-builders/docker'
   entrypoint: '/bin/bash'
   args:
-  - '-ceux'
+  - '-euxc'
   - |-
     if echo $BRANCH_NAME | grep release > /dev/null 2>&1; then
       TAG=$(echo $BRANCH_NAME | sed -e 's/release-//g')

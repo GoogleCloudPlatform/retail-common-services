@@ -159,6 +159,9 @@ public class EventPublisher {
     for (var payload : sink) {
       messages.add(payload.message);
     }
+    if (numberDrained == 0) {
+      return;
+    }
     final ListenableFuture<PublishResponse> future =
         PubSub.publishAsync(
             PublishOptions.DEFAULT(),
@@ -169,6 +172,7 @@ public class EventPublisher {
                 .build());
 
     lastPublished = Instant.now();
+    log.debug("{} messages drained and published", numberDrained);
     bufferSize.getAndAdd(-1 * numberDrained);
 
     Futures.addCallback(
@@ -211,8 +215,12 @@ public class EventPublisher {
   private void maybePublish() {
     Instant now = Instant.now();
     Duration d = Duration.between(lastPublished, now);
-    if (bufferSize.get() >= publishBufferSize || d.getSeconds() > publishBufferTime) {
+    long size = bufferSize.get();
+    if (size >= publishBufferSize || d.getSeconds() > publishBufferTime) {
+      log.debug("publish buffer size {} duration {}", size, d.getSeconds());
       publishBuffer();
+    } else {
+      log.debug("didn't publish buffer size {} duration {}", size, d.getSeconds());
     }
   }
 

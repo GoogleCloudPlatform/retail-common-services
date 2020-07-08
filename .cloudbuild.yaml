@@ -40,9 +40,10 @@ steps:
   args:
   - '-c'
   - |-
-    echo "TAG_NAME: $TAG_NAME"
-    if [ -n "$TAG_NAME" ]; then
-      docker push gcr.io/$PROJECT_ID/$REPO_NAME:$TAG_NAME
+    TAG=$(echo $BRANCH_NAME | sed -e 's/release-//g')
+    echo "BRANCH_NAME: $BRANCH_NAME TAG: $$TAG"
+    if [ -n "$$TAG" ]; then
+      docker push gcr.io/$PROJECT_ID/$REPO_NAME:$$TAG
       docker push gcr.io/$PROJECT_ID/$REPO_NAME:latest
     fi
 - id: 'test force'

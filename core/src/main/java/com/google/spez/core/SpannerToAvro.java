@@ -34,11 +34,11 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
-import org.apache.avro.io.EncoderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -348,13 +348,22 @@ public class SpannerToAvro {
     log.debug(record.toString());
 
     try (final ByteBufOutputStream outputStream = new ByteBufOutputStream(bb)) {
+      log.debug("Serializing Record");
       // final BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(outputStream, null);
+      /*
       var encoder = EncoderFactory.get().jsonEncoder(schemaSet.avroSchema(), outputStream);
       final DatumWriter<Object> writer = new GenericDatumWriter<>(schemaSet.avroSchema());
 
-      log.debug("Serializing Record");
       writer.write(record, encoder);
       encoder.flush();
+      */
+      DatumWriter<GenericRecord> datumWriter =
+          new GenericDatumWriter<GenericRecord>(schemaSet.avroSchema());
+      DataFileWriter<GenericRecord> writer =
+          new DataFileWriter(datumWriter).create(schemaSet.avroSchema(), outputStream);
+      writer.append(record);
+      writer.close();
+
       outputStream.flush();
       log.debug("Adding serialized record to list");
       log.debug("--------------------------------- readableBytes " + bb.readableBytes());

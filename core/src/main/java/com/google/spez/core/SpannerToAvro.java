@@ -37,7 +37,6 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.io.EncoderFactory;
 import org.slf4j.Logger;
@@ -349,7 +348,8 @@ public class SpannerToAvro {
     log.debug(record.toString());
 
     try (final ByteBufOutputStream outputStream = new ByteBufOutputStream(bb)) {
-      final BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(outputStream, null);
+      // final BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(outputStream, null);
+      var encoder = EncoderFactory.get().jsonEncoder(schemaSet.avroSchema(), outputStream);
       final DatumWriter<Object> writer = new GenericDatumWriter<>(schemaSet.avroSchema());
 
       log.debug("Serializing Record");

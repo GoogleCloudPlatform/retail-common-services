@@ -38,13 +38,17 @@ steps:
   name: 'gcr.io/cloud-builders/docker'
   entrypoint: '/bin/bash'
   args:
-  - '-c'
+  - '-ceux'
   - |-
-    TAG=$(echo $BRANCH_NAME | sed -e 's/release-//g')
-    echo "BRANCH_NAME: $BRANCH_NAME TAG: $$TAG"
-    if [ -n "$$TAG" ]; then
-      docker push gcr.io/$PROJECT_ID/$REPO_NAME:$$TAG
-      docker push gcr.io/$PROJECT_ID/$REPO_NAME:latest
+    if echo $BRANCH_NAME | grep release > /dev/null 2>&1; then
+      TAG=$(echo $BRANCH_NAME | sed -e 's/release-//g')
+      echo "BRANCH_NAME: $BRANCH_NAME TAG: $$TAG"
+      if [ -n "$$TAG" ]; then
+        docker tag gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA gcr.io/$PROJECT_ID/$REPO_NAME:$$TAG
+        docker tag gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA gcr.io/$PROJECT_ID/$REPO_NAME:latest
+        docker push gcr.io/$PROJECT_ID/$REPO_NAME:$$TAG
+        docker push gcr.io/$PROJECT_ID/$REPO_NAME:latest
+      fi
     fi
 - id: 'test force'
   name: 'bash'

@@ -1,3 +1,5 @@
+import net.researchgate.release.GitAdapter
+
 buildscript {
     repositories {
         maven("https://plugins.gradle.org/m2/")
@@ -27,4 +29,10 @@ allprojects {
         jcenter()
         google()
     }
+}
+
+release {
+    val gitConfig = getProperty("git") as GitAdapter.GitConfig
+    gitConfig.pushToRemote = true
+    gitConfig.pushOptions = listOf("--tags")
 }

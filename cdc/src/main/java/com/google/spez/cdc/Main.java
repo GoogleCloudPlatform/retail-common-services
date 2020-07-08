@@ -30,6 +30,12 @@ import com.google.spez.core.Spez;
 import com.google.spez.core.SpezConfig;
 import com.google.spez.core.WorkStealingHandler;
 import com.typesafe.config.ConfigFactory;
+import io.opencensus.exporter.trace.stackdriver.StackdriverTraceConfiguration;
+import io.opencensus.exporter.trace.stackdriver.StackdriverTraceExporter;
+import io.opencensus.trace.Tracing;
+import io.opencensus.trace.config.TraceConfig;
+import io.opencensus.trace.samplers.Samplers;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +54,29 @@ class Main {
 
   private static final boolean DISRUPTOR = false;
 
-  public static void main(String[] args) {
+  private static void setupStackdriver(SpezConfig config) throws IOException {
+    // For demo purposes, always sample
+    TraceConfig traceConfig = Tracing.getTraceConfig();
+    traceConfig.updateActiveTraceParams(
+        traceConfig
+            .getActiveTraceParams()
+            .toBuilder()
+            .setSampler(Samplers.alwaysSample()) // TODO(pdex): move to config
+            .build());
+
+    // Create the Stackdriver trace exporter
+    StackdriverTraceExporter.createAndRegister(
+        StackdriverTraceConfiguration.builder()
+            .setProjectId(config.getPubSub().getProjectId())
+            .setCredentials(config.getAuth().getCredentials())
+            .build());
+  }
+
+  public static void main(String[] args) throws Exception {
     SpezConfig config = SpezConfig.parse(ConfigFactory.load());
+
+    setupStackdriver(config);
+
     // TODO(pdex): why are we making our own threadpool?
     final List<ListeningExecutorService> l =
         Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
@@ -139,7 +166,8 @@ class Main {
       log.info("waiting for doneSignal");
       doneSignal.await();
     } catch (InterruptedException e) {
-      e.printStackTrace();
+      log.error("Interrupted", e);
+      throw e;
     }
   }
 }

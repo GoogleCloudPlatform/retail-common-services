@@ -1,28 +1,52 @@
 steps:
-- name: 'gcr.io/cloud-builders/docker'
+- id: 'build spez prod image'
+  name: 'gcr.io/cloud-builders/docker'
   args: [ 'build', '-t', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA', '.' ]
-- name: 'ubuntu'
-  entrypoint: 'bash'
+- id: 'push spez prod image'
+  name: 'gcr.io/cloud-builders/docker'
+  args: [ 'push', 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA' ]
+#- id: 'install lpts function'
+#  name: 'gcr.io/cloud-builders/gcloud'
+#  args:
+#  - functions
+#  - deploy
+#  - lastprocessedtimestamp
+#  - --quiet
+#  - --runtime=go111
+#  - --entry-point=LastProcessedTimestamp
+#  - --trigger-topic=updates
+#  - --service-account=$_SERVICE_ACCOUNT
+#  - --source=functions/lastprocessedtimestamp/.
+- id: 'create deployment from template'
+  name: bash
   args:
   - '-c'
-  - |
-    apt-get update
-    apt-get install -y gettext-base
-    mkdir config-all
-    export PROJECT_ID="$PROJECT_ID"
-
-    # rename config files to be appended with the environment, e.g. staging-service.yaml
-    for env in config/prod config/staging; do
-      if [ -d $env ]; then
-        for file in $env/*; do
-          echo "envsubst < $file > config-all/$(basename $env)-$(basename $file)"
-          envsubst < $file > config-all/$(basename $env)-$(basename $file)
-        done
-      fi
-    done
-artifacts:
-  objects:
-    location: gs://${_BUCKET_NAME}/${REPO_NAME}-manifests/$SHORT_SHA
-    paths: [ 'config-all/*' ]
-images:
-  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'
+  - |-
+    sed -e 's/IMAGE_TAG/$SHORT_SHA/g' < .cloudbuild-kubernetes/deployment.template.yaml > .cloudbuild-kubernetes/deployment.yaml
+    cat .cloudbuild-kubernetes/deployment.yaml
+- id: 'deploy spez prod image'
+  name: gcr.io/cloud-builders/kubectl
+  env:
+  - 'KUBECTL_VERSION=1.17'
+  - 'CLOUDSDK_COMPUTE_REGION=us-central1'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=spez'
+  args:
+  - apply
+  - -f
+  - .cloudbuild-kubernetes/deployment.yaml
+- id: 'push latest for tagged commits'
+  name: 'gcr.io/cloud-builders/docker'
+  entrypoint: '/bin/bash'
+  args:
+  - '-c'
+  - |-
+    echo "TAG_NAME: $TAG_NAME"
+    if [ -n "$TAG_NAME" ]; then
+      docker push gcr.io/$PROJECT_ID/$REPO_NAME:$TAG_NAME
+      docker push gcr.io/$PROJECT_ID/$REPO_NAME:latest
+    fi
+- id: 'test force'
+  name: 'bash'
+  args: [ '-c', 'echo force build again, again, again' ]
+#images:
+#  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'

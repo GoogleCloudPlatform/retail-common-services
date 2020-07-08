@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.spannerclient.Row;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
+import io.opencensus.trace.Span;
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -46,7 +47,7 @@ public class WorkStealingHandler implements SpannerEventHandler {
   private final AtomicLong records = new AtomicLong(0);
   private final AtomicLong errors = new AtomicLong(0);
   private final AtomicLong published = new AtomicLong(0);
-  private final AtomicReference lastProcessedTimestamp = new AtomicReference("");
+  private final AtomicReference<String> lastProcessedTimestamp = new AtomicReference("");
   private final Instant then = Instant.now();
   private final Runtime runtime = Runtime.getRuntime();
   private final NumberFormat formatter = NumberFormat.getInstance();
@@ -97,6 +98,53 @@ public class WorkStealingHandler implements SpannerEventHandler {
         formatter.format(runtime.maxMemory()));
   }
 
+  public Boolean publishRecord(Row s, Span parent) {
+    // TODO(xjdr): Throw if empty optional
+    log.debug("Processing Record");
+    String timestamp = s.getTimestamp(schemaSet.tsColName()).toString();
+    lastProcessedTimestamp.set(timestamp);
+
+    ListenableFuture<Optional<ByteString>> record =
+        forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
+
+    log.debug("Record Processed, getting ready to publish");
+
+    var metadata = extractor.extract(s);
+
+    AsyncFunction<Optional<ByteString>, String> pub =
+        new AsyncFunction<Optional<ByteString>, String>() {
+          @Override
+          public ListenableFuture<String> apply(Optional<ByteString> record) {
+            return publisher.get().publish(record.get(), metadata, timestamp, parent, forkJoinPool);
+          }
+        };
+
+    ListenableFuture<String> resp = Futures.transformAsync(record, pub, forkJoinPool);
+
+    Futures.addCallback(
+        resp,
+        new FutureCallback<String>() {
+
+          @Override
+          public void onSuccess(String result) {
+            // Once published, returns server-assigned message ids
+            // (unique within the topic)
+            log.debug(
+                "Published message for timestamp '{}' with message id '{}'", timestamp, result);
+            published.incrementAndGet();
+          }
+
+          @Override
+          public void onFailure(Throwable t) {
+            errors.incrementAndGet();
+            log.error("Error Publishing Record: ", t);
+          }
+        },
+        forkJoinPool);
+
+    return Boolean.TRUE;
+  }
+
   /**
    * Processes the event from the {@code SpannerTailer} in the form of a method callback.
    *
@@ -105,59 +153,10 @@ public class WorkStealingHandler implements SpannerEventHandler {
    * @param timestamp the Cloud Spanner Commit Timestamp for the event
    */
   @Override
-  public Boolean process(int bucket, Row s, String timestamp) {
+  public ListenableFuture<Boolean> process(int bucket, Row s, String timestamp, Span parent) {
     records.incrementAndGet();
 
-    ListenableFuture<Boolean> x =
-        forkJoinPool.submit(
-            () -> {
-              // TODO(xjdr): Throw if empty optional
-              log.debug("Processing Record");
-              lastProcessedTimestamp.set(s.getTimestamp(schemaSet.tsColName()).toString());
-
-              ListenableFuture<Optional<ByteString>> record =
-                  forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
-
-              log.debug("Record Processed, getting ready to publish");
-
-              var metadata = extractor.extract(s);
-
-              AsyncFunction<Optional<ByteString>, String> pub =
-                  new AsyncFunction<Optional<ByteString>, String>() {
-                    public ListenableFuture<String> apply(Optional<ByteString> record) {
-                      return publisher
-                          .get()
-                          .publish(record.get(), metadata, timestamp, forkJoinPool);
-                    }
-                  };
-
-              ListenableFuture<String> resp = Futures.transformAsync(record, pub, forkJoinPool);
-
-              Futures.addCallback(
-                  resp,
-                  new FutureCallback<String>() {
-
-                    @Override
-                    public void onSuccess(String result) {
-                      // Once published, returns server-assigned message ids
-                      // (unique within the topic)
-                      log.debug(
-                          "Published message for timestamp '{}' with message id '{}'",
-                          timestamp,
-                          result);
-                      published.incrementAndGet();
-                    }
-
-                    @Override
-                    public void onFailure(Throwable t) {
-                      errors.incrementAndGet();
-                      log.error("Error Publishing Record: ", t);
-                    }
-                  },
-                  forkJoinPool);
-
-              return Boolean.TRUE;
-            });
+    ListenableFuture<Boolean> x = forkJoinPool.submit(() -> publishRecord(s, parent));
 
     Futures.addCallback(
         x,
@@ -175,6 +174,6 @@ public class WorkStealingHandler implements SpannerEventHandler {
         },
         forkJoinPool);
 
-    return Boolean.TRUE;
+    return x;
   }
 }

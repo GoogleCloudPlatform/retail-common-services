@@ -38,6 +38,7 @@ dependencies {
     implementation(Config.Libs.pubsub)
     // implementation(Config.Libs.storage)
     // implementation(Config.Libs.rocksdb)
+    implementation("io.opencensus:opencensus-exporter-trace-stackdriver:0.26.0")
 
     // AutoValue
     compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")

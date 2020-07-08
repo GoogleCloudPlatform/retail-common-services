@@ -20,10 +20,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.protobuf.ByteString;
 import com.google.spannerclient.Row;
 import com.google.spannerclient.RowCursor;
@@ -35,7 +32,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Executors;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -56,10 +52,6 @@ public class SpannerToAvro {
   public static ListenableFuture<SchemaSet> GetSchemaAsync(
       String tableName, String avroNamespace, RowCursor resultSet, String tsColName) {
     final SettableFuture<SchemaSet> schemaFuture = SettableFuture.create();
-    final ListeningExecutorService x =
-        MoreExecutors.listeningDecorator(
-            Executors.newFixedThreadPool(
-                1, new ThreadFactoryBuilder().setNameFormat("Spanner To Avro Thread").build()));
 
     schemaFuture.set(GetSchema(tableName, avroNamespace, resultSet, tsColName));
 

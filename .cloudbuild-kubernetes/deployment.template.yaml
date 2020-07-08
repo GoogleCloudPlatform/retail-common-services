@@ -1,0 +1,49 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: spez-tailer-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spez-tailer
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: spez-tailer
+        version: v1
+    spec:
+      containers:
+      - args:
+        - -Dspez.project_id=spanner-event-exporter
+        - -Dspez.auth.credentials=credentials.json
+        - -Dspez.pubsub.topic=spez-ledger-topic
+        - -Dspez.sink.instance=spez-test-instance
+        - -Dspez.sink.database=spez-test-database
+        - -Dspez.sink.table=test
+        - -Dspez.sink.uuid_column=Id
+        - -Dspez.sink.timestamp_column=CommitTimestamp
+        - -Dspez.lpts.instance=spez-lpts-instance
+        - -Dspez.lpts.database=spez-lpts-database
+        - -Dspez.lpts.table=lpts
+        - -Dspez.loglevel.default=INFO
+        - -Dspez.loglevel.com.google.spez.core.EventPublisher=DEBUG
+        image: gcr.io/spanner-event-exporter/spez:IMAGE_TAG
+        imagePullPolicy: Always
+        name: spez-tailer
+        ports:
+        - containerPort: 9010
+        resources:
+          limits:
+            memory: 3Gi
+          requests:
+            memory: 2Gi
+        volumeMounts:
+        - mountPath: /var/run/secret/cloud.google.com
+          name: service-account
+          readOnly: true
+      volumes:
+      - name: service-account
+        secret:
+          secretName: service-account

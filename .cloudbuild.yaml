@@ -17,34 +17,22 @@ steps:
 #  - --trigger-topic=updates
 #  - --service-account=$_SERVICE_ACCOUNT
 #  - --source=functions/lastprocessedtimestamp/.
-- id: 'deploy spez prod image: tf init'
-  name: hashicorp/terraform:0.12.28
+- id: 'create deployment from template'
+  name: bash
   args:
-  - init
-  - gke-deploy
-- id: 'deploy spez prod image: tf destroy'
-  name: hashicorp/terraform:0.12.28
-  args:
-  - destroy
-  - '-var=tailer_image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'
-  - '-var=cluster_location=us-central1'
-  - '-var=cluster_name=spez'
-  - '-auto-approve'
-  - gke-deploy
-- id: 'deploy spez prod image: tf plan'
-  name: hashicorp/terraform:0.12.28
-  args:
-  - plan
-  - '-var=tailer_image=gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'
-  - '-var=cluster_location=us-central1'
-  - '-var=cluster_name=spez'
-  - '-out=tf.out'
-  - gke-deploy
-- id: 'deploy spez prod image: tf apply'
-  name: hashicorp/terraform:0.12.28
+  - '-c'
+  - |-
+    sed -e 's/IMAGE_TAG/$SHORT_SHA/g' < .cloudbuild-kubernetes/deployment.template.yaml > .cloudbuild-kubernetes/deployment.yaml
+- id: 'deploy spez prod image'
+  name: gcr.io/cloud-builders/kubectl
+  env:
+  - 'KUBECTL_VERSION=1.17'
+  - 'CLOUDSDK_COMPUTE_REGION=us-central1'
+  - 'CLOUDSDK_CONTAINER_CLUSTER=spez'
   args:
   - apply
-  - tf.out
+  - -f
+  - .cloudbuild-kubernetes/deployment.yaml
 - id: 'test force'
   name: 'bash'
   args: [ '-c', 'echo force build again, again, again' ]

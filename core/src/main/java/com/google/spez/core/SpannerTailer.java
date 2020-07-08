@@ -668,6 +668,8 @@ public class SpannerTailer {
 
             @Override
             public void onFailure(Throwable t) {
+              Span span = tracer.getCurrentSpan();
+              span.setStatus(Status.INTERNAL.withDescription(t.toString()));
               ss.close();
             }
           },

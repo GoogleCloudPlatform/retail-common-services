@@ -23,6 +23,7 @@ steps:
   - '-c'
   - |-
     sed -e 's/IMAGE_TAG/$SHORT_SHA/g' < .cloudbuild-kubernetes/deployment.template.yaml > .cloudbuild-kubernetes/deployment.yaml
+    cat .cloudbuild-kubernetes/deployment.yaml
 - id: 'deploy spez prod image'
   name: gcr.io/cloud-builders/kubectl
   env:

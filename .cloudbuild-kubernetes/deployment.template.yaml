@@ -27,7 +27,7 @@ spec:
         - -Dspez.lpts.instance=spez-lpts-instance
         - -Dspez.lpts.database=spez-lpts-database
         - -Dspez.lpts.table=lpts
-        - -Dspez.loglevel.default=DEBUG
+        - -Dspez.loglevel.default=INFO
         image: gcr.io/spanner-event-exporter/spez:IMAGE_TAG
         imagePullPolicy: Always
         name: spez-tailer

@@ -34,6 +34,17 @@ steps:
   - apply
   - -f
   - .cloudbuild-kubernetes/deployment.yaml
+- id: 'push latest for tagged commits'
+  name: 'gcr.io/cloud-builders/docker'
+  entrypoint: '/bin/bash'
+  args:
+  - '-c'
+  - |-
+    echo "TAG_NAME: $TAG_NAME"
+    if [ -n "$TAG_NAME" ]; then
+      docker push gcr.io/$PROJECT_ID/$REPO_NAME:$TAG_NAME
+      docker push gcr.io/$PROJECT_ID/$REPO_NAME:latest
+    fi
 - id: 'test force'
   name: 'bash'
   args: [ '-c', 'echo force build again, again, again' ]

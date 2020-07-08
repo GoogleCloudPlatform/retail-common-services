@@ -266,6 +266,8 @@ public class SpannerTailer {
     Preconditions.checkNotNull(dbName);
     Preconditions.checkNotNull(tableName);
 
+    log.info("querying schema for {}.{}.{}", instanceName, dbName, tableName);
+
     final String databasePath = config.databasePath();
 
     final String schemaQuery =
@@ -281,25 +283,35 @@ public class SpannerTailer {
             + tableName
             + "'";
 
-    final ListenableFuture<Database> dbFuture =
-        Spanner.openDatabaseAsync(Options.DEFAULT(), databasePath, credentials);
+    final ListenableFuture<Database> dbFuture = Spanner.openDatabaseAsync(config.getSettings());
+    Futures.addCallback(
+        dbFuture,
+        new FutureCallback<Database>() {
+
+          @Override
+          public void onSuccess(Database d) {
+            log.info("got back database {}", d);
+          }
+
+          @Override
+          public void onFailure(Throwable t) {
+            log.error("Unable to get database", t);
+            System.exit(-1);
+          }
+        },
+        scheduler);
 
     final AsyncFunction<Database, List<RowCursor>> querySchemaFuture =
         new AsyncFunction<Database, List<RowCursor>>() {
 
           @Override
           public ListenableFuture<List<RowCursor>> apply(Database db) throws Exception {
+            log.info("running schema queries");
             ImmutableList<ListenableFuture<RowCursor>> fl =
                 ImmutableList.of(
                     Spanner.executeAsync(QueryOptions.DEFAULT(), db, Query.create(schemaQuery)),
                     Spanner.executeAsync(QueryOptions.DEFAULT(), db, Query.create(pkQuery)),
                     Spanner.executeAsync(QueryOptions.DEFAULT(), db, Query.create(tsQuery)));
-
-            try {
-              db.close();
-            } catch (IOException e) {
-              log.error("Error Closing Managed Channel", e);
-            }
 
             return Futures.successfulAsList(fl);
           }
@@ -327,6 +339,13 @@ public class SpannerTailer {
             }
             uuidChecker.throwIfInvalid();
 
+            try {
+              log.info("trying to close db");
+              var db = dbFuture.get();
+              db.close();
+            } catch (IOException e) {
+              log.error("Error Closing Managed Channel", e);
+            }
             return SpannerToAvro.GetSchemaAsync(
                 tableName, "avroNamespace", rowCursors.get(0), config.getTimestampColumn());
           }
@@ -450,11 +469,11 @@ public class SpannerTailer {
 
   private String getLastProcessedTimestamp(
       SpezConfig.SinkConfig config, SpezConfig.LptsConfig lpts) {
-    final ListenableFuture<Database> dbFuture =
-        Spanner.openDatabaseAsync(Options.DEFAULT(), lpts.databasePath(), credentials);
+    final ListenableFuture<Database> dbFuture = Spanner.openDatabaseAsync(lpts.getSettings());
 
     Database lptsDatabase;
     try {
+      log.info("waiting for lpts db");
       lptsDatabase = dbFuture.get();
       log.info("LPTS Database returned!");
     } catch (Exception e) {

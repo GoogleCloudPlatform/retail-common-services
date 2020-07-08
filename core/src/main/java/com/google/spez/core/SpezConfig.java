@@ -19,6 +19,7 @@ package com.google.spez.core;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import com.google.spannerclient.Settings;
 import com.typesafe.config.Config;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -162,6 +163,7 @@ public class SpezConfig {
     private final String table;
     private final String uuidColumn;
     private final String timestampColumn;
+    private final GoogleCredentials credentials;
 
     public SinkConfig(
         String projectId,
@@ -169,23 +171,26 @@ public class SpezConfig {
         String database,
         String table,
         String uuidColumn,
-        String timestampColumn) {
+        String timestampColumn,
+        GoogleCredentials credentials) {
       this.projectId = projectId;
       this.instance = instance;
       this.database = database;
       this.table = table;
       this.uuidColumn = uuidColumn;
       this.timestampColumn = timestampColumn;
+      this.credentials = credentials;
     }
 
-    public static SinkConfig parse(Config config) {
+    public static SinkConfig parse(Config config, GoogleCredentials credentials) {
       return new SinkConfig(
           config.getString(SINK_PROJECT_ID_KEY),
           config.getString(SINK_INSTANCE_KEY),
           config.getString(SINK_DATABASE_KEY),
           config.getString(SINK_TABLE_KEY),
           config.getString(SINK_UUID_COLUMN_KEY),
-          config.getString(SINK_TIMESTAMP_COLUMN_KEY));
+          config.getString(SINK_TIMESTAMP_COLUMN_KEY),
+          credentials);
     }
 
     public String getProjectId() {
@@ -202,6 +207,15 @@ public class SpezConfig {
 
     public String getTable() {
       return table;
+    }
+
+    public Settings getSettings() {
+      return Settings.newBuilder()
+          .setProjectId(projectId)
+          .setInstance(instance)
+          .setDatabase(database)
+          .setCredentials(credentials)
+          .build();
     }
 
     public String getUuidColumn() {
@@ -233,20 +247,28 @@ public class SpezConfig {
     private final String instance;
     private final String database;
     private final String table;
+    private final GoogleCredentials credentials;
 
-    public LptsConfig(String projectId, String instance, String database, String table) {
+    public LptsConfig(
+        String projectId,
+        String instance,
+        String database,
+        String table,
+        GoogleCredentials credentials) {
       this.projectId = projectId;
       this.instance = instance;
       this.database = database;
       this.table = table;
+      this.credentials = credentials;
     }
 
-    public static LptsConfig parse(Config config) {
+    public static LptsConfig parse(Config config, GoogleCredentials credentials) {
       return new LptsConfig(
           config.getString(LPTS_PROJECT_ID_KEY),
           config.getString(LPTS_INSTANCE_KEY),
           config.getString(LPTS_DATABASE_KEY),
-          config.getString(LPTS_TABLE_KEY));
+          config.getString(LPTS_TABLE_KEY),
+          credentials);
     }
 
     public String getProjectId() {
@@ -263,6 +285,15 @@ public class SpezConfig {
 
     public String getTable() {
       return table;
+    }
+
+    public Settings getSettings() {
+      return Settings.newBuilder()
+          .setProjectId(projectId)
+          .setInstance(instance)
+          .setDatabase(database)
+          .setCredentials(credentials)
+          .build();
     }
 
     public String databasePath() {
@@ -309,8 +340,8 @@ public class SpezConfig {
   public static SpezConfig parse(Config config) {
     AuthConfig auth = AuthConfig.parse(config);
     PubSubConfig pubsub = PubSubConfig.parse(config);
-    SinkConfig sink = SinkConfig.parse(config);
-    LptsConfig lpts = LptsConfig.parse(config);
+    SinkConfig sink = SinkConfig.parse(config, auth.getCredentials());
+    LptsConfig lpts = LptsConfig.parse(config, auth.getCredentials());
     logParsedValues(config);
 
     return new SpezConfig(auth, pubsub, sink, lpts);

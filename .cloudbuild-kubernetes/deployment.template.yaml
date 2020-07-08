@@ -22,8 +22,8 @@ spec:
         - -Dspez.sink.instance=spez-test-instance
         - -Dspez.sink.database=spez-test-database
         - -Dspez.sink.table=test
-        - -Dspez.sink.uuid_column=uuid
-        - -Dspez.sink.timestamp_column=commit_timestamp
+        - -Dspez.sink.uuid_column=Id
+        - -Dspez.sink.timestamp_column=CommitTimestamp
         - -Dspez.lpts.instance=spez-lpts-instance
         - -Dspez.lpts.database=spez-lpts-database
         - -Dspez.lpts.table=lpts

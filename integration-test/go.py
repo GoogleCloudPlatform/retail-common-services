@@ -39,4 +39,10 @@ def insert_rows(transaction, offset):
 
 offset = int(sys.argv[1])
 
+if offset == -1:
+  with database.snapshot() as snapshot:
+    result = snapshot.execute_sql("select max(Id) as max_id from test").one()
+    offset = result[0]
+    print("new offset: ", offset)
+
 database.run_in_transaction(insert_rows, offset)

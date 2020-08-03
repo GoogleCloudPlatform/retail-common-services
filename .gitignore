@@ -5,3 +5,9 @@ deploy/terraform/spez-core/.terraform/
 *.terraform
 *.tfstate
 *.tfstate.backup
+
+core/gen
+build/
+.gradle/
+build/
+secrets/

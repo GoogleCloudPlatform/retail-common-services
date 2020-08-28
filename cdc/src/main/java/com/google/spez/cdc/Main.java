@@ -21,8 +21,10 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spez.core.EventPublisher;
+import com.google.spez.core.ListenableFutureErrorHandler;
 import com.google.spez.core.MetadataExtractor;
 import com.google.spez.core.SpannerTailer;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
@@ -30,29 +32,23 @@ import com.google.spez.core.Spez;
 import com.google.spez.core.SpezConfig;
 import com.google.spez.core.WorkStealingHandler;
 import com.typesafe.config.ConfigFactory;
+import io.opencensus.contrib.zpages.ZPageHandlers;
 import io.opencensus.exporter.trace.stackdriver.StackdriverTraceConfiguration;
 import io.opencensus.exporter.trace.stackdriver.StackdriverTraceExporter;
 import io.opencensus.trace.Tracing;
 import io.opencensus.trace.config.TraceConfig;
 import io.opencensus.trace.samplers.Samplers;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class Main {
   private static final Logger log = LoggerFactory.getLogger(Main.class);
-  private static final int BUFFER_SIZE = 1024; // TODO(pdex): move to config
   private static final int THREAD_POOL = 12; // TODO(pdex): move to config
-
-  private static final boolean DISRUPTOR = false;
 
   private static void setupStackdriver(SpezConfig config) throws IOException {
     // For demo purposes, always sample
@@ -77,6 +73,8 @@ class Main {
 
     setupStackdriver(config);
 
+    ZPageHandlers.startHttpServerAndRegisterAll(8887);
+
     // TODO(pdex): why are we making our own threadpool?
     final List<ListeningExecutorService> l =
         Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
@@ -86,19 +84,12 @@ class Main {
             config.getAuth().getCredentials(),
             THREAD_POOL,
             200000000); // TODO(pdex): move to config
-    // final EventPublisher publisher = new EventPublisher(PROJECT_NAME, TOPIC_NAME);
-    final ThreadLocal<EventPublisher> publisher =
-        ThreadLocal.withInitial(
-            () -> {
-              return new EventPublisher(
-                  config.getPubSub().getProjectId(), config.getPubSub().getTopic(), config);
-            });
-    final ExecutorService workStealingPool = Executors.newWorkStealingPool();
-    final ListeningExecutorService forkJoinPool =
-        MoreExecutors.listeningDecorator(workStealingPool);
-    final Map<String, String> metadata = new HashMap<>();
+    // final EventPublisher publisher = new EventPublisher(config.getPubSub().getProjectId(),
+    // config.getPubSub().getTopic(), config);
+    var publisher = EventPublisher.create(config);
     final CountDownLatch doneSignal = new CountDownLatch(1);
-    final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    final ListeningScheduledExecutorService scheduler =
+        MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
     var extractor = new MetadataExtractor(config);
 
     final ListenableFuture<SchemaSet> schemaSetFuture =
@@ -116,8 +107,7 @@ class Main {
           @Override
           public void onSuccess(SchemaSet schemaSet) {
             log.info("Successfully Processed the Table Schema. Starting the poller now ...");
-            WorkStealingHandler handler =
-                new WorkStealingHandler(scheduler, schemaSet, publisher, extractor);
+            WorkStealingHandler handler = new WorkStealingHandler(schemaSet, publisher, extractor);
             tailer.start(
                 handler,
                 schemaSet.tsColName(),
@@ -135,16 +125,24 @@ class Main {
                 config.getSink(),
                 config.getLpts());
 
-            scheduler.scheduleAtFixedRate(
-                () -> {
-                  handler.logStats();
-                  tailer.logStats();
-                },
-                30,
-                30,
-                TimeUnit.SECONDS);
-
+            var schedulerFuture =
+                scheduler.scheduleAtFixedRate(
+                    () -> {
+                      handler.logStats();
+                      tailer.logStats();
+                    },
+                    30,
+                    30,
+                    TimeUnit.SECONDS);
+            ListenableFutureErrorHandler.create(
+                scheduler,
+                schedulerFuture,
+                (throwable) -> {
+                  log.error("logStats scheduled task error", throwable);
+                });
+            log.info("CALLING COUNTDOWN");
             doneSignal.countDown();
+            log.info("COUNTDOWN CALLED");
           }
 
           @Override
@@ -165,6 +163,7 @@ class Main {
       }
       log.info("waiting for doneSignal");
       doneSignal.await();
+      log.info("GOT  doneSignal");
     } catch (InterruptedException e) {
       log.error("Interrupted", e);
       throw e;

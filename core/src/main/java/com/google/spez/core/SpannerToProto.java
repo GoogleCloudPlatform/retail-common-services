@@ -22,5 +22,7 @@ import org.slf4j.LoggerFactory;
 public class SpannerToProto {
   private static final Logger log = LoggerFactory.getLogger(SpannerToProto.class);
 
-  private SpannerToProto() {}
+  private SpannerToProto() {
+    log.debug("this class is not implemented");
+  }
 }

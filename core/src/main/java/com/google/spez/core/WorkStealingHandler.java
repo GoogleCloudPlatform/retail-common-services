@@ -32,7 +32,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
@@ -52,25 +51,19 @@ public class WorkStealingHandler implements SpannerEventHandler {
   private final Runtime runtime = Runtime.getRuntime();
   private final NumberFormat formatter = NumberFormat.getInstance();
 
-  private final ScheduledExecutorService scheduler;
   private final SchemaSet schemaSet;
-  private final ThreadLocal<EventPublisher> publisher;
+  private final EventPublisher publisher;
   private final MetadataExtractor extractor;
 
   /**
    * Constructor.
    *
-   * @param scheduler description
    * @param schemaSet description
    * @param publisher description
    * @param extractor description
    */
   public WorkStealingHandler(
-      ScheduledExecutorService scheduler,
-      SchemaSet schemaSet,
-      ThreadLocal<EventPublisher> publisher,
-      MetadataExtractor extractor) {
-    this.scheduler = scheduler;
+      SchemaSet schemaSet, EventPublisher publisher, MetadataExtractor extractor) {
     this.schemaSet = schemaSet;
     this.publisher = publisher;
     this.extractor = extractor;
@@ -115,7 +108,7 @@ public class WorkStealingHandler implements SpannerEventHandler {
         new AsyncFunction<Optional<ByteString>, String>() {
           @Override
           public ListenableFuture<String> apply(Optional<ByteString> record) {
-            return publisher.get().publish(record.get(), metadata, timestamp, parent, forkJoinPool);
+            return publisher.publish(record.get(), metadata, parent);
           }
         };
 

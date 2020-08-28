@@ -20,6 +20,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.Timestamp;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashCode;
@@ -30,6 +31,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.spannerclient.Database;
@@ -65,8 +67,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -126,7 +126,7 @@ public class SpannerTailer {
 
   private final GoogleCredentials credentials;
   private final ListeningExecutorService service;
-  private final ScheduledExecutorService scheduler;
+  private final ListeningScheduledExecutorService scheduler;
   private final HashFunction hasher;
 
   // We should set an official Spez epoch
@@ -138,7 +138,7 @@ public class SpannerTailer {
 
   public SpannerTailer(GoogleCredentials credentials, int threadPool, int maxEventCount) {
     this.credentials = credentials;
-    this.scheduler = Executors.newScheduledThreadPool(threadPool);
+    this.scheduler = MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(threadPool));
     this.service =
         MoreExecutors.listeningDecorator(
             Executors.newFixedThreadPool(
@@ -377,7 +377,7 @@ public class SpannerTailer {
    * @param vacuumRate xxx
    * @param eventCacheTTL xxx
    */
-  public ScheduledFuture<?> start(
+  public void start(
       SpannerEventHandler handler,
       String tsColName,
       int bucketSize,
@@ -423,24 +423,39 @@ public class SpannerTailer {
             log.info("Built database, starting scheduler");
             try {
               // final ScheduledFuture<?> poller =
-              scheduler.scheduleAtFixedRate(
-                  () -> {
-                    poll(
-                        projectId,
-                        instanceName,
-                        dbName,
-                        tableName,
-                        lptsTableName,
-                        recordLimit,
-                        handler,
-                        tsColName,
-                        bucketSize,
-                        config,
-                        lpts);
+              var schedulerFuture =
+                  scheduler.scheduleAtFixedRate(
+                      () -> {
+                        poll(
+                            projectId,
+                            instanceName,
+                            dbName,
+                            tableName,
+                            lptsTableName,
+                            recordLimit,
+                            handler,
+                            tsColName,
+                            bucketSize,
+                            config,
+                            lpts);
+                      },
+                      0,
+                      30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
+                      TimeUnit.SECONDS);
+
+              Futures.addCallback(
+                  schedulerFuture,
+                  new FutureCallback() {
+                    @Override
+                    public void onFailure(Throwable t) {
+                      log.error("SpannerTailer::poll scheduled task error", t);
+                    }
+
+                    @Override
+                    public void onSuccess(Object result) {}
                   },
-                  0,
-                  30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
-                  TimeUnit.SECONDS);
+                  scheduler);
+
               // return poller;
 
             } catch (Exception e) {
@@ -454,9 +469,6 @@ public class SpannerTailer {
           }
         },
         service);
-
-    // TODO(xjdr): Don't do this.
-    return null;
   }
 
   private String parseLastProcessedTimestamp(RowCursor lptsCursor) {
@@ -523,6 +535,24 @@ public class SpannerTailer {
       }
     }
     return timestamp;
+  }
+
+  @VisibleForTesting
+  static String buildLptsTableQuery(
+      String tableName, String timestampColumn, String lastProcessedTimestamp) {
+    return new StringBuilder()
+        .append("SELECT * FROM ")
+        .append(tableName)
+        .append(" ")
+        .append("WHERE ")
+        .append(timestampColumn)
+        .append(" > '")
+        .append(lastProcessedTimestamp)
+        .append("'")
+        .append(" ORDER BY ")
+        .append(timestampColumn)
+        .append(" ASC")
+        .toString();
   }
 
   private void poll(
@@ -623,14 +653,7 @@ public class SpannerTailer {
             }
           },
           Query.create(
-              "SELECT * FROM "
-                  + tableName
-                  + " "
-                  + "WHERE "
-                  + config.getTimestampColumn()
-                  + " > '"
-                  + lastProcessedTimestamp
-                  + "'"));
+              buildLptsTableQuery(tableName, config.getTimestampColumn(), lastProcessedTimestamp)));
     } catch (Exception e) {
       log.error("Caught error while polling", e);
       running.decrementAndGet();

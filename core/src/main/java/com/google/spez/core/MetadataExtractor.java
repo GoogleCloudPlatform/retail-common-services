@@ -20,12 +20,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.spannerclient.Row;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class MetadataExtractor {
-
-  private static final Logger log = LoggerFactory.getLogger(MetadataExtractor.class);
 
   private final SpezConfig config;
   private final ImmutableMap base;

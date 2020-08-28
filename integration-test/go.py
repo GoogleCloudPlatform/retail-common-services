@@ -19,22 +19,14 @@ database_id = 'spez-test-database'
 # Get a Cloud Spanner database by ID.
 database = instance.database(database_id)
 
-def insert_rows(transaction, offset):
+def insert_rows(transaction, offset, num=100):
+  values=[]
+  for i in range(1, num+1):
+    values.append([offset + i, COMMIT_TIMESTAMP])
   transaction.insert(
     'test',
     columns=['Id', 'CommitTimestamp'],
-    values=[
-        [offset + 1 , COMMIT_TIMESTAMP],
-        [offset + 2 , COMMIT_TIMESTAMP],
-        [offset + 3 , COMMIT_TIMESTAMP],
-        [offset + 4 , COMMIT_TIMESTAMP],
-        [offset + 5 , COMMIT_TIMESTAMP],
-        [offset + 6 , COMMIT_TIMESTAMP],
-        [offset + 7 , COMMIT_TIMESTAMP],
-        [offset + 8 , COMMIT_TIMESTAMP],
-        [offset + 9 , COMMIT_TIMESTAMP],
-        [offset + 10, COMMIT_TIMESTAMP],
-    ],
+    values=values,
   )
 
 offset = int(sys.argv[1])

@@ -18,10 +18,12 @@ package com.google.spez.core;
 
 import static com.google.cloud.pubsub.v1.OpenCensusUtil.OPEN_CENSUS_MESSAGE_TRANSFORM;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishRequest;
@@ -32,17 +34,24 @@ import com.google.spannerclient.PubSub;
 import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
 import io.opencensus.common.Scope;
+import io.opencensus.stats.Aggregation;
+import io.opencensus.stats.Measure.MeasureLong;
+import io.opencensus.stats.Stats;
+import io.opencensus.stats.StatsRecorder;
+import io.opencensus.stats.View;
+import io.opencensus.stats.View.Name;
+import io.opencensus.stats.ViewManager;
+import io.opencensus.tags.TagKey;
+import io.opencensus.tags.TagValue;
+import io.opencensus.tags.Tags;
 import io.opencensus.trace.Span;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedTransferQueue;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -63,68 +72,156 @@ public class EventPublisher {
     }
   }
 
+  public static class PublishCallback implements FutureCallback<PublishResponse> {
+    final List<BufferPayload> sink;
+
+    PublishCallback(List<BufferPayload> sink) {
+      this.sink = sink;
+    }
+
+    @Override
+    public void onSuccess(PublishResponse response) {
+      if (response.getMessageIdsCount() > sink.size()) {
+        log.warn(
+            "Too many response messages {} for request size {}",
+            response.getMessageIdsCount(),
+            sink.size());
+      } else if (response.getMessageIdsCount() < sink.size()) {
+        log.warn(
+            "Insufficient number of response messages {} for request size {}",
+            response.getMessageIdsCount(),
+            sink.size());
+      }
+      for (int i = 0; i < sink.size(); i++) {
+        var payload = sink.get(i);
+        String uuid = payload.message.getAttributes().get(SpezConfig.SINK_UUID_KEY);
+        statsRecorder
+            .newMeasureMap()
+            .put(MSG_PUBLISHED, 1)
+            .putAttachment("attach_uuid", uuid)
+            .record(Tags.getTagger().currentBuilder().put(TAG_UUID, TagValue.create(uuid)).build());
+        String result = "UNAVAILABLE";
+        if (i < response.getMessageIdsCount()) {
+          payload.future.set(response.getMessageIds(i));
+          result = response.getMessageIds(i);
+        } else {
+          payload.future.set("UNAVAILABLE");
+        }
+        log.info("Published message uuid {}, set future to '{}'", uuid, result);
+      }
+    }
+
+    @Override
+    public void onFailure(Throwable t) {
+      log.error("Published failed for {} messages", sink.size(), t);
+      for (var payload : sink) {
+        payload.future.setException(t);
+      }
+    }
+  }
+
+  private static final MeasureLong MSG_RECEIVED =
+      MeasureLong.create("msg_received", "the number of messages received by the publisher", "");
+  private static final MeasureLong MSG_PUBLISHED =
+      MeasureLong.create("msg_published", "the number of messages sent by the publisher", "");
+  private static final Aggregation counter = Aggregation.Count.create();
+  private static final TagKey TAG_UUID = TagKey.create("tag_uuid");
+
+  private static void setupViews() {
+    ViewManager viewManager = Stats.getViewManager();
+    viewManager.registerView(
+        View.create(
+            Name.create("msg_received_count"),
+            "The count of messages received by the publisher",
+            MSG_RECEIVED,
+            counter,
+            Arrays.asList(TAG_UUID)));
+    viewManager.registerView(
+        View.create(
+            Name.create("msg_published_count"),
+            "The count of messages sent by the publisher",
+            MSG_PUBLISHED,
+            counter,
+            Arrays.asList(TAG_UUID)));
+  }
+
+  static {
+    setupViews();
+  }
+
+  private static final StatsRecorder statsRecorder = Stats.getStatsRecorder();
+
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
   private static final int DEFAULT_BUFFER_TIME = 30; // TODO(pdex): move to config
   private static final Tracer tracer = Tracing.getTracer();
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
-  private final AtomicLong bufferSize = new AtomicLong(0);
+  @VisibleForTesting final AtomicLong bufferSize = new AtomicLong(0);
 
-  private final SpezConfig config;
-  private final ScheduledExecutorService scheduler;
-  private final String projectName;
-  private final String topicName;
+  private final ListeningScheduledExecutorService scheduler;
   private final int publishBufferSize;
   private final int publishBufferTime;
 
-  private Publisher publisher;
-  private Instant lastPublished;
+  private final Publisher publisher;
+  @VisibleForTesting final Runnable runPublishBuffer;
 
-  public EventPublisher(String projectName, String topicName, SpezConfig config) {
-    Preconditions.checkNotNull(projectName);
-    Preconditions.checkNotNull(topicName);
-    Preconditions.checkNotNull(config);
-
-    this.config = config;
-    this.scheduler = Executors.newScheduledThreadPool(2);
-    this.projectName = projectName;
-    this.topicName = topicName;
-    this.publishBufferSize = DEFAULT_BUFFER_SIZE;
-    this.publishBufferTime = DEFAULT_BUFFER_TIME;
-    this.publisher = configurePubSub(projectName, topicName);
-    this.lastPublished = Instant.now();
+  @VisibleForTesting
+  public EventPublisher(
+      ListeningScheduledExecutorService scheduler,
+      Publisher publisher,
+      int publishSize,
+      int publishTime,
+      Runnable runPublishBuffer) {
+    Preconditions.checkNotNull(scheduler, "scheduler must not be null");
+    Preconditions.checkNotNull(publisher, "publisher must not be null");
+    Preconditions.checkArgument(publishSize >= 0, "publishSize must be greater than or equal to 0");
+    Preconditions.checkArgument(publishTime >= 0, "publishTime must be greater than or equal to 0");
+    this.scheduler = scheduler;
+    this.publisher = publisher;
+    if (runPublishBuffer != null) {
+      this.runPublishBuffer = runPublishBuffer;
+    } else {
+      this.runPublishBuffer = this::publishBuffer;
+    }
+    this.publishBufferSize = publishSize;
+    this.publishBufferTime = publishTime;
   }
 
   public EventPublisher(
-      String projectName,
-      String topicName,
-      int publishBufferSize,
-      int publishBufferTime,
-      SpezConfig config) {
-    Preconditions.checkNotNull(projectName);
-    Preconditions.checkNotNull(topicName);
-    Preconditions.checkArgument(publishBufferSize > 0);
-    Preconditions.checkArgument(publishBufferTime > 0);
-
-    this.config = config;
-    this.scheduler = Executors.newScheduledThreadPool(2);
-    this.projectName = projectName;
-    this.topicName = topicName;
-    this.publishBufferSize = publishBufferSize;
-    this.publishBufferTime = publishBufferTime;
-    this.publisher = configurePubSub(projectName, topicName);
-    this.lastPublished = Instant.now();
+      ListeningScheduledExecutorService scheduler,
+      Publisher publisher,
+      int publishSize,
+      int publishTime) {
+    this(scheduler, publisher, publishSize, publishTime, null);
   }
 
-  private Publisher configurePubSub(String projectName, String topicName) {
-    Preconditions.checkNotNull(projectName);
-    Preconditions.checkNotNull(topicName);
+  public static EventPublisher create(SpezConfig config) {
+    Preconditions.checkNotNull(config);
+    var scheduler = UsefulExecutors.listeningScheduler();
+    var publisher =
+        PubSub.getPublisher(
+            config.getAuth().getCredentials(),
+            Options.DEFAULT(),
+            config.getPubSub().getProjectId(),
+            config.getPubSub().getTopic());
 
-    scheduler.scheduleAtFixedRate(this::maybePublish, 0, publishBufferTime, TimeUnit.SECONDS);
+    var eventPublisher =
+        new EventPublisher(scheduler, publisher, DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_TIME);
+    eventPublisher.start();
+    return eventPublisher;
+  }
 
-    return PubSub.getPublisher(
-        config.getAuth().getCredentials(), Options.DEFAULT(), projectName, topicName);
+  @VisibleForTesting
+  void start() {
+    var future =
+        scheduler.scheduleAtFixedRate(runPublishBuffer, 0, publishBufferTime, TimeUnit.SECONDS);
+    ListenableFutureErrorHandler.create(
+        scheduler,
+        future,
+        (throwable) -> {
+          log.error("EventPublisher scheduled task error", throwable);
+        });
   }
 
   @SuppressWarnings("MustBeClosedChecker")
@@ -152,7 +249,8 @@ public class EventPublisher {
     return future;
   }
 
-  private void publishBuffer() {
+  @VisibleForTesting
+  void publishBuffer() {
     ArrayList<BufferPayload> sink = new ArrayList<>();
     int numberDrained = buffer.drainTo(sink);
     ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained);
@@ -171,56 +269,24 @@ public class EventPublisher {
                 .addAllMessages(messages)
                 .build());
 
-    lastPublished = Instant.now();
     log.debug("{} messages drained and published", numberDrained);
     bufferSize.getAndAdd(-1 * numberDrained);
 
-    Futures.addCallback(
-        future,
-        new FutureCallback<PublishResponse>() {
-
-          @Override
-          public void onSuccess(PublishResponse response) {
-            if (response.getMessageIdsCount() > sink.size()) {
-              log.warn(
-                  "Too many response messages {} for request size {}",
-                  response.getMessageIdsCount(),
-                  sink.size());
-            } else if (response.getMessageIdsCount() < sink.size()) {
-              log.warn(
-                  "Insufficient number of response messages {} for request size {}",
-                  response.getMessageIdsCount(),
-                  sink.size());
-            }
-            for (int i = 0; i < sink.size(); i++) {
-              var payload = sink.get(i);
-              if (i < response.getMessageIdsCount()) {
-                payload.future.set(response.getMessageIds(i));
-              } else {
-                payload.future.set("UNAVAILABLE");
-              }
-            }
-          }
-
-          @Override
-          public void onFailure(Throwable t) {
-            for (var payload : sink) {
-              payload.future.setException(t);
-            }
-          }
-        },
-        scheduler);
+    Futures.addCallback(future, new PublishCallback(sink), scheduler);
   }
 
   private void maybePublish() {
-    Instant now = Instant.now();
-    Duration d = Duration.between(lastPublished, now);
     long size = bufferSize.get();
-    if (size >= publishBufferSize || d.getSeconds() > publishBufferTime) {
-      log.debug("publish buffer size {} duration {}", size, d.getSeconds());
-      publishBuffer();
+    if (size >= publishBufferSize) {
+      log.debug("publish buffer size {}", size);
+      UsefulExecutors.submit(
+          scheduler,
+          runPublishBuffer,
+          (throwable) -> {
+            log.error("Error while calling this::publishBuffer", throwable);
+          });
     } else {
-      log.debug("didn't publish buffer size {} duration {}", size, d.getSeconds());
+      log.debug("didn't publish buffer size {}", size);
     }
   }
 
@@ -233,19 +299,22 @@ public class EventPublisher {
    * @param timestamp the Commit Timestamp of the Spanner Record to be published
    */
   public ListenableFuture<String> publish(
-      ByteString data,
-      Map<String, String> attrMap,
-      String timestamp,
-      Span parent,
-      Executor executor) {
+      ByteString data, Map<String, String> attrMap, Span parent) {
     Preconditions.checkNotNull(data);
     Preconditions.checkNotNull(attrMap);
-    Preconditions.checkNotNull(timestamp);
-    Preconditions.checkNotNull(executor);
+    Preconditions.checkNotNull(parent);
 
-    final PubsubMessage.Builder builder =
-        PubsubMessage.newBuilder().setData(data).setOrderingKey(publisher.getTopicPath());
+    final PubsubMessage.Builder builder = PubsubMessage.newBuilder().setData(data)
+        // .setOrderingKey(publisher.getTopicPath())
+        ;
 
+    String uuid = attrMap.get(SpezConfig.SINK_UUID_KEY);
+    statsRecorder
+        .newMeasureMap()
+        .put(MSG_RECEIVED, 1)
+        .putAttachment("attach_uuid", uuid)
+        .record(Tags.getTagger().currentBuilder().put(TAG_UUID, TagValue.create(uuid)).build());
+    log.info("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap
           .entrySet()

@@ -41,6 +41,14 @@ appender("DEVNULL", FileAppender) {
   }
 }
 
+appender("DEBUGGER", FileAppender) {
+  file = "/tmp/spez.log"
+  encoder(PatternLayoutEncoder) {
+    pattern = "%-4relative [%thread] %-5level %logger{30} - %msg%n"
+    outputPatternAsHeader = false
+  }
+}
+
 def getLoglevel(property, default_value) {
   level = System.getProperty(property, "")
   if (level.equals("")) {
@@ -123,7 +131,7 @@ switch (System.getProperty("PRICE-ENV")) {
     break
   case "DEV":
   default:
-    root(ALL, ["DEV-CONSOLE"])
+    root(ALL, ["DEV-CONSOLE", "DEBUGGER"])
     break
 }
 

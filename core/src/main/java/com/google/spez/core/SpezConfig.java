@@ -85,12 +85,14 @@ public class SpezConfig {
     private final ImmutableList<String> scopes;
     private GoogleCredentials credentials;
 
+    /** AuthConfig value object constructor. */
     public AuthConfig(String cloudSecretsDir, String credentialsFile, List<String> scopes) {
       this.cloudSecretsDir = cloudSecretsDir;
       this.credentialsFile = credentialsFile;
       this.scopes = ImmutableList.copyOf(scopes);
     }
 
+    /** AuthConfig value object parser. */
     public static AuthConfig parse(Config config) {
       return new AuthConfig(
           config.getString(AUTH_CLOUD_SECRETS_DIR_KEY),
@@ -98,6 +100,7 @@ public class SpezConfig {
           config.getStringList(AUTH_SCOPES_KEY));
     }
 
+    /** Credentials getter. */
     public GoogleCredentials getCredentials() {
       if (credentials != null) {
         return credentials;
@@ -137,20 +140,24 @@ public class SpezConfig {
     private final String projectId;
     private final String topic;
 
+    /** PubSubConfig value object constructor. */
     public PubSubConfig(String projectId, String topic) {
       this.projectId = projectId;
       this.topic = topic;
     }
 
+    /** PubSubConfig value object parser. */
     public static PubSubConfig parse(Config config) {
       return new PubSubConfig(
           config.getString(PUBSUB_PROJECT_ID_KEY), config.getString(PUBSUB_TOPIC_KEY));
     }
 
+    /** projectId getter. */
     public String getProjectId() {
       return projectId;
     }
 
+    /** topic getter. */
     public String getTopic() {
       return topic;
     }
@@ -165,6 +172,7 @@ public class SpezConfig {
     private final String timestampColumn;
     private final GoogleCredentials credentials;
 
+    /** SinkConfig value object constructor. */
     public SinkConfig(
         String projectId,
         String instance,
@@ -182,6 +190,7 @@ public class SpezConfig {
       this.credentials = credentials;
     }
 
+    /** SinkConfig value object parser. */
     public static SinkConfig parse(Config config, GoogleCredentials credentials) {
       return new SinkConfig(
           config.getString(SINK_PROJECT_ID_KEY),
@@ -193,22 +202,27 @@ public class SpezConfig {
           credentials);
     }
 
+    /** projectId getter. */
     public String getProjectId() {
       return projectId;
     }
 
+    /** instance getter. */
     public String getInstance() {
       return instance;
     }
 
+    /** database getter. */
     public String getDatabase() {
       return database;
     }
 
+    /** table getter. */
     public String getTable() {
       return table;
     }
 
+    /** settings getter. */
     public Settings getSettings() {
       return Settings.newBuilder()
           .setProjectId(projectId)
@@ -218,14 +232,17 @@ public class SpezConfig {
           .build();
     }
 
+    /** uuidColumn getter. */
     public String getUuidColumn() {
       return uuidColumn;
     }
 
+    /** timestampColumn getter. */
     public String getTimestampColumn() {
       return timestampColumn;
     }
 
+    /** databasePath getter. */
     public String databasePath() {
       return new StringBuilder()
           .append("projects/")
@@ -237,6 +254,7 @@ public class SpezConfig {
           .toString();
     }
 
+    /** tablePath getter. */
     public String tablePath() {
       return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
     }
@@ -249,6 +267,7 @@ public class SpezConfig {
     private final String table;
     private final GoogleCredentials credentials;
 
+    /** LptsConfig value object constructor. */
     public LptsConfig(
         String projectId,
         String instance,
@@ -262,6 +281,7 @@ public class SpezConfig {
       this.credentials = credentials;
     }
 
+    /** LptsConfig value object parser. */
     public static LptsConfig parse(Config config, GoogleCredentials credentials) {
       return new LptsConfig(
           config.getString(LPTS_PROJECT_ID_KEY),
@@ -271,22 +291,27 @@ public class SpezConfig {
           credentials);
     }
 
+    /** projectId getter. */
     public String getProjectId() {
       return projectId;
     }
 
+    /** instance getter. */
     public String getInstance() {
       return instance;
     }
 
+    /** database getter. */
     public String getDatabase() {
       return database;
     }
 
+    /** table getter. */
     public String getTable() {
       return table;
     }
 
+    /** settings getter. */
     public Settings getSettings() {
       return Settings.newBuilder()
           .setProjectId(projectId)
@@ -296,6 +321,7 @@ public class SpezConfig {
           .build();
     }
 
+    /** databasePath getter. */
     public String databasePath() {
       return new StringBuilder()
           .append("projects/")
@@ -307,6 +333,7 @@ public class SpezConfig {
           .toString();
     }
 
+    /** tablePath getter. */
     public String tablePath() {
       return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
     }
@@ -317,6 +344,7 @@ public class SpezConfig {
   private final SinkConfig sink;
   private final LptsConfig lpts;
 
+  /** SpezConfig value object constructor. */
   public SpezConfig(AuthConfig auth, PubSubConfig pubsub, SinkConfig sink, LptsConfig lpts) {
     this.auth = auth;
     this.pubsub = pubsub;
@@ -324,6 +352,7 @@ public class SpezConfig {
     this.lpts = lpts;
   }
 
+  /** SpezConfig log helper. */
   public static void logParsedValues(Config config) {
     log.info("=============================================");
     log.info("Spez configured with the following properties");
@@ -337,6 +366,7 @@ public class SpezConfig {
     log.info("=============================================");
   }
 
+  /** SpezConfig value object parser. */
   public static SpezConfig parse(Config config) {
     AuthConfig auth = AuthConfig.parse(config);
     PubSubConfig pubsub = PubSubConfig.parse(config);
@@ -363,6 +393,7 @@ public class SpezConfig {
     return lpts;
   }
 
+  /** baseMetadata getter. */
   public Map<String, String> getBaseMetadata() {
     Map<String, String> base = Maps.newHashMap();
     base.put(SINK_INSTANCE_KEY, sink.getInstance());

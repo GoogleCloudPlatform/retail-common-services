@@ -1,0 +1,105 @@
+# This workflow will build a Java project with Gradle
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-gradle
+
+name: Java CI with Gradle
+
+on: [pull_request, push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up JDK 1.11
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.11
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    - name: Cache Gradle packages
+      uses: actions/cache@v2
+      with:
+        path: ~/.gradle/caches
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', 'buildSrc/src/main/java/Config.kt') }}
+        restore-keys: ${{ runner.os }}-gradle
+    - name: Build with Gradle
+      run: ./gradlew build
+
+    - name: Build with Gradle
+      run: ./gradlew jacocoTestReport 
+
+    - name: Setup .NET Core # Required to execute ReportGenerator
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.302
+
+    - name: ReportGenerator
+      uses: danielpalme/ReportGenerator-GitHub-Action@4.6.4
+      with:
+        reports: '*/build/reports/jacoco/*/jacocoTestReport.xml'
+        targetdir: 'coveragereport'
+        reporttypes: 'HtmlInline;Cobertura'
+        sourcedirs: 'cdc/src/main/java/com/google/spez/cdc;core/src/main/java/com/google/spez/core;core/src/test/java/com/google/spez/core'
+        verbosity: 'Info'
+        tag: '${{ github.run_number }}_${{ github.run_id }}'
+
+    - name: debug report generator
+      run: ls -l coveragereport
+
+    - name: cobertura coverage
+      uses: 5monkeys/cobertura-action@v5
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        path: 'coveragereport/Cobertura.xml'
+        show_line: true
+        show_branch: true
+        minimum_coverage: 75
+
+
+    - name: upload test artifacts
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: tests
+        path: "**/build/reports/tests/"
+          
+    - name: upload checkstyle artifacts
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: checkstyle
+        path: "**/build/reports/checkstyle/"
+          
+    - name: upload spotbugs artifacts
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: spotbugs
+        path: "**/build/reports/spotbugs/"
+
+    - name: process test reports
+      if: ${{ always() }}
+      uses: ScaCap/action-surefire-report@v1.0.4
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        report_paths: '**/build/test-results/test/TEST-*.xml'
+
+    - name: checkstyle
+      uses: jwgmeligmeyling/checkstyle-github-action@v1.2
+      if: ${{ always() }}
+      with:
+        path: '**/build/reports/checkstyle/*.xml'
+
+    - name: pmd
+      uses: jwgmeligmeyling/pmd-github-action@v1.2
+      if: ${{ always() }}
+      with:
+        path: '**/build/reports/pmd/*.xml'
+
+    - name: spotbugs
+      uses: jwgmeligmeyling/spotbugs-github-action@v1.2
+      if: ${{ always() }}
+      with:
+        path: '**/build/reports/spotbugs/*.xml'

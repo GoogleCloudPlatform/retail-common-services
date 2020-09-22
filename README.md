@@ -19,6 +19,8 @@ This is an example of how you might work with a `spez` record once it is on the
 pub / sub queue. We include a working version of this in the `cdc` gradle project
 included in this repo.
 
+-> REMOVE ME <-
+
 ### Example:
 
 ```java

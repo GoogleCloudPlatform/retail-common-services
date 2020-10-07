@@ -17,14 +17,12 @@
 package com.google.spez.core;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.spannerclient.Settings;
+import com.google.spez.common.AuthConfig;
+import com.google.spez.common.StackdriverConfig;
 import com.typesafe.config.Config;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -32,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public class SpezConfig {
   private static final Logger log = LoggerFactory.getLogger(SpezConfig.class);
+  public static final String BASE_NAME = "spez";
   public static final String PROJECT_ID_KEY = "spez.project_id";
   public static final String AUTH_CLOUD_SECRETS_DIR_KEY = "spez.auth.cloud_secrets_dir";
   public static final String AUTH_CREDENTIALS_KEY = "spez.auth.credentials";
@@ -53,88 +52,8 @@ public class SpezConfig {
   public static final String LPTS_INSTANCE_KEY = "spez.lpts.instance";
   public static final String LPTS_DATABASE_KEY = "spez.lpts.database";
   public static final String LPTS_TABLE_KEY = "spez.lpts.table";
-  public static final List<String> CONFIG_KEYS =
-      Arrays.asList(
-          PROJECT_ID_KEY,
-          AUTH_CLOUD_SECRETS_DIR_KEY,
-          AUTH_CREDENTIALS_KEY,
-          AUTH_SCOPES_KEY,
-          LOGLEVEL_DEFAULT_KEY,
-          LOGLEVEL_CDC_KEY,
-          LOGLEVEL_CORE_KEY,
-          LOGLEVEL_NETTY_KEY,
-          LOGLEVEL_SPANNERCLIENT_KEY,
-          PUBSUB_PROJECT_ID_KEY,
-          PUBSUB_TOPIC_KEY,
-          SINK_PROJECT_ID_KEY,
-          SINK_INSTANCE_KEY,
-          SINK_DATABASE_KEY,
-          SINK_TABLE_KEY,
-          SINK_UUID_COLUMN_KEY,
-          SINK_TIMESTAMP_COLUMN_KEY,
-          LPTS_PROJECT_ID_KEY,
-          LPTS_INSTANCE_KEY,
-          LPTS_DATABASE_KEY,
-          LPTS_TABLE_KEY);
   public static final String SINK_UUID_KEY = "spez.sink.uuid";
   public static final String SINK_TIMESTAMP_KEY = "spez.sink.commit_timestamp";
-
-  public static class AuthConfig {
-    private final String cloudSecretsDir;
-    private final String credentialsFile;
-    private final ImmutableList<String> scopes;
-    private GoogleCredentials credentials;
-
-    /** AuthConfig value object constructor. */
-    public AuthConfig(String cloudSecretsDir, String credentialsFile, List<String> scopes) {
-      this.cloudSecretsDir = cloudSecretsDir;
-      this.credentialsFile = credentialsFile;
-      this.scopes = ImmutableList.copyOf(scopes);
-    }
-
-    /** AuthConfig value object parser. */
-    public static AuthConfig parse(Config config) {
-      return new AuthConfig(
-          config.getString(AUTH_CLOUD_SECRETS_DIR_KEY),
-          config.getString(AUTH_CREDENTIALS_KEY),
-          config.getStringList(AUTH_SCOPES_KEY));
-    }
-
-    /** Credentials getter. */
-    public GoogleCredentials getCredentials() {
-      if (credentials != null) {
-        return credentials;
-      }
-
-      try {
-        var path = Paths.get(cloudSecretsDir, credentialsFile);
-        if (!path.toFile().exists()) {
-          var dir = new java.io.File(cloudSecretsDir);
-          if (!dir.exists()) {
-            throw new RuntimeException(
-                AUTH_CLOUD_SECRETS_DIR_KEY + " '" + cloudSecretsDir + "' does not exist");
-          }
-          var listing = java.util.Arrays.asList(dir.list());
-          var suggest = "";
-          if (listing.size() > 0) {
-            var joiner = new java.util.StringJoiner("', or '");
-            for (var file : listing) {
-              joiner.add(file);
-            }
-            var candidates = joiner.toString();
-            suggest = ", did you mean '" + candidates + "'";
-          }
-          log.error(
-              "{} does not exist in directory {}{}", credentialsFile, cloudSecretsDir, suggest);
-        }
-        var stream = new FileInputStream(path.toFile());
-        credentials = GoogleCredentials.fromStream(stream).createScoped(scopes);
-        return credentials;
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
 
   public static class PubSubConfig {
     private final String projectId;
@@ -342,18 +261,25 @@ public class SpezConfig {
   private final AuthConfig auth;
   private final PubSubConfig pubsub;
   private final SinkConfig sink;
+  private final StackdriverConfig stackdriver;
   private final LptsConfig lpts;
 
   /** SpezConfig value object constructor. */
-  public SpezConfig(AuthConfig auth, PubSubConfig pubsub, SinkConfig sink, LptsConfig lpts) {
+  public SpezConfig(
+      AuthConfig auth,
+      PubSubConfig pubsub,
+      SinkConfig sink,
+      StackdriverConfig stackdriver,
+      LptsConfig lpts) {
     this.auth = auth;
     this.pubsub = pubsub;
     this.sink = sink;
+    this.stackdriver = stackdriver;
     this.lpts = lpts;
   }
 
   /** SpezConfig log helper. */
-  public static void logParsedValues(Config config) {
+  public static void logParsedValues(Config config, List<String> CONFIG_KEYS) {
     log.info("=============================================");
     log.info("Spez configured with the following properties");
     for (var key : CONFIG_KEYS) {
@@ -368,13 +294,41 @@ public class SpezConfig {
 
   /** SpezConfig value object parser. */
   public static SpezConfig parse(Config config) {
-    AuthConfig auth = AuthConfig.parse(config);
+    AuthConfig.Parser authParser = AuthConfig.newParser(BASE_NAME);
+    AuthConfig auth = authParser.parse(config);
     PubSubConfig pubsub = PubSubConfig.parse(config);
     SinkConfig sink = SinkConfig.parse(config, auth.getCredentials());
+    StackdriverConfig.Parser stackdriverParser = StackdriverConfig.newParser(BASE_NAME);
+    StackdriverConfig stackdriver = stackdriverParser.parse(config);
     LptsConfig lpts = LptsConfig.parse(config, auth.getCredentials());
-    logParsedValues(config);
+    List<String> CONFIG_KEYS =
+        Lists.newArrayList(
+            PROJECT_ID_KEY,
+            AUTH_CLOUD_SECRETS_DIR_KEY,
+            AUTH_CREDENTIALS_KEY,
+            AUTH_SCOPES_KEY,
+            LOGLEVEL_DEFAULT_KEY,
+            LOGLEVEL_CDC_KEY,
+            LOGLEVEL_CORE_KEY,
+            LOGLEVEL_NETTY_KEY,
+            LOGLEVEL_SPANNERCLIENT_KEY,
+            PUBSUB_PROJECT_ID_KEY,
+            PUBSUB_TOPIC_KEY,
+            SINK_PROJECT_ID_KEY,
+            SINK_INSTANCE_KEY,
+            SINK_DATABASE_KEY,
+            SINK_TABLE_KEY,
+            SINK_UUID_COLUMN_KEY,
+            SINK_TIMESTAMP_COLUMN_KEY,
+            LPTS_PROJECT_ID_KEY,
+            LPTS_INSTANCE_KEY,
+            LPTS_DATABASE_KEY,
+            LPTS_TABLE_KEY);
+    CONFIG_KEYS.addAll(authParser.configKeys());
+    CONFIG_KEYS.addAll(stackdriverParser.configKeys());
+    logParsedValues(config, CONFIG_KEYS);
 
-    return new SpezConfig(auth, pubsub, sink, lpts);
+    return new SpezConfig(auth, pubsub, sink, stackdriver, lpts);
   }
 
   public AuthConfig getAuth() {
@@ -387,6 +341,10 @@ public class SpezConfig {
 
   public SinkConfig getSink() {
     return sink;
+  }
+
+  public StackdriverConfig getStackdriver() {
+    return stackdriver;
   }
 
   public LptsConfig getLpts() {

@@ -21,6 +21,8 @@ repositories {
 
 dependencies {
   implementation(project(":core"))
+  implementation(project(":common"))
+
   implementation(Config.Libs.typesafe_config)
   implementation(Config.Libs.slf4j)
   implementation(Config.Libs.logback_classic)

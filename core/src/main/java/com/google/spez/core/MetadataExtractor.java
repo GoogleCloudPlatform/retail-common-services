@@ -18,7 +18,7 @@ package com.google.spez.core;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.spannerclient.Row;
+import com.google.spez.core.internal.Row;
 import java.util.Map;
 
 public class MetadataExtractor {

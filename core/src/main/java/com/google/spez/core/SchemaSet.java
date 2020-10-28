@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package com.google.spez.cdc;
+package com.google.spez.core;
 
-import com.google.spez.common.StackdriverConfigurator;
-import com.google.spez.core.SpezApp;
-import com.google.spez.core.SpezConfig;
-import com.typesafe.config.ConfigFactory;
-import io.opencensus.contrib.zpages.ZPageHandlers;
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
+import org.apache.avro.Schema;
 
-class Main {
-  public static void main(String[] args) throws Exception {
-    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
-
-    StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
-
-    ZPageHandlers.startHttpServerAndRegisterAll(8887);
-
-    SpezApp.run(config);
+@AutoValue
+public abstract class SchemaSet {
+  static SchemaSet create(
+      Schema avroSchema, ImmutableMap<String, String> spannerSchema, String tsColName) {
+    return new AutoValue_SchemaSet(avroSchema, spannerSchema, tsColName);
   }
+
+  abstract Schema avroSchema();
+
+  abstract ImmutableMap<String, String> spannerSchema();
+
+  public abstract String tsColName();
 }

@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-package com.google.spez.cdc;
+package com.google.spez.common;
 
-import com.google.spez.common.StackdriverConfigurator;
-import com.google.spez.core.SpezApp;
-import com.google.spez.core.SpezConfig;
-import com.typesafe.config.ConfigFactory;
-import io.opencensus.contrib.zpages.ZPageHandlers;
+import com.google.common.util.concurrent.Uninterruptibles;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
-class Main {
-  public static void main(String[] args) throws Exception {
-    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
-
-    StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
-
-    ZPageHandlers.startHttpServerAndRegisterAll(8887);
-
-    SpezApp.run(config);
+public class Inexcusables {
+  public static <V> V getInexcusably(Future<V> future) {
+    try {
+      return Uninterruptibles.getUninterruptibly(future);
+    } catch (ExecutionException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 }

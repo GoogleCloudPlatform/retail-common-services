@@ -14,22 +14,6 @@
  * limitations under the License.
  */
 
-package com.google.spez.cdc;
+package com.google.spez.core.internal;
 
-import com.google.spez.common.StackdriverConfigurator;
-import com.google.spez.core.SpezApp;
-import com.google.spez.core.SpezConfig;
-import com.typesafe.config.ConfigFactory;
-import io.opencensus.contrib.zpages.ZPageHandlers;
-
-class Main {
-  public static void main(String[] args) throws Exception {
-    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
-
-    StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
-
-    ZPageHandlers.startHttpServerAndRegisterAll(8887);
-
-    SpezApp.run(config);
-  }
-}
+public class GaxRow {}

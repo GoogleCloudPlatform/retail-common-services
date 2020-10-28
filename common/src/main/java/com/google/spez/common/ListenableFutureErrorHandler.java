@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.spez.core;
+package com.google.spez.common;
 
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.FutureCallback;

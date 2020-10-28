@@ -14,15 +14,27 @@
  * limitations under the License.
  */
 
-package com.google.spez.core;
+package com.google.spez.core.internal;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+public class BothanRowCursor implements RowCursor {
+  private final com.google.spannerclient.RowCursor cursor;
 
-public class SpannerToProto {
-  private static final Logger log = LoggerFactory.getLogger(SpannerToProto.class);
+  public BothanRowCursor(com.google.spannerclient.RowCursor cursor) {
+    this.cursor = cursor;
+  }
 
-  private SpannerToProto() {
-    log.debug("this class is not implemented");
+  @Override
+  public String getString(String columnName) {
+    return cursor.getString(columnName);
+  }
+
+  @Override
+  public Row getCurrentRow() {
+    return new BothanRow(cursor.getCurrentRow());
+  }
+
+  @Override
+  public boolean next() {
+    return cursor.next();
   }
 }

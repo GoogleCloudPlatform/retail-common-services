@@ -23,8 +23,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
-import com.google.spannerclient.Row;
-import com.google.spez.core.SpannerToAvro.SchemaSet;
+import com.google.spez.core.internal.Row;
 import io.opencensus.trace.Span;
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -37,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WorkStealingHandler implements SpannerEventHandler {
+public class WorkStealingHandler {
   private static final Logger log = LoggerFactory.getLogger(WorkStealingHandler.class);
 
   private final ExecutorService workStealingPool = Executors.newWorkStealingPool();
@@ -91,18 +90,18 @@ public class WorkStealingHandler implements SpannerEventHandler {
         formatter.format(runtime.maxMemory()));
   }
 
-  public Boolean publishRecord(Row s, Span parent) {
+  public Boolean publishRecord(Row row, Span parent) {
     // TODO(xjdr): Throw if empty optional
     log.debug("Processing Record");
-    String timestamp = s.getTimestamp(schemaSet.tsColName()).toString();
+    String timestamp = row.getTimestamp(schemaSet.tsColName()).toString();
     lastProcessedTimestamp.set(timestamp);
 
     ListenableFuture<Optional<ByteString>> record =
-        forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
+        forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null));
 
     log.debug("Record Processed, getting ready to publish");
 
-    var metadata = extractor.extract(s);
+    var metadata = extractor.extract(row);
 
     AsyncFunction<Optional<ByteString>, String> pub =
         new AsyncFunction<Optional<ByteString>, String>() {
@@ -145,7 +144,6 @@ public class WorkStealingHandler implements SpannerEventHandler {
    *     pooling strategies
    * @param timestamp the Cloud Spanner Commit Timestamp for the event
    */
-  @Override
   public ListenableFuture<Boolean> process(int bucket, Row s, String timestamp, Span parent) {
     records.incrementAndGet();
 

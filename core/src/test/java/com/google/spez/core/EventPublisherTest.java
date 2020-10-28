@@ -25,6 +25,7 @@ import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.spannerclient.Publisher;
+import com.google.spez.common.UsefulExecutors;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Span;
 import java.util.List;
@@ -41,7 +42,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class TestEventPublisher implements WithAssertions {
+public class EventPublisherTest implements WithAssertions {
 
   @Mock private ListeningScheduledExecutorService scheduler;
 
@@ -61,6 +62,7 @@ public class TestEventPublisher implements WithAssertions {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void shouldStartScheduler(@Mock ListenableScheduledFuture future) {
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
     Mockito.when(
@@ -103,6 +105,7 @@ public class TestEventPublisher implements WithAssertions {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void publishBeforeDeadline(@Mock Span parent, @Mock ListenableFuture submitFuture) {
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
@@ -119,6 +122,7 @@ public class TestEventPublisher implements WithAssertions {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void publishBufferUpdatesBufferSize(
       @Mock Span parent,
       @Mock ListenableFuture submitFuture,

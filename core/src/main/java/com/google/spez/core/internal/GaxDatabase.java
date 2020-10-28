@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-package com.google.spez.cdc;
+package com.google.spez.core.internal;
 
-import com.google.spez.common.StackdriverConfigurator;
-import com.google.spez.core.SpezApp;
-import com.google.spez.core.SpezConfig;
-import com.typesafe.config.ConfigFactory;
-import io.opencensus.contrib.zpages.ZPageHandlers;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
 
-class Main {
-  public static void main(String[] args) throws Exception {
-    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
+public class GaxDatabase implements Database {
+  @Override
+  public ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service) {
+    return null;
+  }
 
-    StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
-
-    ZPageHandlers.startHttpServerAndRegisterAll(8887);
-
-    SpezApp.run(config);
+  @Override
+  public RowCursor execute(String query) {
+    return null;
   }
 }

@@ -196,55 +196,55 @@ public class SpannerToAvro {
               switch (arrayTypeString) {
                 case "BOOL":
                   log.debug("Put BOOL");
-                  try {
-                    record.put(x, resultSet.getBooleanList(x));
-                  } catch (NullPointerException e) {
+                  if (resultSet.isNull(x)) {
                     record.put(x, null);
+                  } else {
+                    record.put(x, resultSet.getBooleanList(x));
                   }
 
                   break;
                 case "BYTES":
                   log.debug("Put BYTES");
-                  try {
-                    record.put(x, resultSet.getBytesList(x));
-                  } catch (NullPointerException e) {
+                  if (resultSet.isNull(x)) {
                     record.put(x, null);
+                  } else {
+                    record.put(x, resultSet.getBytesList(x));
                   }
 
                   break;
                 case "DATE":
                   log.debug("Put DATE");
-                  try {
-                    record.put(x, resultSet.getStringList(x));
-                  } catch (NullPointerException e) {
+                  if (resultSet.isNull(x)) {
                     record.put(x, null);
+                  } else {
+                    record.put(x, resultSet.getStringList(x));
                   }
 
                   break;
                 case "FLOAT64":
                   log.debug("Put FLOAT64");
-                  try {
-                    record.put(x, resultSet.getDoubleList(x));
-                  } catch (NullPointerException e) {
+                  if (resultSet.isNull(x)) {
                     record.put(x, null);
+                  } else {
+                    record.put(x, resultSet.getDoubleList(x));
                   }
 
                   break;
                 case "INT64":
                   log.debug("Put INT64");
-                  try {
-                    record.put(x, resultSet.getLongList(x));
-                  } catch (NullPointerException e) {
+                  if (resultSet.isNull(x)) {
                     record.put(x, null);
+                  } else {
+                    record.put(x, resultSet.getLongList(x));
                   }
 
                   break;
                 case "STRING(MAX)":
                   log.debug("Put STRING");
-                  try {
-                    record.put(x, resultSet.getStringList(x));
-                  } catch (NullPointerException e) {
+                  if (resultSet.isNull(x)) {
                     record.put(x, null);
+                  } else {
+                    record.put(x, resultSet.getStringList(x));
                   }
 
                   break;
@@ -260,79 +260,77 @@ public class SpannerToAvro {
               break;
             case "BOOL":
               log.debug("Put BOOL");
-              try {
-                record.put(x, resultSet.getBoolean(x));
-              } catch (NullPointerException e) {
+              if (resultSet.isNull(x)) {
                 record.put(x, null);
+              } else {
+                record.put(x, resultSet.getBoolean(x));
               }
 
               break;
             case "BYTES":
               log.debug("Put BYTES");
-              try {
-                record.put(x, resultSet.getBytes(x));
-              } catch (NullPointerException e) {
+              if (resultSet.isNull(x)) {
                 record.put(x, null);
+              } else {
+                record.put(x, resultSet.getBytes(x));
               }
 
               break;
             case "DATE":
               log.debug("Put DATE");
-              try {
-                record.put(x, resultSet.getDate(x).toString());
-              } catch (NullPointerException e) {
+              if (resultSet.isNull(x)) {
                 record.put(x, null);
+              } else {
+                record.put(x, resultSet.getDate(x).toString());
               }
 
               break;
             case "FLOAT64":
               log.debug("Put FLOAT64");
-              try {
+              if (resultSet.isNull(x)) {
+              } else {
                 record.put(x, resultSet.getDouble(x));
-              } catch (NullPointerException e) {
-                record.put(x, null);
               }
 
               break;
             case "INT64":
               log.debug("Put INT64");
-              try {
-                record.put(x, resultSet.getLong(x));
-                log.debug("INT64 OK");
-              } catch (NullPointerException e) {
+              if (resultSet.isNull(x)) {
                 record.put(x, null);
                 log.debug("INT64 NULL OK");
+              } else {
+                record.put(x, resultSet.getLong(x));
+                log.debug("INT64 OK");
               }
 
               break;
             case "STRING(MAX)":
               log.debug("Put STRING");
-              try {
-                record.put(x, resultSet.getString(x));
-                log.debug("STRING(MAX) OK");
-              } catch (NullPointerException e) {
+              if (resultSet.isNull(x)) {
                 record.put(x, null);
                 log.debug("STRING(MAX) NULL OK");
+              } else {
+                record.put(x, resultSet.getString(x));
+                log.debug("STRING(MAX) OK");
               }
               break;
             case "TIMESTAMP":
               log.debug("Put TIMESTAMP");
-              try {
-                record.put(x, resultSet.getTimestamp(x).toString());
-              } catch (NullPointerException e) {
+              if (resultSet.isNull(x)) {
                 record.put(x, null);
+              } else {
+                record.put(x, resultSet.getTimestamp(x).toString());
               }
 
               break;
             default:
               if (schemaSet.spannerSchema().get(x).contains("STRING")) {
                 log.debug("Put STRING");
-                try {
-                  record.put(x, resultSet.getString(x));
-                  log.debug("STRING OK");
-                } catch (NullPointerException e) {
+                if (resultSet.isNull(x)) {
                   record.put(x, null);
                   log.debug("STRING NULL OK");
+                } else {
+                  record.put(x, resultSet.getString(x));
                 }
 
               } else {

@@ -41,6 +41,7 @@ import com.google.spannerclient.QueryOptions;
 import com.google.spannerclient.Row;
 import com.google.spannerclient.RowCursor;
 import com.google.spannerclient.Spanner;
+import com.google.spez.common.LoggerDumper;
 import com.google.spez.core.SpannerToAvro.SchemaSet;
 import io.grpc.stub.StreamObserver;
 import io.opencensus.common.Scope;
@@ -66,6 +67,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -119,6 +121,7 @@ public class SpannerTailer {
           Aggregation.Distribution.create(
               BucketBoundaries.create(Arrays.asList(0.0, 16.0 * MiB, 256.0 * MiB))),
           Collections.singletonList(TAILER_TABLE_KEY));
+  public static final int THREAD_POOL = 12; // TODO(pdex): move to config
 
   static {
     viewManager.registerView(MESSAGE_SIZE_VIEW);
@@ -145,6 +148,96 @@ public class SpannerTailer {
                 threadPool,
                 new ThreadFactoryBuilder().setNameFormat("SpannerTailer Acceptor").build()));
     this.hasher = Hashing.murmur3_128();
+  }
+
+  public static void run(SpezConfig config) {
+    // TODO(pdex): why are we making our own threadpool?
+    final List<ListeningExecutorService> l =
+        Spez.ServicePoolGenerator(THREAD_POOL, "Spanner Tailer Event Worker");
+
+    final SpannerTailer tailer =
+        new SpannerTailer(
+            config.getAuth().getCredentials(),
+            THREAD_POOL,
+            200000000); // TODO(pdex): move to config
+    // final EventPublisher publisher = new EventPublisher(config.getPubSub().getProjectId(),
+    // config.getPubSub().getTopic(), config);
+    var publisher = EventPublisher.create(config);
+    final CountDownLatch doneSignal = new CountDownLatch(1);
+    final ListeningScheduledExecutorService scheduler =
+        MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
+    var extractor = new MetadataExtractor(config);
+
+    final ListenableFuture<SchemaSet> schemaSetFuture =
+        tailer.getSchema(
+            config.getSink().getProjectId(),
+            config.getSink().getInstance(),
+            config.getSink().getDatabase(),
+            config.getSink().getTable(),
+            config.getSink());
+
+    Futures.addCallback(
+        schemaSetFuture,
+        new FutureCallback<SchemaSet>() {
+
+          @Override
+          public void onSuccess(SchemaSet schemaSet) {
+            log.info("Successfully Processed the Table Schema. Starting the poller now ...");
+            WorkStealingHandler handler = new WorkStealingHandler(schemaSet, publisher, extractor);
+            tailer.start(
+                handler,
+                schemaSet.tsColName(),
+                l.size(),
+                THREAD_POOL,
+                500,
+                config.getSink().getProjectId(),
+                config.getSink().getInstance(),
+                config.getSink().getDatabase(),
+                config.getSink().getTable(),
+                "lpts_table",
+                "2000",
+                500,
+                500,
+                config.getSink(),
+                config.getLpts());
+
+            var schedulerFuture =
+                scheduler.scheduleAtFixedRate(
+                    () -> {
+                      handler.logStats();
+                      tailer.logStats();
+                    },
+                    30,
+                    30,
+                    TimeUnit.SECONDS);
+            ListenableFutureErrorHandler.create(
+                scheduler,
+                schedulerFuture,
+                (throwable) -> {
+                  log.error("logStats scheduled task error", throwable);
+                });
+            log.info("CALLING COUNTDOWN");
+            doneSignal.countDown();
+            log.info("COUNTDOWN CALLED");
+          }
+
+          @Override
+          public void onFailure(Throwable t) {
+            log.error("Unable to process schema", t);
+            System.exit(-1);
+          }
+        },
+        l.get(l.size() % THREAD_POOL));
+
+    try {
+      LoggerDumper.dump();
+      log.info("waiting for doneSignal");
+      doneSignal.await();
+      log.info("GOT  doneSignal");
+    } catch (InterruptedException e) {
+      log.error("Interrupted", e);
+      throw new RuntimeException(e);
+    }
   }
 
   private static class TimestampColumnChecker {

@@ -27,6 +27,7 @@ repositories {
 }
 
 dependencies {
+  implementation(project(":common"))
   implementation("com.google.spannerclient:spannerclient:0.1.5")
   implementation(Config.Libs.typesafe_config)
   implementation(Config.Libs.slf4j)

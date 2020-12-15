@@ -22,6 +22,7 @@ import com.google.cloud.Timestamp;
 import com.google.spanner.v1.Type;
 import java.util.List;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class BothanRow implements Row {
   private final com.google.spannerclient.Row row;
 

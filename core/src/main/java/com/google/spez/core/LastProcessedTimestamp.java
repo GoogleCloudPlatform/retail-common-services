@@ -57,7 +57,7 @@ public class LastProcessedTimestamp {
     Database lptsDatabase;
     try {
       log.info("waiting for lpts db");
-      lptsDatabase = dbFuture.get();
+      lptsDatabase = dbFuture.get(); // NOPMD
       log.info("LPTS Database returned!");
     } catch (Exception e) {
       log.error("Failed to get Database, throwing");
@@ -70,7 +70,7 @@ public class LastProcessedTimestamp {
         lptsQuery,
         lpts.databasePath());
 
-    RowCursor lptsCursor =
+    RowCursor lptsCursor = // NOPMD
         Spanner.execute(QueryOptions.DEFAULT(), lptsDatabase, Query.create(lptsQuery));
 
     if (lptsCursor == null) {

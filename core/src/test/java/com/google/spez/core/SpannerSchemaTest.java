@@ -30,9 +30,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions {
   RemoteSpannerHelper helper;
   Database database;
+
+  static String TIMESTAMP = "timestamp";
 
   @BeforeEach
   void setUp() throws Throwable {
@@ -63,7 +66,7 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
             database.getId().getDatabase(),
             "Singers",
             "SingerId",
-            "timestamp",
+            TIMESTAMP,
             GoogleCredentials.getApplicationDefault());
     var database = BothanDatabase.openDatabase(sinkConfig.getSettings());
     SpannerSchema spannerSchema = new SpannerSchema(database, sinkConfig);
@@ -84,7 +87,7 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
             .type()
             .optional()
             .stringType()
-            .name("timestamp")
+            .name(TIMESTAMP)
             .type()
             .stringType()
             .noDefault()
@@ -100,9 +103,9 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
             "INT64",
             "SingerInfo",
             "BYTES(MAX)",
-            "timestamp",
+            TIMESTAMP,
             "TIMESTAMP");
     assertThat(result.spannerSchema()).containsExactlyInAnyOrderEntriesOf(expectedSchema);
-    assertThat(result.tsColName()).isEqualTo("timestamp");
+    assertThat(result.tsColName()).isEqualTo(TIMESTAMP);
   }
 }

@@ -20,6 +20,7 @@ import ch.qos.logback.classic.LoggerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("PMD.MoreThanOneLogger")
 public class LoggerDumper {
   private static final Logger log = LoggerFactory.getLogger(LoggerDumper.class);
 

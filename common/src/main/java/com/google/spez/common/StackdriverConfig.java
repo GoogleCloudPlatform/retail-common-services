@@ -19,6 +19,7 @@ package com.google.spez.common;
 import com.typesafe.config.Config;
 import java.util.List;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class StackdriverConfig {
   public static class Parser {
     private final String PROJECT_ID_KEY;

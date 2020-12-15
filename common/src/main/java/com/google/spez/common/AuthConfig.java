@@ -26,6 +26,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class AuthConfig {
   public static class Parser {
     private final String AUTH_CLOUD_SECRETS_DIR_KEY;
@@ -86,16 +87,20 @@ public class AuthConfig {
           throw new RuntimeException(secretsDirKey + " '" + cloudSecretsDir + "' does not exist");
         }
         var listing = java.util.Arrays.asList(dir.list());
-        var suggest = "";
+        var suggest = new StringBuilder();
         if (listing.size() > 0) {
           var joiner = new java.util.StringJoiner("', or '");
           for (var file : listing) {
             joiner.add(file);
           }
           var candidates = joiner.toString();
-          suggest = ", did you mean '" + candidates + "'";
+          suggest.append(", did you mean '").append(candidates).append("'");
         }
-        log.error("{} does not exist in directory {}{}", credentialsFile, cloudSecretsDir, suggest);
+        log.error(
+            "{} does not exist in directory {}{}",
+            credentialsFile,
+            cloudSecretsDir,
+            suggest.toString());
       }
       var stream = new FileInputStream(path.toFile());
       credentials = GoogleCredentials.fromStream(stream).createScoped(scopes);

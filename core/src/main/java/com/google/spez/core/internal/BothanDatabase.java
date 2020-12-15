@@ -26,6 +26,7 @@ import com.google.spannerclient.Settings;
 import com.google.spannerclient.Spanner;
 import com.google.spez.common.Inexcusables;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class BothanDatabase implements Database {
   private final com.google.spannerclient.Database database;
 

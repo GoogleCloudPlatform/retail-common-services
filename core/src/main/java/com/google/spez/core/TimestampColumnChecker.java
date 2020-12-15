@@ -18,6 +18,7 @@ package com.google.spez.core;
 
 import com.google.spez.core.internal.RowCursor;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 class TimestampColumnChecker {
   private final SpezConfig.SinkConfig config;
   private boolean tableExists = false;

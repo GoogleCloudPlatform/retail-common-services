@@ -141,7 +141,7 @@ class SpannerToAvroRecordTest implements WithAssertions {
   @Test
   public void typeCodeNameMatchesSpannerType() {
     {
-      var fieldName = "testBool";
+      var fieldName = "testBool"; // NOPMD
       var avroSchema = schemaField(fieldName).booleanType().noDefault().endRecord();
       var fieldType = Type.newBuilder().setCode(TypeCode.BOOL).build();
       var schemaSet = buildSchemaSet(avroSchema, fieldName, fieldType);
@@ -227,7 +227,7 @@ class SpannerToAvroRecordTest implements WithAssertions {
   // BOOL
   @Test
   void makeRecordWithRequiredBoolean() {
-    var fieldName = "testBool";
+    var fieldName = "testBool"; // NOPMD
     var fieldValue = false;
     var avroSchema = schemaField(fieldName).booleanType().noDefault().endRecord();
     var fieldType = Type.newBuilder().setCode(TypeCode.BOOL).build();
@@ -248,7 +248,7 @@ class SpannerToAvroRecordTest implements WithAssertions {
 
   @Test
   public void makeRecordWithOptionalBooleanSet() {
-    var fieldName = "testBool";
+    var fieldName = "testBool"; // NOPMD
     var fieldValue = false;
     var avroSchema = schemaField(fieldName).optional().booleanType().endRecord();
     var fieldType = Type.newBuilder().setCode(TypeCode.BOOL).build();
@@ -267,11 +267,11 @@ class SpannerToAvroRecordTest implements WithAssertions {
     runTest(avroSchema, fieldName, fieldValue, fieldType, rowValue);
   }
 
-  // @Test
+  @Test
   // TODO(pdex): this test won't work with BothanRow
   // BothanRow's underlying Row can't handle null values
   public void makeRecordWithOptionalBooleanNotSet() {
-    var fieldName = "testBool";
+    var fieldName = "testBool"; // NOPMD
     Object fieldValue = null;
     var avroSchema = schemaField(fieldName).optional().booleanType().endRecord();
     var fieldType = Type.newBuilder().setCode(TypeCode.BOOL).build();

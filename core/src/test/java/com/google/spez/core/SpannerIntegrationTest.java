@@ -50,7 +50,7 @@ public class SpannerIntegrationTest {
             .setProjectId(projectId)
             .setAutoThrottleAdministrativeRequests()
             .build();
-    Spanner client = options.getService();
+    Spanner client = options.getService(); // NOPMD
     instanceAdmin = client.getInstanceAdminClient();
     var instanceInfo =
         InstanceInfo.newBuilder(InstanceId.of(projectId, INSTANCE_ID))

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class LastProcessedTimestampTest extends SpannerIntegrationTest implements WithAssertions {
   RemoteSpannerHelper helper;
   Database database;
@@ -53,8 +54,8 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
 
   @Test
   void noTimestampShouldThrow() throws IOException {
-    var credentials = GoogleCredentials.getApplicationDefault();
-    var sink =
+    var credentials = GoogleCredentials.getApplicationDefault(); // NOPMD
+    var sink = // NOPMD
         new SpezConfig.SinkConfig(
             projectId,
             INSTANCE_ID,
@@ -63,7 +64,7 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
             "SingerId",
             "timestamp",
             credentials);
-    var lpts =
+    var lpts = // NOPMD
         new SpezConfig.LptsConfig(
             projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", credentials);
     var throwable =
@@ -75,7 +76,7 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
 
   @Test
   void findTimestampForTable() throws Exception {
-    var credentials = GoogleCredentials.getApplicationDefault();
+    var credentials = GoogleCredentials.getApplicationDefault(); // NOPMD
     var setTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 0);
     var client =
         SpannerOptions.newBuilder()

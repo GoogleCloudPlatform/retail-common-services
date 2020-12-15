@@ -158,6 +158,7 @@ public class SpannerToAvroRecord {
             case "FLOAT64":
               log.debug("Put FLOAT64");
               if (resultSet.isNull(columnName)) {
+                record.put(columnName, null);
               } else {
                 record.put(columnName, resultSet.getDouble(columnName));
               }
@@ -227,7 +228,7 @@ public class SpannerToAvroRecord {
       */
       DatumWriter<GenericRecord> datumWriter =
           new GenericDatumWriter<GenericRecord>(schemaSet.avroSchema());
-      DataFileWriter<GenericRecord> writer =
+      DataFileWriter<GenericRecord> writer = // NOPMD
           new DataFileWriter<GenericRecord>(datumWriter)
               .create(schemaSet.avroSchema(), outputStream, syncMarker);
       writer.append(record);

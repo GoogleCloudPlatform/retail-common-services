@@ -62,6 +62,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This class published events from Cloud Spanner to Pub/Sub */
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class EventPublisher {
 
   public static class BufferPayload {
@@ -111,12 +112,13 @@ public class EventPublisher {
                         TagValue.create(uuid),
                         TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                     .build());
-        String result = "UNAVAILABLE";
+        String result;
         if (i < response.getMessageIdsCount()) {
           payload.future.set(response.getMessageIds(i));
           result = response.getMessageIds(i);
         } else {
           payload.future.set("UNAVAILABLE");
+          result = "UNAVAILABLE";
         }
         log.info("Published message uuid {}, set future to '{}'", uuid, result);
       }
@@ -237,7 +239,7 @@ public class EventPublisher {
 
   @SuppressWarnings("MustBeClosedChecker")
   private ListenableFuture<String> addToBuffer(PubsubMessage message, Span parent) {
-    Scope scopedSpan =
+    Scope scopedSpan = // NOPMD
         tracer.spanBuilderWithExplicitParent("EventPublisher.publish", parent).startScopedSpan();
     SettableFuture<String> future = SettableFuture.create();
     buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, scopedSpan));
@@ -264,7 +266,7 @@ public class EventPublisher {
   void publishBuffer() {
     ArrayList<BufferPayload> sink = new ArrayList<>();
     int numberDrained = buffer.drainTo(sink);
-    ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained);
+    ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained); // NOPMD
     for (var payload : sink) {
       messages.add(payload.message);
     }

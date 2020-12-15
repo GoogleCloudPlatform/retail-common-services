@@ -46,7 +46,7 @@ public class SpannerToAvroSchema {
       final Row currentRow = resultSet.getCurrentRow();
       final String name = currentRow.getString(0);
       final String type = currentRow.getString(1);
-      final boolean nullable = currentRow.getString(2).equals("NO") ? false : true;
+      final boolean nullable = currentRow.getString(2).equals("NO") ? false : true; // NOPMD
 
       spannerSchema.put(name, type);
       log.debug("Binding Avro Schema");

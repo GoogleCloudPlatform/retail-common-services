@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
  * published to the configured pub / sub topic and updated to the metadata Cloud Spanner table via
  * the lastProcessedTimestamp Cloud Function (if deployed).
  */
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class SpannerTailer {
   private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
   public static final int THREAD_POOL = 12; // TODO(pdex): move to config
@@ -137,7 +138,7 @@ public class SpannerTailer {
 
   private void poll() {
     long num = running.incrementAndGet();
-    if (num > 1) {
+    if (num > 1) { // NOPMD
       log.debug("Already {} polling processes in flight", num - 1);
       running.decrementAndGet();
       return;

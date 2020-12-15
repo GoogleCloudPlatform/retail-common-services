@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 /** This class published events from Cloud Spanner to Pub/Sub */
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class GaxEventPublisher {
   private static final Logger log = LoggerFactory.getLogger(GaxEventPublisher.class);
 
@@ -79,11 +80,8 @@ public class GaxEventPublisher {
       return publisher;
     } catch (IOException e) {
       log.error("Was not able to create a publisher for topic: " + topicName, e);
-      System.exit(1);
+      throw new RuntimeException(e);
     }
-
-    // TODO(xjdr): Don't do this
-    return null;
   }
 
   /**

@@ -16,6 +16,7 @@
 
 package com.google.spez.core.internal;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class BothanRowCursor implements RowCursor {
   private final com.google.spannerclient.RowCursor cursor;
 

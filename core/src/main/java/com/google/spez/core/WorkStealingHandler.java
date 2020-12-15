@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class WorkStealingHandler {
   private static final Logger log = LoggerFactory.getLogger(WorkStealingHandler.class);
 
@@ -96,25 +97,35 @@ public class WorkStealingHandler {
     String timestamp = row.getTimestamp(schemaSet.tsColName()).toString();
     lastProcessedTimestamp.set(timestamp);
 
-    ListenableFuture<Optional<ByteString>> record =
-        forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null));
-
     log.debug("Record Processed, getting ready to publish");
 
     var metadata = extractor.extract(row);
+    /*
+        ListenableFuture<Optional<ByteString>> record =
+            forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null));
 
-    AsyncFunction<Optional<ByteString>, String> pub =
-        new AsyncFunction<Optional<ByteString>, String>() {
-          @Override
-          public ListenableFuture<String> apply(Optional<ByteString> record) {
-            return publisher.publish(record.get(), metadata, parent);
-          }
-        };
 
-    ListenableFuture<String> resp = Futures.transformAsync(record, pub, forkJoinPool);
+        AsyncFunction<Optional<ByteString>, String> pub =
+            new AsyncFunction<Optional<ByteString>, String>() {
+              @Override
+              public ListenableFuture<String> apply(Optional<ByteString> avroRecord) {
+                return publisher.publish(avroRecord.get(), metadata, parent);
+              }
+            };
+
+        ListenableFuture<String> resp = Futures.transformAsync(record, pub, forkJoinPool);
+    */
 
     Futures.addCallback(
-        resp,
+        Futures.transformAsync(
+            forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null)),
+            new AsyncFunction<Optional<ByteString>, String>() {
+              @Override
+              public ListenableFuture<String> apply(Optional<ByteString> avroRecord) {
+                return publisher.publish(avroRecord.get(), metadata, parent);
+              }
+            },
+            forkJoinPool),
         new FutureCallback<String>() {
 
           @Override

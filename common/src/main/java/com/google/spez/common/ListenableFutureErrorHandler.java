@@ -24,6 +24,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 // TODO(pdex): move this class into wingwalker-common
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class ListenableFutureErrorHandler {
 
   private final Executor executor;

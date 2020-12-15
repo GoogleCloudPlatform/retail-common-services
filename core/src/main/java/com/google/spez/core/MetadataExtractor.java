@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 import com.google.spez.core.internal.Row;
 import java.util.Map;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class MetadataExtractor {
 
   private final SpezConfig config;

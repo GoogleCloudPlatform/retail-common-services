@@ -47,19 +47,29 @@ public class SpannerSchema {
         config.getTable());
 
     final String schemaQuery =
-        "SELECT COLUMN_NAME, SPANNER_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='"
+        "SELECT COLUMN_NAME, "
+            + "SPANNER_TYPE, "
+            + "IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='"
             + config.getTable()
             + "' ORDER BY ORDINAL_POSITION";
     final String pkQuery =
-        "SELECT INDEX_NAME, INDEX_TYPE, COLUMN_NAME, IS_NULLABLE, SPANNER_TYPE FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME = '"
+        "SELECT INDEX_NAME, "
+            + "INDEX_TYPE, "
+            + "COLUMN_NAME, "
+            + "IS_NULLABLE, "
+            + "SPANNER_TYPE FROM INFORMATION_SCHEMA.INDEX_COLUMNS WHERE TABLE_NAME = '"
             + config.getTable()
             + "'";
     final String tsQuery =
-        "SELECT COLUMN_NAME, OPTION_NAME, OPTION_TYPE, OPTION_VALUE FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '"
+        "SELECT COLUMN_NAME, "
+            + "OPTION_NAME, "
+            + "OPTION_TYPE, "
+            + "OPTION_VALUE "
+            + "FROM INFORMATION_SCHEMA.COLUMN_OPTIONS WHERE TABLE_NAME = '"
             + config.getTable()
             + "'";
 
-    RowCursor schemaResult = database.execute(schemaQuery);
+    final RowCursor schemaResult = database.execute(schemaQuery);
     RowCursor indexColumns = database.execute(pkQuery);
     RowCursor columnOptions = database.execute(tsQuery);
 

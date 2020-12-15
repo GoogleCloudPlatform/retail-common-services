@@ -32,6 +32,15 @@ public class SpannerToAvroSchema {
 
   private SpannerToAvroSchema() {}
 
+  /**
+   * builds a SchemaSet object.
+   *
+   * @param tableName table name
+   * @param avroNamespace avro namespace
+   * @param resultSet result set to iterate
+   * @param tsColName timestamp column name
+   * @return the SchemaSet representing
+   */
   public static SchemaSet getSchema(
       String tableName, String avroNamespace, RowCursor resultSet, String tsColName) {
 

@@ -39,6 +39,25 @@ public class SpannerToAvroRecord {
 
   private SpannerToAvroRecord() {}
 
+  /**
+   * given a SchemaSet and a Row return an avro record.
+   *
+   * @param schemaSet schema of the row
+   * @param resultSet row to encode
+   * @return an avro record
+   */
+  public static Optional<ByteString> makeRecord(SchemaSet schemaSet, Row resultSet) {
+    return makeRecord(schemaSet, resultSet, null);
+  }
+
+  /**
+   * given a SchemaSet and a Row return an avro record.
+   *
+   * @param schemaSet schema of the row
+   * @param resultSet row to encode
+   * @param syncMarker used to generate consistent records under test
+   * @return an avro record
+   */
   public static Optional<ByteString> makeRecord(
       SchemaSet schemaSet, Row resultSet, byte[] syncMarker) {
     //    final ByteBuf bb = Unpooled.directBuffer();

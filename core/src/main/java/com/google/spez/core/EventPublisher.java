@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** This class published events from Cloud Spanner to Pub/Sub */
+/** This class published events from Cloud Spanner to Pub/Sub. */
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class EventPublisher {
 
@@ -70,6 +70,13 @@ public class EventPublisher {
     final SettableFuture<String> future;
     final Scope scope;
 
+    /**
+     * Constructor.
+     *
+     * @param message pubsub message
+     * @param future completion future
+     * @param scope trace propagation
+     */
     public BufferPayload(PubsubMessage message, SettableFuture<String> future, Scope scope) {
       this.message = message;
       this.future = future;
@@ -179,6 +186,15 @@ public class EventPublisher {
   private final Publisher publisher;
   @VisibleForTesting final Runnable runPublishBuffer;
 
+  /**
+   * constructor visible for testing.
+   *
+   * @param scheduler scheduler service
+   * @param publisher publisher
+   * @param publishSize publish size
+   * @param publishTime publish time
+   * @param runPublishBuffer runnable to perform publishing
+   */
   @VisibleForTesting
   public EventPublisher(
       ListeningScheduledExecutorService scheduler,
@@ -209,6 +225,12 @@ public class EventPublisher {
     this(scheduler, publisher, publishSize, publishTime, null);
   }
 
+  /**
+   * create an EventPublisher from a config.
+   *
+   * @param config used to configure the EventPublisher
+   * @return an EventPublisher instance
+   */
   public static EventPublisher create(SpezConfig config) {
     Preconditions.checkNotNull(config);
     var scheduler = UsefulExecutors.listeningScheduler();
@@ -309,7 +331,7 @@ public class EventPublisher {
    *
    * @param data Body of the Pub/Sub message
    * @param attrMap Attribute Map of data to be published as metadata with your message
-   * @param timestamp the Commit Timestamp of the Spanner Record to be published
+   * @param parent propagate tracing
    */
   public ListenableFuture<String> publish(
       ByteString data, Map<String, String> attrMap, Span parent) {

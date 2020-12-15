@@ -32,6 +32,12 @@ public class MetadataExtractor {
     this.base = ImmutableMap.copyOf(config.getBaseMetadata());
   }
 
+  /**
+   * extract metadata for a given row.
+   *
+   * @param row metadata is retrieved from this
+   * @return a map of metadata key value pairs
+   */
   public Map<String, String> extract(Row row) {
     Map<String, String> metadata = Maps.newHashMap(base);
 

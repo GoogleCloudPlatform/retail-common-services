@@ -18,7 +18,11 @@ package com.google.spez.core;
 
 import com.google.cloud.Timestamp;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.spannerclient.*;
+import com.google.spannerclient.Database;
+import com.google.spannerclient.Query;
+import com.google.spannerclient.QueryOptions;
+import com.google.spannerclient.RowCursor;
+import com.google.spannerclient.Spanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +40,13 @@ public class LastProcessedTimestamp {
     }
   }
 
+  /**
+   * build the query to fetch the last processed timestamp.
+   *
+   * @param sink sink table config
+   * @param lpts lpts table config
+   * @return the query
+   */
   public static String buildQuery(SpezConfig.SinkConfig sink, SpezConfig.LptsConfig lpts) {
     return new StringBuilder()
         .append("SELECT * FROM ")
@@ -50,6 +61,13 @@ public class LastProcessedTimestamp {
         .toString();
   }
 
+  /**
+   * get the last processed timestamp for a given configuration.
+   *
+   * @param sink config for the table to retrieve
+   * @param lpts config for where to find the last processed timestamp
+   * @return the last processed timestamp as a string
+   */
   public static String getLastProcessedTimestamp(
       SpezConfig.SinkConfig sink, SpezConfig.LptsConfig lpts) {
     final ListenableFuture<Database> dbFuture = Spanner.openDatabaseAsync(lpts.getSettings());

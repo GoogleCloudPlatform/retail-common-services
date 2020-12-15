@@ -23,7 +23,11 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.spannerclient.*;
+import com.google.spannerclient.Database;
+import com.google.spannerclient.Query;
+import com.google.spannerclient.QueryOptions;
+import com.google.spannerclient.Row;
+import com.google.spannerclient.Spanner;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
 import com.google.spez.core.internal.BothanRow;
@@ -70,6 +74,14 @@ public class SpannerTailer {
   private final ListeningScheduledExecutorService scheduler;
   private String lastProcessedTimestamp;
 
+  /**
+   * SpannerTailer constructor.
+   *
+   * @param config config object
+   * @param database database object
+   * @param handler row handler
+   * @param lastProcessedTimestamp initial last processed timestamp
+   */
   public SpannerTailer(
       SpezConfig config,
       Database database,
@@ -87,20 +99,6 @@ public class SpannerTailer {
    * query. To maintain state to allow only new events to be processed, a {@code Timestamp} field is
    * required in the table and will be maintained here. As of now, that field is hardcoded as
    * `Timestamp`.
-   *
-   * @param tsColName the name of the column holding the true time commit timestamp for processing
-   * @param bucketSize Size of the consistent hashing algorythm for thread poll managment
-   * @param threadCount xx
-   * @param pollRate Time delay in Milliseconds between polls
-   * @param projectId GCP Project ID
-   * @param instanceName Cloud Spanner Instance Name
-   * @param dbName Cloud Spanner Database Name
-   * @param tableName Cloud Spanner table Name
-   * @param lptsTableName Cloud Spanner table name for lastProcessedTimestamp (as populated by the
-   *     lastProcessedTimestamp Cloud Function
-   * @param recordLimit The limit for the max number of records returned for a given query
-   * @param vacuumRate xxx
-   * @param eventCacheTTL xxx
    */
   public void start() {
     var schedulerFuture =
@@ -166,6 +164,7 @@ public class SpannerTailer {
     }
   }
 
+  /** closes the underlying resources. */
   public void close() {
     try {
       if (database != null) {

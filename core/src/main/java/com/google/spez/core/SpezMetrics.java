@@ -62,6 +62,7 @@ public class SpezMetrics {
     statsRecorder.newMeasureMap().put(MESSAGE_SIZE, size).record();
   }
 
+  /** log the recorded to stats. */
   public void logStats() {
     ViewData viewData = viewManager.getView(MESSAGE_SIZE_VIEW_NAME);
     log.info(

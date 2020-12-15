@@ -91,6 +91,13 @@ public class WorkStealingHandler {
         formatter.format(runtime.maxMemory()));
   }
 
+  /**
+   * Convert row to avro record and publish to pubsub topic.
+   *
+   * @param row to publish
+   * @param parent span to propagate tracing
+   * @return always returns true
+   */
   public Boolean publishRecord(Row row, Span parent) {
     // TODO(xjdr): Throw if empty optional
     log.debug("Processing Record");

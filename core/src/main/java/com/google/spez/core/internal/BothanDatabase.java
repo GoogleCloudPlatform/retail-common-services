@@ -34,6 +34,13 @@ public class BothanDatabase implements Database {
     this.database = database;
   }
 
+  /**
+   * Asynchronously open a database.
+   *
+   * @param settings Settings to open the database
+   * @param service service to use for async
+   * @return a Database wrapped in a ListenableFuture
+   */
   public static ListenableFuture<Database> openDatabaseAsync(
       Settings settings, ListeningExecutorService service) {
     ListenableFuture<com.google.spannerclient.Database> dbFuture =

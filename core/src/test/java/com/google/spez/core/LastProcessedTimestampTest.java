@@ -18,7 +18,12 @@ package com.google.spez.core;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.Database;
+import com.google.cloud.spanner.InstanceId;
+import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.TransactionContext;
+import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.testing.RemoteSpannerHelper;
 import java.io.IOException;
 import java.util.List;
@@ -42,7 +47,8 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
                     + "  instance STRING(MAX) NOT NULL,\n"
                     + "  database STRING(MAX) NOT NULL,\n"
                     + "  table STRING(MAX) NOT NULL,\n"
-                    + "  CommitTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true),\n"
+                    + "  CommitTimestamp TIMESTAMP NOT NULL"
+                    + " OPTIONS (allow_commit_timestamp=true),\n"
                     + "  LastProcessedTimestamp TIMESTAMP NOT NULL,\n"
                     + ") PRIMARY KEY (instance, database, table)"));
   }
@@ -91,8 +97,12 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
               @Override
               public Void run(TransactionContext transaction) throws Exception {
                 String sql =
-                    "INSERT INTO lpts (instance, database, table, CommitTimestamp, LastProcessedTimestamp) VALUES"
-                        + "('"
+                    "INSERT INTO lpts ("
+                        + "instance, "
+                        + "database, "
+                        + "table, "
+                        + "CommitTimestamp, "
+                        + "LastProcessedTimestamp) VALUES ('"
                         + INSTANCE_ID
                         + "', '"
                         + database.getId().getDatabase()

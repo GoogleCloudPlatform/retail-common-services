@@ -280,10 +280,10 @@ public class SpezConfig {
   }
 
   /** SpezConfig log helper. */
-  public static void logParsedValues(Config config, List<String> CONFIG_KEYS) {
+  public static void logParsedValues(Config config, List<String> configKeys) {
     log.info("=============================================");
     log.info("Spez configured with the following properties");
-    for (var key : CONFIG_KEYS) {
+    for (var key : configKeys) {
       if (key.equals(AUTH_SCOPES_KEY)) {
         log.info("{}={}", key, config.getStringList(key));
       } else {
@@ -295,14 +295,7 @@ public class SpezConfig {
 
   /** SpezConfig value object parser. */
   public static SpezConfig parse(Config config) {
-    AuthConfig.Parser authParser = AuthConfig.newParser(BASE_NAME);
-    AuthConfig auth = authParser.parse(config);
-    PubSubConfig pubsub = PubSubConfig.parse(config);
-    SinkConfig sink = SinkConfig.parse(config, auth.getCredentials());
-    StackdriverConfig.Parser stackdriverParser = StackdriverConfig.newParser(BASE_NAME);
-    StackdriverConfig stackdriver = stackdriverParser.parse(config);
-    LptsConfig lpts = LptsConfig.parse(config, auth.getCredentials());
-    List<String> CONFIG_KEYS =
+    List<String> configKeys =
         Lists.newArrayList(
             PROJECT_ID_KEY,
             AUTH_CLOUD_SECRETS_DIR_KEY,
@@ -325,9 +318,16 @@ public class SpezConfig {
             LPTS_INSTANCE_KEY,
             LPTS_DATABASE_KEY,
             LPTS_TABLE_KEY);
-    CONFIG_KEYS.addAll(authParser.configKeys());
-    CONFIG_KEYS.addAll(stackdriverParser.configKeys());
-    logParsedValues(config, CONFIG_KEYS);
+    AuthConfig.Parser authParser = AuthConfig.newParser(BASE_NAME);
+    StackdriverConfig.Parser stackdriverParser = StackdriverConfig.newParser(BASE_NAME);
+    configKeys.addAll(authParser.configKeys());
+    configKeys.addAll(stackdriverParser.configKeys());
+    logParsedValues(config, configKeys);
+    AuthConfig auth = authParser.parse(config);
+    PubSubConfig pubsub = PubSubConfig.parse(config);
+    SinkConfig sink = SinkConfig.parse(config, auth.getCredentials());
+    StackdriverConfig stackdriver = stackdriverParser.parse(config);
+    LptsConfig lpts = LptsConfig.parse(config, auth.getCredentials());
 
     return new SpezConfig(auth, pubsub, sink, stackdriver, lpts);
   }

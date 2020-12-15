@@ -16,7 +16,12 @@
 
 package com.google.spez.core;
 
-import com.google.cloud.spanner.*;
+import com.google.cloud.spanner.InstanceAdminClient;
+import com.google.cloud.spanner.InstanceConfigId;
+import com.google.cloud.spanner.InstanceId;
+import com.google.cloud.spanner.InstanceInfo;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.spez.common.Inexcusables;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -31,6 +36,7 @@ public class SpannerIntegrationTest {
   protected static String projectId;
   private static InstanceAdminClient instanceAdmin;
 
+  /** setup before all tests. */
   @BeforeAll
   public static void setUpBase() {
     var credsFile = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");

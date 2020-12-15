@@ -28,6 +28,12 @@ public class SpezTagging {
   // frontendKey allows us to break down the recorded data.
   public static final TagKey TAILER_TABLE_KEY = TagKey.create("spez/keys/tailer-table");
 
+  /**
+   * Created a scoped tag for a given tableName.
+   *
+   * @param tableName name of the table
+   * @return a scoped tag
+   */
   public Scope tagFor(String tableName) {
     Scope scopedTags =
         tagger

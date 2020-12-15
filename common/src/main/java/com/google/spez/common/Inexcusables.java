@@ -21,6 +21,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 public class Inexcusables {
+  /**
+   * get a future without interruption, converting checked exceptions to RuntimeException.
+   *
+   * @param future get this future
+   * @param <V> of type V
+   * @return return future value
+   */
   public static <V> V getInexcusably(Future<V> future) {
     try {
       return Uninterruptibles.getUninterruptibly(future);

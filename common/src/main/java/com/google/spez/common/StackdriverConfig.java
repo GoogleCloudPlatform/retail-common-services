@@ -22,19 +22,19 @@ import java.util.List;
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class StackdriverConfig {
   public static class Parser {
-    private final String PROJECT_ID_KEY;
+    private final String projectIdKey;
 
     public Parser(String baseKeyPath) {
-      PROJECT_ID_KEY = baseKeyPath + ".project_id";
+      projectIdKey = baseKeyPath + ".project_id";
     }
 
     /** StackdriverConfig value object parser. */
     public StackdriverConfig parse(Config config) {
-      return new StackdriverConfig(config.getString(PROJECT_ID_KEY));
+      return new StackdriverConfig(config.getString(projectIdKey));
     }
 
     public List<String> configKeys() {
-      return List.of(PROJECT_ID_KEY);
+      return List.of(projectIdKey);
     }
   }
 

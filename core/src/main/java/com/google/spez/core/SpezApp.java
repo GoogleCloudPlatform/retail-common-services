@@ -32,6 +32,13 @@ import org.slf4j.LoggerFactory;
 public class SpezApp {
   private static final Logger log = LoggerFactory.getLogger(SpezApp.class);
 
+  /**
+   * run a SpezApp with the given config.
+   *
+   * @param config configures the SpezApp
+   * @throws ExecutionException task aborted exception.
+   * @throws InterruptedException task interrupted exception.
+   */
   public static void run(SpezConfig config) throws ExecutionException, InterruptedException {
     LoggerDumper.dump();
 

@@ -34,13 +34,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
-/** This class published events from Cloud Spanner to Pub/Sub */
+/** This class published events from Cloud Spanner to Pub/Sub. */
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class GaxEventPublisher {
   private static final Logger log = LoggerFactory.getLogger(GaxEventPublisher.class);
 
   private final Publisher publisher;
 
+  /**
+   * Constructor.
+   *
+   * @param projectId project id to publish to
+   * @param topic topic to publish to
+   */
   public GaxEventPublisher(String projectId, String topic) {
     Preconditions.checkNotNull(projectId);
     Preconditions.checkNotNull(topic);
@@ -115,6 +121,12 @@ public class GaxEventPublisher {
     return new ApiFutureToListenableFuture<String>(future);
   }
 
+  /**
+   * extract a string from a throwable.
+   *
+   * @param throwable throwable to extract from
+   * @return a human readable error message
+   */
   public String extractError(Throwable throwable) {
     if (throwable instanceof ApiException) {
       ApiException apiException = ((ApiException) throwable);

@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 public class LoggerDumper {
   private static final Logger log = LoggerFactory.getLogger(LoggerDumper.class);
 
+  /** logs the level of all known loggers. */
   public static void dump() {
     log.debug("Dumping all known Loggers");
     LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();

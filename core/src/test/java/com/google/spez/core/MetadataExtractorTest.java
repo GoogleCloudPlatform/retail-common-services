@@ -16,8 +16,6 @@
 
 package com.google.spez.core;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import com.google.cloud.Timestamp;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.Value;

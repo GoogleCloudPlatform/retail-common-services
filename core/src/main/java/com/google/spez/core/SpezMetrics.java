@@ -24,8 +24,6 @@ import io.opencensus.stats.StatsRecorder;
 import io.opencensus.stats.View;
 import io.opencensus.stats.ViewData;
 import io.opencensus.stats.ViewManager;
-import io.opencensus.tags.Tagger;
-import io.opencensus.tags.Tags;
 import java.util.Arrays;
 import java.util.Collections;
 import org.slf4j.Logger;
@@ -33,7 +31,6 @@ import org.slf4j.LoggerFactory;
 
 public class SpezMetrics {
   private static final Logger log = LoggerFactory.getLogger(SpezMetrics.class);
-  private static final Tagger tagger = Tags.getTagger();
   private static final ViewManager viewManager = Stats.getViewManager();
   private static final StatsRecorder statsRecorder = Stats.getStatsRecorder();
 

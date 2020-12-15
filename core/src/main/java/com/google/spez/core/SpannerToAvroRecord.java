@@ -228,7 +228,8 @@ public class SpannerToAvroRecord {
       DatumWriter<GenericRecord> datumWriter =
           new GenericDatumWriter<GenericRecord>(schemaSet.avroSchema());
       DataFileWriter<GenericRecord> writer =
-          new DataFileWriter(datumWriter).create(schemaSet.avroSchema(), outputStream, syncMarker);
+          new DataFileWriter<GenericRecord>(datumWriter)
+              .create(schemaSet.avroSchema(), outputStream, syncMarker);
       writer.append(record);
       writer.close();
 

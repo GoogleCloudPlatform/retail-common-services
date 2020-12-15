@@ -24,7 +24,7 @@ import java.util.Map;
 public class MetadataExtractor {
 
   private final SpezConfig config;
-  private final ImmutableMap base;
+  private final ImmutableMap<String, String> base;
 
   public MetadataExtractor(SpezConfig config) {
     this.config = config;
@@ -32,7 +32,7 @@ public class MetadataExtractor {
   }
 
   public Map<String, String> extract(Row row) {
-    var metadata = Maps.newHashMap(base);
+    Map<String, String> metadata = Maps.newHashMap(base);
 
     String uuid = Long.toString(row.getLong(config.getSink().getUuidColumn()));
     String commitTimestamp = row.getTimestamp(config.getSink().getTimestampColumn()).toString();

@@ -20,8 +20,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.spez.core.internal.Row;
 import com.google.spez.core.internal.RowCursor;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import org.apache.avro.Schema;
@@ -31,7 +29,6 @@ import org.slf4j.LoggerFactory;
 
 public class SpannerToAvroSchema {
   private static final Logger log = LoggerFactory.getLogger(SpannerToAvroSchema.class);
-  private static final ByteBufAllocator alloc = PooledByteBufAllocator.DEFAULT;
 
   private SpannerToAvroSchema() {}
 

@@ -36,6 +36,7 @@ import com.google.spannerclient.Publisher;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
 import io.opencensus.common.Scope;
+import io.opencensus.metrics.data.AttachmentValue;
 import io.opencensus.stats.Aggregation;
 import io.opencensus.stats.Measure.MeasureLong;
 import io.opencensus.stats.Stats;
@@ -44,6 +45,7 @@ import io.opencensus.stats.View;
 import io.opencensus.stats.View.Name;
 import io.opencensus.stats.ViewManager;
 import io.opencensus.tags.TagKey;
+import io.opencensus.tags.TagMetadata;
 import io.opencensus.tags.TagValue;
 import io.opencensus.tags.Tags;
 import io.opencensus.trace.Span;
@@ -96,12 +98,19 @@ public class EventPublisher {
       }
       for (int i = 0; i < sink.size(); i++) {
         var payload = sink.get(i);
-        String uuid = payload.message.getAttributes().get(SpezConfig.SINK_UUID_KEY);
+        String uuid = payload.message.getAttributesMap().get(SpezConfig.SINK_UUID_KEY);
         statsRecorder
             .newMeasureMap()
             .put(MSG_PUBLISHED, 1)
-            .putAttachment("attach_uuid", uuid)
-            .record(Tags.getTagger().currentBuilder().put(TAG_UUID, TagValue.create(uuid)).build());
+            .putAttachment("attach_uuid", AttachmentValue.AttachmentValueString.create(uuid))
+            .record(
+                Tags.getTagger()
+                    .currentBuilder()
+                    .put(
+                        TAG_UUID,
+                        TagValue.create(uuid),
+                        TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                    .build());
         String result = "UNAVAILABLE";
         if (i < response.getMessageIdsCount()) {
           payload.future.set(response.getMessageIds(i));
@@ -314,8 +323,15 @@ public class EventPublisher {
     statsRecorder
         .newMeasureMap()
         .put(MSG_RECEIVED, 1)
-        .putAttachment("attach_uuid", uuid)
-        .record(Tags.getTagger().currentBuilder().put(TAG_UUID, TagValue.create(uuid)).build());
+        .putAttachment("attach_uuid", AttachmentValue.AttachmentValueString.create(uuid))
+        .record(
+            Tags.getTagger()
+                .currentBuilder()
+                .put(
+                    TAG_UUID,
+                    TagValue.create(uuid),
+                    TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                .build());
     log.info("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap

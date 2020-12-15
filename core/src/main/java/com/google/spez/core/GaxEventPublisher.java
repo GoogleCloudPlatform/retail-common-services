@@ -28,8 +28,6 @@ import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import org.slf4j.Logger;
@@ -103,8 +101,6 @@ public class GaxEventPublisher {
     Preconditions.checkNotNull(timestamp);
     Preconditions.checkNotNull(executor);
 
-    final List<ApiFuture<String>> pubSubFutureList = new ArrayList<>();
-
     PubsubMessage.Builder messageBuilder = PubsubMessage.newBuilder().setData(data);
 
     messageBuilder.putAttributes("Timestamp", timestamp);
@@ -118,7 +114,7 @@ public class GaxEventPublisher {
 
     ApiFuture<String> future = publisher.publish(messageBuilder.build());
     // TODO(pdex): use the executor to transform the ApiFuture?
-    return new ApiFutureToListenableFuture(future);
+    return new ApiFutureToListenableFuture<String>(future);
   }
 
   public String extractError(Throwable throwable) {

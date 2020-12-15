@@ -45,7 +45,7 @@ public class WorkStealingHandler {
   private final AtomicLong records = new AtomicLong(0);
   private final AtomicLong errors = new AtomicLong(0);
   private final AtomicLong published = new AtomicLong(0);
-  private final AtomicReference<String> lastProcessedTimestamp = new AtomicReference("");
+  private final AtomicReference<String> lastProcessedTimestamp = new AtomicReference<String>("");
   private final Instant then = Instant.now();
   private final Runtime runtime = Runtime.getRuntime();
   private final NumberFormat formatter = NumberFormat.getInstance();

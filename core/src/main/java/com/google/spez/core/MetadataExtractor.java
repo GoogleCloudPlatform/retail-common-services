@@ -18,21 +18,28 @@ package com.google.spez.core;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.spannerclient.Row;
+import com.google.spez.core.internal.Row;
 import java.util.Map;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class MetadataExtractor {
 
   private final SpezConfig config;
-  private final ImmutableMap base;
+  private final ImmutableMap<String, String> base;
 
   public MetadataExtractor(SpezConfig config) {
     this.config = config;
     this.base = ImmutableMap.copyOf(config.getBaseMetadata());
   }
 
+  /**
+   * extract metadata for a given row.
+   *
+   * @param row metadata is retrieved from this
+   * @return a map of metadata key value pairs
+   */
   public Map<String, String> extract(Row row) {
-    var metadata = Maps.newHashMap(base);
+    Map<String, String> metadata = Maps.newHashMap(base);
 
     String uuid = Long.toString(row.getLong(config.getSink().getUuidColumn()));
     String commitTimestamp = row.getTimestamp(config.getSink().getTimestampColumn()).toString();

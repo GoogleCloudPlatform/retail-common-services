@@ -23,8 +23,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
-import com.google.spannerclient.Row;
-import com.google.spez.core.SpannerToAvro.SchemaSet;
+import com.google.spez.core.internal.Row;
 import io.opencensus.trace.Span;
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -37,7 +36,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WorkStealingHandler implements SpannerEventHandler {
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
+public class WorkStealingHandler {
   private static final Logger log = LoggerFactory.getLogger(WorkStealingHandler.class);
 
   private final ExecutorService workStealingPool = Executors.newWorkStealingPool();
@@ -46,7 +46,7 @@ public class WorkStealingHandler implements SpannerEventHandler {
   private final AtomicLong records = new AtomicLong(0);
   private final AtomicLong errors = new AtomicLong(0);
   private final AtomicLong published = new AtomicLong(0);
-  private final AtomicReference<String> lastProcessedTimestamp = new AtomicReference("");
+  private final AtomicReference<String> lastProcessedTimestamp = new AtomicReference<String>("");
   private final Instant then = Instant.now();
   private final Runtime runtime = Runtime.getRuntime();
   private final NumberFormat formatter = NumberFormat.getInstance();
@@ -91,31 +91,48 @@ public class WorkStealingHandler implements SpannerEventHandler {
         formatter.format(runtime.maxMemory()));
   }
 
-  public Boolean publishRecord(Row s, Span parent) {
+  /**
+   * Convert row to avro record and publish to pubsub topic.
+   *
+   * @param row to publish
+   * @param parent span to propagate tracing
+   * @return always returns true
+   */
+  public Boolean publishRecord(Row row, Span parent) {
     // TODO(xjdr): Throw if empty optional
     log.debug("Processing Record");
-    String timestamp = s.getTimestamp(schemaSet.tsColName()).toString();
+    String timestamp = row.getTimestamp(schemaSet.tsColName()).toString();
     lastProcessedTimestamp.set(timestamp);
-
-    ListenableFuture<Optional<ByteString>> record =
-        forkJoinPool.submit(() -> SpannerToAvro.MakeRecord(schemaSet, s));
 
     log.debug("Record Processed, getting ready to publish");
 
-    var metadata = extractor.extract(s);
+    var metadata = extractor.extract(row);
+    /*
+        ListenableFuture<Optional<ByteString>> record =
+            forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null));
 
-    AsyncFunction<Optional<ByteString>, String> pub =
-        new AsyncFunction<Optional<ByteString>, String>() {
-          @Override
-          public ListenableFuture<String> apply(Optional<ByteString> record) {
-            return publisher.publish(record.get(), metadata, parent);
-          }
-        };
 
-    ListenableFuture<String> resp = Futures.transformAsync(record, pub, forkJoinPool);
+        AsyncFunction<Optional<ByteString>, String> pub =
+            new AsyncFunction<Optional<ByteString>, String>() {
+              @Override
+              public ListenableFuture<String> apply(Optional<ByteString> avroRecord) {
+                return publisher.publish(avroRecord.get(), metadata, parent);
+              }
+            };
+
+        ListenableFuture<String> resp = Futures.transformAsync(record, pub, forkJoinPool);
+    */
 
     Futures.addCallback(
-        resp,
+        Futures.transformAsync(
+            forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null)),
+            new AsyncFunction<Optional<ByteString>, String>() {
+              @Override
+              public ListenableFuture<String> apply(Optional<ByteString> avroRecord) {
+                return publisher.publish(avroRecord.get(), metadata, parent);
+              }
+            },
+            forkJoinPool),
         new FutureCallback<String>() {
 
           @Override
@@ -145,7 +162,6 @@ public class WorkStealingHandler implements SpannerEventHandler {
    *     pooling strategies
    * @param timestamp the Cloud Spanner Commit Timestamp for the event
    */
-  @Override
   public ListenableFuture<Boolean> process(int bucket, Row s, String timestamp, Span parent) {
     records.incrementAndGet();
 

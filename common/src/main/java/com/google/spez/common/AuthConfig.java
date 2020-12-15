@@ -26,29 +26,35 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class AuthConfig {
   public static class Parser {
-    private final String AUTH_CLOUD_SECRETS_DIR_KEY;
-    private final String AUTH_CREDENTIALS_KEY;
-    private final String AUTH_SCOPES_KEY;
+    private final String authCloudSecretsDirKey;
+    private final String authCredentialsKey;
+    private final String authScopesKey;
 
+    /**
+     * Parser constructor.
+     *
+     * @param baseKeyPath key path to base this parser on top of
+     */
     public Parser(String baseKeyPath) {
-      AUTH_CLOUD_SECRETS_DIR_KEY = baseKeyPath + ".auth.cloud_secrets_dir";
-      AUTH_CREDENTIALS_KEY = baseKeyPath + ".auth.credentials";
-      AUTH_SCOPES_KEY = baseKeyPath + ".auth.scopes";
+      authCloudSecretsDirKey = baseKeyPath + ".auth.cloud_secrets_dir";
+      authCredentialsKey = baseKeyPath + ".auth.credentials";
+      authScopesKey = baseKeyPath + ".auth.scopes";
     }
 
     /** AuthConfig value object parser. */
     public AuthConfig parse(Config config) {
       return new AuthConfig(
-          AUTH_CLOUD_SECRETS_DIR_KEY,
-          config.getString(AUTH_CLOUD_SECRETS_DIR_KEY),
-          config.getString(AUTH_CREDENTIALS_KEY),
-          config.getStringList(AUTH_SCOPES_KEY));
+          authCloudSecretsDirKey,
+          config.getString(authCloudSecretsDirKey),
+          config.getString(authCredentialsKey),
+          config.getStringList(authScopesKey));
     }
 
     public List<String> configKeys() {
-      return List.of(AUTH_CLOUD_SECRETS_DIR_KEY, AUTH_CREDENTIALS_KEY, AUTH_SCOPES_KEY);
+      return List.of(authCloudSecretsDirKey, authCredentialsKey, authScopesKey);
     }
   }
 
@@ -86,16 +92,20 @@ public class AuthConfig {
           throw new RuntimeException(secretsDirKey + " '" + cloudSecretsDir + "' does not exist");
         }
         var listing = java.util.Arrays.asList(dir.list());
-        var suggest = "";
+        var suggest = new StringBuilder();
         if (listing.size() > 0) {
           var joiner = new java.util.StringJoiner("', or '");
           for (var file : listing) {
             joiner.add(file);
           }
           var candidates = joiner.toString();
-          suggest = ", did you mean '" + candidates + "'";
+          suggest.append(", did you mean '").append(candidates).append("'");
         }
-        log.error("{} does not exist in directory {}{}", credentialsFile, cloudSecretsDir, suggest);
+        log.error(
+            "{} does not exist in directory {}{}",
+            credentialsFile,
+            cloudSecretsDir,
+            suggest.toString());
       }
       var stream = new FileInputStream(path.toFile());
       credentials = GoogleCredentials.fromStream(stream).createScoped(scopes);

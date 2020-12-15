@@ -25,6 +25,7 @@ import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.spannerclient.Publisher;
+import com.google.spez.common.UsefulExecutors;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Span;
 import java.util.List;
@@ -40,12 +41,16 @@ import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 @ExtendWith(MockitoExtension.class)
-public class TestEventPublisher implements WithAssertions {
+public class EventPublisherTest implements WithAssertions {
 
   @Mock private ListeningScheduledExecutorService scheduler;
 
   @Mock private Publisher publisher;
+
+  static String EVENT = "event";
+  static String UUID = "uuid-value";
 
   @Test
   public void shouldBufferMessage(@Mock Span parent) {
@@ -53,14 +58,15 @@ public class TestEventPublisher implements WithAssertions {
     // buffer size 100 will not publish
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
 
-    var event = ByteString.copyFromUtf8("event");
-    var attributes = Map.of(SpezConfig.SINK_UUID_KEY, "uuid-value");
+    var event = ByteString.copyFromUtf8(EVENT);
+    var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
     var future = eventPublisher.publish(event, attributes, parent);
     assertThat(eventPublisher.bufferSize).hasValue(1);
     assertThat(future).isNotNull();
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void shouldStartScheduler(@Mock ListenableScheduledFuture future) {
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
     Mockito.when(
@@ -77,7 +83,7 @@ public class TestEventPublisher implements WithAssertions {
   @Test
   public void scheduledTaskErrorsAreLogged() {
     var scheduler = UsefulExecutors.listeningScheduler();
-    EventPublisher eventPublisher =
+    EventPublisher eventPublisher = // NOPMD
         new EventPublisher(
             scheduler,
             publisher,
@@ -103,14 +109,15 @@ public class TestEventPublisher implements WithAssertions {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void publishBeforeDeadline(@Mock Span parent, @Mock ListenableFuture submitFuture) {
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 1, 100);
 
     Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
-    var event = ByteString.copyFromUtf8("event");
-    var attributes = Map.of(SpezConfig.SINK_UUID_KEY, "uuid-value");
+    var event = ByteString.copyFromUtf8(EVENT);
+    var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
     var future = eventPublisher.publish(event, attributes, parent);
     assertThat(eventPublisher.bufferSize).hasValue(1);
     assertThat(future).isNotNull();
@@ -119,6 +126,7 @@ public class TestEventPublisher implements WithAssertions {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void publishBufferUpdatesBufferSize(
       @Mock Span parent,
       @Mock ListenableFuture submitFuture,
@@ -129,8 +137,8 @@ public class TestEventPublisher implements WithAssertions {
 
     Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
     Mockito.when(publisher.publish(Mockito.any(), Mockito.any())).thenReturn(publishFuture);
-    var event = ByteString.copyFromUtf8("event");
-    var attributes = Map.of(SpezConfig.SINK_UUID_KEY, "uuid-value");
+    var event = ByteString.copyFromUtf8(EVENT);
+    var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
     var future = eventPublisher.publish(event, attributes, parent);
     assertThat(eventPublisher.bufferSize).hasValue(1);
     assertThat(future).isNotNull();
@@ -142,12 +150,12 @@ public class TestEventPublisher implements WithAssertions {
   @Test
   void callbackShouldAttachMessageId(@Mock Scope parent, @Mock PublishResponse response)
       throws ExecutionException, InterruptedException {
-    var event = ByteString.copyFromUtf8("event");
+    var event = ByteString.copyFromUtf8(EVENT);
     var message =
         PubsubMessage.newBuilder()
             .setData(event)
             .setOrderingKey("")
-            .putAttributes(SpezConfig.SINK_UUID_KEY, "uuid-value")
+            .putAttributes(SpezConfig.SINK_UUID_KEY, UUID)
             .build();
     SettableFuture<String> future = SettableFuture.create();
     var sink = List.of(new EventPublisher.BufferPayload(message, future, parent));

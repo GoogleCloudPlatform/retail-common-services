@@ -22,7 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-public class TestSpannerTailer implements WithAssertions {
+public class SpannerTailerTest implements WithAssertions {
 
   /*
    * SpannerTailer's last processed timestamp relies on records being processed IN ORDER
@@ -37,6 +37,7 @@ public class TestSpannerTailer implements WithAssertions {
     assertThat(query).isNotNull();
     assertThat(query)
         .isEqualTo(
-            "SELECT * FROM sink_table WHERE timestamp > '2019-08-08T20:30:39.802644Z' ORDER BY timestamp ASC");
+            "SELECT * FROM sink_table WHERE timestamp"
+                + " > '2019-08-08T20:30:39.802644Z' ORDER BY timestamp ASC");
   }
 }

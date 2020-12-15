@@ -24,6 +24,13 @@ import io.opencensus.trace.samplers.Samplers;
 import java.io.IOException;
 
 public class StackdriverConfigurator {
+  /**
+   * configures stackdriver based on the given config.
+   *
+   * @param config stackdriver config object
+   * @param authConfig auth config object
+   * @throws IOException exception thrown during network i/o
+   */
   public static void setupStackdriver(StackdriverConfig config, AuthConfig authConfig)
       throws IOException {
     // For demo purposes, always sample

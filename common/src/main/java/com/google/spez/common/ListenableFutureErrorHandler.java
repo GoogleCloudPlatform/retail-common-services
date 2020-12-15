@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.spez.core;
+package com.google.spez.common;
 
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.FutureCallback;
@@ -24,6 +24,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 // TODO(pdex): move this class into wingwalker-common
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class ListenableFutureErrorHandler {
 
   private final Executor executor;
@@ -37,6 +38,13 @@ public class ListenableFutureErrorHandler {
     this.callback = callback;
   }
 
+  /**
+   * creates a error handler for a ListenableFuture.
+   *
+   * @param executor executes the error callback
+   * @param future future that error callback is applied to
+   * @param callback called when the future fails
+   */
   public static void create(
       Executor executor, ListenableFuture future, Consumer<Throwable> callback) {
     Preconditions.checkNotNull(executor, "executor must not be null");

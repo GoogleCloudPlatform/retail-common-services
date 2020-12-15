@@ -74,6 +74,7 @@ dependencies {
   testImplementation("org.mockito:mockito-inline:3.5.2")
   testImplementation("org.mockito:mockito-junit-jupiter:3.5.2")
   testImplementation("org.assertj:assertj-core:3.16.1")
+  testImplementation("com.google.cloud:google-cloud-spanner:2.0.2")
   testImplementation(Config.Libs.logback_classic)
   testImplementation(Config.Libs.logback_core)
   testImplementation(Config.Libs.groovy) // For logback
@@ -84,10 +85,15 @@ tasks.test {
   testLogging {
     events("passed", "skipped", "failed")
   }
+  environment["GOOGLE_APPLICATION_CREDENTIALS"] = System.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+  environment["GOOGLE_CLOUD_PROJECT"] = System.getenv("GOOGLE_CLOUD_PROJECT")
+  //systemProperties["gcp.credentials.file"] = project.properties["gcp.credentials.file"]
 }
 
 // ErrorProne
 tasks.withType<JavaCompile>().configureEach {
+  options.compilerArgs.add("-Xlint:unchecked")
+  options.isDeprecation = true
   options.errorprone.excludedPaths.set(".*/gen/.*")
   options.errorprone.disableWarningsInGeneratedCode.set(true)
 

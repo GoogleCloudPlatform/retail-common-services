@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package com.google.spez.cdc;
+package com.google.spez.core;
 
-import com.google.spez.common.StackdriverConfigurator;
-import com.google.spez.core.SpezApp;
-import com.google.spez.core.SpezConfig;
-import com.typesafe.config.ConfigFactory;
-import io.opencensus.contrib.zpages.ZPageHandlers;
+import io.opencensus.common.Scope;
+import io.opencensus.trace.Span;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 
-class Main {
-  public static void main(String[] args) throws Exception {
-    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
+public class SpezTracing {
+  private static final Tracer tracer = Tracing.getTracer();
 
-    StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
+  @SuppressWarnings("MustBeClosedChecker")
+  public Scope processRowScope() {
+    return tracer.spanBuilder("SpannerTailer.processRow").startScopedSpan();
+  }
 
-    ZPageHandlers.startHttpServerAndRegisterAll(8887);
-
-    SpezApp.run(config);
+  public Span currentSpan() {
+    return tracer.getCurrentSpan();
   }
 }

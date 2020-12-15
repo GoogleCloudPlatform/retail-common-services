@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package com.google.spez.cdc;
+package com.google.spez.common;
 
-import com.google.spez.common.StackdriverConfigurator;
-import com.google.spez.core.SpezApp;
-import com.google.spez.core.SpezConfig;
-import com.typesafe.config.ConfigFactory;
-import io.opencensus.contrib.zpages.ZPageHandlers;
+import com.google.auto.value.AutoValue;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 
-class Main {
-  public static void main(String[] args) throws Exception {
-    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
-
-    StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
-
-    ZPageHandlers.startHttpServerAndRegisterAll(8887);
-
-    SpezApp.run(config);
+@AutoValue
+public abstract class ScheduledActionBuilder {
+  public static ScheduledActionBuilder create() {
+    return null; // new AutoValue_ScheduledActionBuilder();
   }
+
+  public abstract ListeningScheduledExecutorService scheduler();
+
+  public abstract String initialDelay();
+
+  public abstract String period();
+
+  public abstract Runnable runnable();
 }

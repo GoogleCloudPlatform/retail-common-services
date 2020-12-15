@@ -33,7 +33,10 @@ import com.google.spannerclient.Options;
 import com.google.spannerclient.PubSub;
 import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
+import com.google.spez.common.ListenableFutureErrorHandler;
+import com.google.spez.common.UsefulExecutors;
 import io.opencensus.common.Scope;
+import io.opencensus.metrics.data.AttachmentValue;
 import io.opencensus.stats.Aggregation;
 import io.opencensus.stats.Measure.MeasureLong;
 import io.opencensus.stats.Stats;
@@ -42,6 +45,7 @@ import io.opencensus.stats.View;
 import io.opencensus.stats.View.Name;
 import io.opencensus.stats.ViewManager;
 import io.opencensus.tags.TagKey;
+import io.opencensus.tags.TagMetadata;
 import io.opencensus.tags.TagValue;
 import io.opencensus.tags.Tags;
 import io.opencensus.trace.Span;
@@ -57,7 +61,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** This class published events from Cloud Spanner to Pub/Sub */
+/** This class published events from Cloud Spanner to Pub/Sub. */
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class EventPublisher {
 
   public static class BufferPayload {
@@ -65,6 +70,13 @@ public class EventPublisher {
     final SettableFuture<String> future;
     final Scope scope;
 
+    /**
+     * Constructor.
+     *
+     * @param message pubsub message
+     * @param future completion future
+     * @param scope trace propagation
+     */
     public BufferPayload(PubsubMessage message, SettableFuture<String> future, Scope scope) {
       this.message = message;
       this.future = future;
@@ -94,18 +106,26 @@ public class EventPublisher {
       }
       for (int i = 0; i < sink.size(); i++) {
         var payload = sink.get(i);
-        String uuid = payload.message.getAttributes().get(SpezConfig.SINK_UUID_KEY);
+        String uuid = payload.message.getAttributesMap().get(SpezConfig.SINK_UUID_KEY);
         statsRecorder
             .newMeasureMap()
             .put(MSG_PUBLISHED, 1)
-            .putAttachment("attach_uuid", uuid)
-            .record(Tags.getTagger().currentBuilder().put(TAG_UUID, TagValue.create(uuid)).build());
-        String result = "UNAVAILABLE";
+            .putAttachment("attach_uuid", AttachmentValue.AttachmentValueString.create(uuid))
+            .record(
+                Tags.getTagger()
+                    .currentBuilder()
+                    .put(
+                        TAG_UUID,
+                        TagValue.create(uuid),
+                        TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                    .build());
+        String result;
         if (i < response.getMessageIdsCount()) {
           payload.future.set(response.getMessageIds(i));
           result = response.getMessageIds(i);
         } else {
           payload.future.set("UNAVAILABLE");
+          result = "UNAVAILABLE";
         }
         log.info("Published message uuid {}, set future to '{}'", uuid, result);
       }
@@ -166,6 +186,15 @@ public class EventPublisher {
   private final Publisher publisher;
   @VisibleForTesting final Runnable runPublishBuffer;
 
+  /**
+   * constructor visible for testing.
+   *
+   * @param scheduler scheduler service
+   * @param publisher publisher
+   * @param publishSize publish size
+   * @param publishTime publish time
+   * @param runPublishBuffer runnable to perform publishing
+   */
   @VisibleForTesting
   public EventPublisher(
       ListeningScheduledExecutorService scheduler,
@@ -196,6 +225,12 @@ public class EventPublisher {
     this(scheduler, publisher, publishSize, publishTime, null);
   }
 
+  /**
+   * create an EventPublisher from a config.
+   *
+   * @param config used to configure the EventPublisher
+   * @return an EventPublisher instance
+   */
   public static EventPublisher create(SpezConfig config) {
     Preconditions.checkNotNull(config);
     var scheduler = UsefulExecutors.listeningScheduler();
@@ -226,7 +261,7 @@ public class EventPublisher {
 
   @SuppressWarnings("MustBeClosedChecker")
   private ListenableFuture<String> addToBuffer(PubsubMessage message, Span parent) {
-    Scope scopedSpan =
+    Scope scopedSpan = // NOPMD
         tracer.spanBuilderWithExplicitParent("EventPublisher.publish", parent).startScopedSpan();
     SettableFuture<String> future = SettableFuture.create();
     buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, scopedSpan));
@@ -253,7 +288,7 @@ public class EventPublisher {
   void publishBuffer() {
     ArrayList<BufferPayload> sink = new ArrayList<>();
     int numberDrained = buffer.drainTo(sink);
-    ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained);
+    ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained); // NOPMD
     for (var payload : sink) {
       messages.add(payload.message);
     }
@@ -296,7 +331,7 @@ public class EventPublisher {
    *
    * @param data Body of the Pub/Sub message
    * @param attrMap Attribute Map of data to be published as metadata with your message
-   * @param timestamp the Commit Timestamp of the Spanner Record to be published
+   * @param parent propagate tracing
    */
   public ListenableFuture<String> publish(
       ByteString data, Map<String, String> attrMap, Span parent) {
@@ -312,8 +347,15 @@ public class EventPublisher {
     statsRecorder
         .newMeasureMap()
         .put(MSG_RECEIVED, 1)
-        .putAttachment("attach_uuid", uuid)
-        .record(Tags.getTagger().currentBuilder().put(TAG_UUID, TagValue.create(uuid)).build());
+        .putAttachment("attach_uuid", AttachmentValue.AttachmentValueString.create(uuid))
+        .record(
+            Tags.getTagger()
+                .currentBuilder()
+                .put(
+                    TAG_UUID,
+                    TagValue.create(uuid),
+                    TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                .build());
     log.info("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap

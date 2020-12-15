@@ -1,0 +1,70 @@
+/*
+ * Copyright 2020 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.spez.core;
+
+import com.google.spez.core.internal.RowCursor;
+
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
+class TimestampColumnChecker {
+  private final SpezConfig.SinkConfig config;
+  private boolean tableExists = false;
+  private boolean columnExists = false;
+  private boolean optionExists = false;
+  private boolean valueTrue = false;
+
+  public TimestampColumnChecker(SpezConfig.SinkConfig config) {
+    this.config = config;
+  }
+
+  public void checkRow(RowCursor rc) {
+    tableExists = true;
+    if (rc.getString("COLUMN_NAME").equals(config.getTimestampColumn())) {
+      columnExists = true;
+      if (rc.getString("OPTION_NAME").equals("allow_commit_timestamp")) {
+        optionExists = true;
+      }
+      if (rc.getString("OPTION_VALUE").equals("TRUE")) {
+        valueTrue = true;
+      }
+    }
+  }
+
+  public void throwIfInvalid() {
+    if (tableExists && columnExists && optionExists && valueTrue) {
+      return;
+    }
+
+    String tableDescription = (tableExists ? "it does" : "it doesn't");
+    String columnDescription = (columnExists ? "it does" : "it doesn't");
+    String optionDescription = (optionExists ? "it does" : "it doesn't");
+    String valueDescription = (valueTrue ? "it is" : "it isn't");
+    throw new IllegalStateException(
+        "Spanner table '"
+            + config.tablePath()
+            + "' must exist ("
+            + tableDescription
+            + ") and contain a column named '"
+            + config.getTimestampColumn()
+            + "' ("
+            + columnDescription
+            + ") of type TIMESTAMP with the allow_commit_timestamp option ("
+            + optionDescription
+            + ") set to TRUE ("
+            + valueDescription
+            + ")");
+  }
+}

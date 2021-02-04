@@ -62,57 +62,27 @@ public class SpannerToAvroRecord {
     switch (arrayTypeString) {
       case "BOOL":
         log.debug("Put BOOL");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getBooleanList(columnName));
-        }
-
+        record.put(columnName, resultSet.getBooleanList(columnName));
         break;
       case "BYTES":
         log.debug("Put BYTES");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getBytesList(columnName));
-        }
-
+        record.put(columnName, resultSet.getBytesList(columnName));
         break;
       case "DATE":
         log.debug("Put DATE");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getStringList(columnName));
-        }
-
+        record.put(columnName, resultSet.getStringList(columnName));
         break;
       case "FLOAT64":
         log.debug("Put FLOAT64");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getDoubleList(columnName));
-        }
-
+        record.put(columnName, resultSet.getDoubleList(columnName));
         break;
       case "INT64":
         log.debug("Put INT64");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getLongList(columnName));
-        }
-
+        record.put(columnName, resultSet.getLongList(columnName));
         break;
       case "STRING(MAX)":
         log.debug("Put STRING");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getStringList(columnName));
-        }
-
+        record.put(columnName, resultSet.getStringList(columnName));
         break;
       case "TIMESTAMP":
         // Timestamp lists are not supported as of now
@@ -127,87 +97,46 @@ public class SpannerToAvroRecord {
   public static void addColumn(GenericRecord record, String columnName, Row resultSet, SchemaSet schemaSet) {
     log.debug("Column Name: " + columnName);
     log.debug("Data Type: " + schemaSet.spannerSchema().get(columnName));
+    if (resultSet.isNull(columnName)) {
+      record.put(columnName, null);
+      return;
+    }
     switch (schemaSet.spannerSchema().get(columnName)) {
       case "ARRAY":
         addArrayColumn(record, columnName, resultSet, schemaSet);
-
         break;
       case "BOOL":
         log.debug("Put BOOL");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getBoolean(columnName));
-        }
-
+        record.put(columnName, resultSet.getBoolean(columnName));
         break;
       case "BYTES":
         log.debug("Put BYTES");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getBytes(columnName));
-        }
-
+        record.put(columnName, resultSet.getBytes(columnName));
         break;
       case "DATE":
         log.debug("Put DATE");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getDate(columnName).toString());
-        }
-
+        record.put(columnName, resultSet.getDate(columnName).toString());
         break;
       case "FLOAT64":
         log.debug("Put FLOAT64");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getDouble(columnName));
-        }
-
+        record.put(columnName, resultSet.getDouble(columnName));
         break;
       case "INT64":
         log.debug("Put INT64");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-          log.debug("INT64 NULL OK");
-        } else {
-          record.put(columnName, resultSet.getLong(columnName));
-          log.debug("INT64 OK");
-        }
-
+        record.put(columnName, resultSet.getLong(columnName));
         break;
       case "STRING(MAX)":
         log.debug("Put STRING");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-          log.debug("STRING(MAX) NULL OK");
-        } else {
-          record.put(columnName, resultSet.getString(columnName));
-          log.debug("STRING(MAX) OK");
-        }
+        record.put(columnName, resultSet.getString(columnName));
         break;
       case "TIMESTAMP":
         log.debug("Put TIMESTAMP");
-        if (resultSet.isNull(columnName)) {
-          record.put(columnName, null);
-        } else {
-          record.put(columnName, resultSet.getTimestamp(columnName).toString());
-        }
-
+        record.put(columnName, resultSet.getTimestamp(columnName).toString());
         break;
       default:
         if (schemaSet.spannerSchema().get(columnName).contains("STRING")) {
           log.debug("Put STRING");
-          if (resultSet.isNull(columnName)) {
-            record.put(columnName, null);
-            log.debug("STRING NULL OK");
-          } else {
-            record.put(columnName, resultSet.getString(columnName));
-          }
-
+          record.put(columnName, resultSet.getString(columnName));
         } else {
           log.error(
               "Unknown Data type when generating Avro Record: "

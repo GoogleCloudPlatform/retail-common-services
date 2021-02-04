@@ -24,16 +24,16 @@ steps:
   - |-
     sed -e 's/IMAGE_TAG/$SHORT_SHA/g' < .cloudbuild-kubernetes/deployment.template.yaml > .cloudbuild-kubernetes/deployment.yaml
     cat .cloudbuild-kubernetes/deployment.yaml
-- id: 'deploy spez prod image'
-  name: gcr.io/cloud-builders/kubectl
-  env:
-  - 'KUBECTL_VERSION=1.17'
-  - 'CLOUDSDK_COMPUTE_REGION=us-central1'
-  - 'CLOUDSDK_CONTAINER_CLUSTER=spez'
-  args:
-  - apply
-  - -f
-  - .cloudbuild-kubernetes/deployment.yaml
+#- id: 'deploy spez prod image'
+#  name: gcr.io/cloud-builders/kubectl
+#  env:
+#  - 'KUBECTL_VERSION=1.17'
+#  - 'CLOUDSDK_COMPUTE_REGION=us-central1'
+#  - 'CLOUDSDK_CONTAINER_CLUSTER=spez'
+#  args:
+#  - apply
+#  - -f
+#  - .cloudbuild-kubernetes/deployment.yaml
 - id: 'push latest for tagged commits'
   name: 'gcr.io/cloud-builders/docker'
   entrypoint: '/bin/bash'
@@ -50,8 +50,5 @@ steps:
         docker push gcr.io/$PROJECT_ID/$REPO_NAME:latest
       fi
     fi
-- id: 'test force'
-  name: 'bash'
-  args: [ '-c', 'echo force build again, again, again' ]
 #images:
 #  - 'gcr.io/$PROJECT_ID/$REPO_NAME:$SHORT_SHA'

@@ -22,14 +22,11 @@ import org.apache.avro.Schema;
 
 @AutoValue
 public abstract class SchemaSet {
-  static SchemaSet create(
-      Schema avroSchema, ImmutableMap<String, String> spannerSchema, String tsColName) {
-    return new AutoValue_SchemaSet(avroSchema, spannerSchema, tsColName);
+  static SchemaSet create(Schema avroSchema, ImmutableMap<String, String> spannerSchema) {
+    return new AutoValue_SchemaSet(avroSchema, spannerSchema);
   }
 
   abstract Schema avroSchema();
 
   abstract ImmutableMap<String, String> spannerSchema();
-
-  public abstract String tsColName();
 }

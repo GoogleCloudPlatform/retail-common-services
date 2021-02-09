@@ -29,6 +29,7 @@ import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions {
@@ -58,6 +59,7 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
   }
 
   @Test
+  @EnabledIfEnvironmentVariable(named = "INTEGRATION_TESTS", matches = "true")
   void getSchema() throws IOException {
     var sinkConfig =
         new SpezConfig.SinkConfig(
@@ -106,6 +108,5 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
             TIMESTAMP,
             "TIMESTAMP");
     assertThat(result.spannerSchema()).containsExactlyInAnyOrderEntriesOf(expectedSchema);
-    assertThat(result.tsColName()).isEqualTo(TIMESTAMP);
   }
 }

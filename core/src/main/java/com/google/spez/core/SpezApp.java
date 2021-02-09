@@ -56,7 +56,7 @@ public class SpezApp {
     SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
     SchemaSet schemaSet = spannerSchema.getSchema();
     log.info("Successfully Processed the Table Schema. Starting the tailer now ...");
-    var handler = new WorkStealingHandler(schemaSet, publisher, extractor);
+    var handler = new WorkStealingHandler(schemaSet, config.getSink(), publisher, extractor);
     String databasePath = config.getSink().databasePath();
     log.info("Building database with path '{}'", databasePath);
     var legacyDatabase =

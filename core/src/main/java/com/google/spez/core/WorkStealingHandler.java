@@ -52,6 +52,7 @@ public class WorkStealingHandler {
   private final NumberFormat formatter = NumberFormat.getInstance();
 
   private final SchemaSet schemaSet;
+  private final SpezConfig.SinkConfig sinkConfig;
   private final EventPublisher publisher;
   private final MetadataExtractor extractor;
 
@@ -63,8 +64,12 @@ public class WorkStealingHandler {
    * @param extractor description
    */
   public WorkStealingHandler(
-      SchemaSet schemaSet, EventPublisher publisher, MetadataExtractor extractor) {
+      SchemaSet schemaSet,
+      SpezConfig.SinkConfig sinkConfig,
+      EventPublisher publisher,
+      MetadataExtractor extractor) {
     this.schemaSet = schemaSet;
+    this.sinkConfig = sinkConfig;
     this.publisher = publisher;
     this.extractor = extractor;
   }
@@ -101,7 +106,7 @@ public class WorkStealingHandler {
   public Boolean publishRecord(Row row, Span parent) {
     // TODO(xjdr): Throw if empty optional
     log.debug("Processing Record");
-    String timestamp = row.getTimestamp(schemaSet.tsColName()).toString();
+    String timestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
     lastProcessedTimestamp.set(timestamp);
 
     log.debug("Record Processed, getting ready to publish");
@@ -125,7 +130,13 @@ public class WorkStealingHandler {
 
     Futures.addCallback(
         Futures.transformAsync(
-            forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null)),
+            forkJoinPool.submit(
+                () -> {
+                  var tableName = sinkConfig.getTable();
+                  var avroNamespace = "avroNamespace"; // TODO(pdex): move to config
+                  var schema = SpannerToAvroSchema.buildSchema(tableName, avroNamespace, row);
+                  return SpannerToAvroRecord.makeRecord(schema, row);
+                }),
             new AsyncFunction<Optional<ByteString>, String>() {
               @Override
               public ListenableFuture<String> apply(Optional<ByteString> avroRecord) {

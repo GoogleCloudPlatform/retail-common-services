@@ -91,6 +91,11 @@ public class BothanRow implements Row {
   }
 
   @Override
+  public List<Date> getDateList(String columnName) {
+    return row.getDateList(columnName);
+  }
+
+  @Override
   public double getDouble(String columnName) {
     return row.getDouble(columnName);
   }
@@ -103,5 +108,15 @@ public class BothanRow implements Row {
   @Override
   public Timestamp getTimestamp(String columnName) {
     return row.getTimestamp(columnName);
+  }
+
+  @Override
+  public List<Timestamp> getTimestampList(String columnName) {
+    return row.getTimestampList(columnName);
+  }
+
+  @Override
+  public Type getType() {
+    return row.getType();
   }
 }

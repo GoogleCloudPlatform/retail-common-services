@@ -23,6 +23,7 @@ import com.google.cloud.Timestamp;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.ListValue;
 import com.google.protobuf.NullValue;
 import com.google.protobuf.Value;
 import com.google.spanner.v1.StructType;
@@ -33,8 +34,10 @@ import com.google.spez.core.internal.Row;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.avro.Schema;
@@ -135,7 +138,7 @@ class SpannerToAvroRecordTest implements WithAssertions {
   private SchemaSet buildSchemaSet(Schema avroSchema, String fieldName, Type fieldType) {
     var spannerType = fieldType.getCode().name();
     var schemaMap = ImmutableMap.of(fieldName, spannerType);
-    return SchemaSet.create(avroSchema, schemaMap, "");
+    return SchemaSet.create(avroSchema, schemaMap);
   }
 
   @Test
@@ -207,12 +210,104 @@ class SpannerToAvroRecordTest implements WithAssertions {
     }
   }
 
+  private void runArrayTest(
+      Schema avroSchema,
+      String fieldName,
+      Object fieldValue,
+      Object itemValue,
+      Type rowType,
+      ListValue rowValue) {
+    var row = of(fieldName, rowType, Value.newBuilder().setListValue(rowValue).build());
+    var syncMarker = generateSync();
+    var schemaSet = buildSchemaSet(avroSchema, fieldName, rowType);
+    Optional<ByteString> record =
+        SpannerToAvroRecord.makeRecord(schemaSet.avroSchema(), row, syncMarker);
+    var expectedBytes = getExpectedBytes(avroSchema, fieldName, fieldValue, syncMarker);
+    logBytestrings(record.get(), expectedBytes);
+
+    var actualValue = deserialize(record.get()).get(fieldName);
+    assertThat(actualValue).isInstanceOf(List.class);
+    if (actualValue instanceof List) {
+      var listValue = (List) actualValue;
+      var listItemValue = listValue.get(0);
+      if (listItemValue instanceof Utf8) {
+        listItemValue = listItemValue.toString();
+      }
+      assertThat(listItemValue).isInstanceOf(itemValue.getClass());
+      assertThat(listItemValue).isEqualTo(itemValue);
+    }
+    // check that actual value is instance of field value class and is equal to field value
+    // TODO(pdex): not sure how to check list instance
+    // assertThat(actualValue).isInstanceOf(fieldValue.getClass()).isEqualTo(fieldValue);
+    // assertThat(actualValue).isEqualTo(fieldValue);
+    assertThat(record.get().toByteArray()).isEqualTo(expectedBytes.toByteArray());
+  }
+
+  // ARRAY BOOL
+  @Test
+  void makeRecordWithArrayBoolean() {
+    var fieldName = "testArrayBool"; // NOPMD
+    var itemValue = false;
+    var fieldValue = List.of(itemValue);
+    var avroSchema = schemaField(fieldName).optional().array().items().booleanType().endRecord();
+    var fieldType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(Type.newBuilder().setCode(TypeCode.BOOL))
+            .build();
+    var rowValue =
+        ListValue.newBuilder()
+            .addValues(Value.newBuilder().setBoolValue(itemValue).build())
+            .build();
+    runArrayTest(avroSchema, fieldName, fieldValue, itemValue, fieldType, rowValue);
+  }
+
+  // ARRAY BYTES
+  @Test
+  void makeRecordWithArrayBytes() {
+    var fieldName = "testArrayBytes"; // NOPMD
+    var itemValue = ByteBuffer.wrap("bytes".getBytes(UTF_8));
+    var fieldValue = List.of(itemValue);
+    var avroSchema = schemaField(fieldName).optional().array().items().bytesType().endRecord();
+    var fieldType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(Type.newBuilder().setCode(TypeCode.BYTES))
+            .build();
+    var rowValue =
+        ListValue.newBuilder()
+            .addValues(
+                Value.newBuilder().setStringValue(new String(itemValue.array(), UTF_8)).build())
+            .build();
+    runArrayTest(avroSchema, fieldName, fieldValue, itemValue, fieldType, rowValue);
+  }
+
+  // ARRAY DATE
+  @Test
+  void makeRecordWithArrayDate() {
+    var fieldName = "testArrayDate"; // NOPMD
+    var itemValue = "2021-01-01";
+    var fieldValue = List.of(itemValue);
+    var avroSchema = schemaField(fieldName).optional().array().items().stringType().endRecord();
+    var fieldType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(Type.newBuilder().setCode(TypeCode.DATE))
+            .build();
+    var rowValue =
+        ListValue.newBuilder()
+            .addValues(Value.newBuilder().setStringValue(itemValue).build())
+            .build();
+    runArrayTest(avroSchema, fieldName, fieldValue, itemValue, fieldType, rowValue);
+  }
+
   private void runTest(
       Schema avroSchema, String fieldName, Object fieldValue, Type rowType, Value rowValue) {
     var row = of(fieldName, rowType, rowValue);
     var syncMarker = generateSync();
     var schemaSet = buildSchemaSet(avroSchema, fieldName, rowType);
-    Optional<ByteString> record = SpannerToAvroRecord.makeRecord(schemaSet, row, syncMarker);
+    Optional<ByteString> record =
+        SpannerToAvroRecord.makeRecord(schemaSet.avroSchema(), row, syncMarker);
     var expectedBytes = getExpectedBytes(avroSchema, fieldName, fieldValue, syncMarker);
     logBytestrings(record.get(), expectedBytes);
 
@@ -222,6 +317,82 @@ class SpannerToAvroRecordTest implements WithAssertions {
     }
     assertThat(actualValue).isInstanceOf(fieldValue.getClass()).isEqualTo(fieldValue);
     assertThat(record.get().toByteArray()).isEqualTo(expectedBytes.toByteArray());
+  }
+
+  // ARRAY FLOAT64
+  @Test
+  void makeRecordWithArrayFloat64() {
+    var fieldName = "testArrayFloat64"; // NOPMD
+    var itemValue = 1.0;
+    var fieldValue = List.of(itemValue);
+    var avroSchema = schemaField(fieldName).optional().array().items().doubleType().endRecord();
+    var fieldType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(Type.newBuilder().setCode(TypeCode.FLOAT64))
+            .build();
+    var rowValue =
+        ListValue.newBuilder()
+            .addValues(Value.newBuilder().setNumberValue(itemValue).build())
+            .build();
+    runArrayTest(avroSchema, fieldName, fieldValue, itemValue, fieldType, rowValue);
+  }
+
+  // ARRAY INT64
+  @Test
+  void makeRecordWithArrayInt64() {
+    var fieldName = "testArrayInt64"; // NOPMD
+    var itemValue = 1L;
+    var fieldValue = List.of(itemValue);
+    var avroSchema = schemaField(fieldName).optional().array().items().longType().endRecord();
+    var fieldType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(Type.newBuilder().setCode(TypeCode.INT64))
+            .build();
+    var rowValue =
+        ListValue.newBuilder()
+            .addValues(Value.newBuilder().setStringValue(Long.toString(itemValue)).build())
+            .build();
+    runArrayTest(avroSchema, fieldName, fieldValue, itemValue, fieldType, rowValue);
+  }
+
+  // ARRAY STRING
+  @Test
+  void makeRecordWithArrayString() {
+    var fieldName = "testArrayString"; // NOPMD
+    var itemValue = "string";
+    var fieldValue = List.of(itemValue);
+    var avroSchema = schemaField(fieldName).optional().array().items().stringType().endRecord();
+    var fieldType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(Type.newBuilder().setCode(TypeCode.STRING))
+            .build();
+    var rowValue =
+        ListValue.newBuilder()
+            .addValues(Value.newBuilder().setStringValue(itemValue).build())
+            .build();
+    runArrayTest(avroSchema, fieldName, fieldValue, itemValue, fieldType, rowValue);
+  }
+
+  // ARRAY TIMESTAMP
+  @Test
+  void makeRecordWithArrayTimestamp() {
+    var fieldName = "testArrayTimestamp"; // NOPMD
+    var itemValue = "2021-01-01T00:00:00Z";
+    var fieldValue = List.of(itemValue);
+    var avroSchema = schemaField(fieldName).optional().array().items().stringType().endRecord();
+    var fieldType =
+        Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(Type.newBuilder().setCode(TypeCode.TIMESTAMP))
+            .build();
+    var rowValue =
+        ListValue.newBuilder()
+            .addValues(Value.newBuilder().setStringValue(itemValue).build())
+            .build();
+    runArrayTest(avroSchema, fieldName, fieldValue, itemValue, fieldType, rowValue);
   }
 
   // BOOL
@@ -279,7 +450,8 @@ class SpannerToAvroRecordTest implements WithAssertions {
     var rowValue = Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build();
     var row = of(fieldName, fieldType, rowValue);
     var syncMarker = generateSync();
-    Optional<ByteString> record = SpannerToAvroRecord.makeRecord(schemaSet, row, syncMarker);
+    Optional<ByteString> record =
+        SpannerToAvroRecord.makeRecord(schemaSet.avroSchema(), row, syncMarker);
     var expectedBytes = getExpectedBytes(avroSchema, fieldName, fieldValue, syncMarker);
     logBytestrings(record.get(), expectedBytes);
 

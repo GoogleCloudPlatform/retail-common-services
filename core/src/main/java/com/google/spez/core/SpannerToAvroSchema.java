@@ -18,6 +18,7 @@ package com.google.spez.core;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.spanner.v1.Type;
 import com.google.spez.core.internal.Row;
 import com.google.spez.core.internal.RowCursor;
 import java.util.LinkedHashMap;
@@ -31,6 +32,94 @@ public class SpannerToAvroSchema {
   private static final Logger log = LoggerFactory.getLogger(SpannerToAvroSchema.class);
 
   private SpannerToAvroSchema() {}
+
+  public static void addArrayField(
+      Type type, SchemaBuilder.ArrayBuilder<SchemaBuilder.FieldAssembler<Schema>> schema) {
+    var builder = schema.items();
+    switch (type.getCode()) {
+      case ARRAY:
+        addArrayField(type.getArrayElementType(), builder.array());
+        break;
+      case BOOL:
+        builder.booleanType();
+        break;
+      case BYTES:
+        builder.bytesType();
+        break;
+      case DATE:
+        builder.stringType();
+        break;
+      case FLOAT64:
+        builder.doubleType();
+        break;
+      case INT64:
+        builder.longType();
+        break;
+        // TODO(pdex): handle new NUMERIC type code
+        // case NUMERIC:
+        //   break;
+      case STRING:
+        builder.stringType();
+        break;
+      case STRUCT:
+        break;
+      case TIMESTAMP:
+        builder.stringType();
+        break;
+      case TYPE_CODE_UNSPECIFIED:
+      default:
+        break;
+    }
+  }
+
+  public static void addField(String name, Type type, SchemaBuilder.FieldAssembler<Schema> schema) {
+    var builder = schema.name(name).type().optional();
+    switch (type.getCode()) {
+      case ARRAY:
+        addArrayField(type.getArrayElementType(), builder.array());
+        break;
+      case BOOL:
+        builder.booleanType();
+        break;
+      case BYTES:
+        builder.bytesType();
+        break;
+      case DATE:
+        builder.stringType();
+        break;
+      case FLOAT64:
+        builder.doubleType();
+        break;
+      case INT64:
+        builder.longType();
+        break;
+        // TODO(pdex): handle new NUMERIC type code
+        // case NUMERIC:
+        //   break;
+      case STRING:
+        builder.stringType();
+        break;
+      case STRUCT:
+        break;
+      case TIMESTAMP:
+        builder.stringType();
+        break;
+      case TYPE_CODE_UNSPECIFIED:
+      default:
+        break;
+    }
+  }
+
+  public static Schema buildSchema(String tableName, String avroNamespace, Row row) {
+    SchemaBuilder.FieldAssembler<Schema> avroSchemaBuilder =
+        SchemaBuilder.record(tableName).namespace(avroNamespace).fields();
+    var struct = row.getType().getStructType();
+    var fields = struct.getFieldsList();
+    for (var field : fields) {
+      addField(field.getName(), field.getType(), avroSchemaBuilder);
+    }
+    return avroSchemaBuilder.endRecord();
+  }
 
   /**
    * builds a SchemaSet object.
@@ -151,6 +240,6 @@ public class SpannerToAvroSchema {
       log.info("--------------------------- " + avroSchema.toString());
     }
 
-    return SchemaSet.create(avroSchema, ImmutableMap.copyOf(spannerSchema), tsColName);
+    return SchemaSet.create(avroSchema, ImmutableMap.copyOf(spannerSchema));
   }
 }

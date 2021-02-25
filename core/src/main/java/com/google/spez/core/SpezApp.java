@@ -59,13 +59,9 @@ public class SpezApp {
     var handler = new WorkStealingHandler(schemaSet, publisher, extractor);
     String databasePath = config.getSink().databasePath();
     log.info("Building database with path '{}'", databasePath);
-    var legacyDatabase =
-        Spanner.openDatabaseAsync(
-                Options.DEFAULT(), databasePath, config.getAuth().getCredentials())
-            .get();
 
     final SpannerTailer tailer =
-        new SpannerTailer(config, legacyDatabase, handler, lastProcessedTimestamp);
+        new SpannerTailer(config, database, handler, lastProcessedTimestamp);
     tailer.start();
     var schedulerFuture =
         scheduler.scheduleAtFixedRate(

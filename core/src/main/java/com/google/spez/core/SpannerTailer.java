@@ -23,14 +23,12 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.spannerclient.Database;
 import com.google.spannerclient.Query;
 import com.google.spannerclient.QueryOptions;
-import com.google.spannerclient.Row;
-import com.google.spannerclient.Spanner;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
-import com.google.spez.core.internal.BothanRow;
+import com.google.spez.core.internal.Row;
+import com.google.spez.core.internal.Database;
 import io.grpc.stub.StreamObserver;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Span;
@@ -146,17 +144,20 @@ public class SpannerTailer {
       log.info("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
-      Spanner.executeStreaming(
-          QueryOptions.newBuilder()
-              .setReadOnly(true)
-              .setStale(true)
-              .setMaxStaleness(500)
-              .build(), // TODO(pdex): move to sinkConfig
-          database,
-          new RowStreamObserver(records, then),
-          Query.create(
-              buildLptsTableQuery(
-                  sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp)));
+      var options =
+        QueryOptions.newBuilder()
+          .setReadOnly(true)
+          .setStale(true)
+          .setMaxStaleness(500)
+          .build(); // TODO(pdex): move to sinkConfig
+      var observer = new RowStreamObserver(records, then);
+      var query = Query.create(
+        buildLptsTableQuery(
+          sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp));
+
+      database.executeStreaming(
+        options, observer, query
+      );
     } catch (Exception e) {
       log.error("Caught error while polling", e);
       running.decrementAndGet();
@@ -179,7 +180,8 @@ public class SpannerTailer {
     metrics.logStats();
   }
 
-  private void convertAndPublish(com.google.spannerclient.Row row) {
+  //TODO(pdex): move this into the work stealing handler
+  private void convertAndPublish(Row row) {
     try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
       //    try (Scope ss = tracer.spanBuilder("SpannerTailer.processRow").startScopedSpan()) {
       try (Scope ss = tracing.processRowScope()) {
@@ -187,7 +189,7 @@ public class SpannerTailer {
 
         final Timestamp timestamp = row.getTimestamp(sinkConfig.getTimestampColumn());
 
-        ListenableFuture<Boolean> result = handler.process(0, new BothanRow(row), "", span);
+        ListenableFuture<Boolean> result = handler.process(0, row, "", span);
         lastProcessedTimestamp = timestamp.toString();
         Futures.addCallback(
             result,

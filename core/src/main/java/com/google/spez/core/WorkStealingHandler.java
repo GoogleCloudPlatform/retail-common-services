@@ -125,7 +125,7 @@ public class WorkStealingHandler {
 
     Futures.addCallback(
         Futures.transformAsync(
-            forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row, null)),
+            forkJoinPool.submit(() -> SpannerToAvroRecord.makeRecord(schemaSet, row)),
             new AsyncFunction<Optional<ByteString>, String>() {
               @Override
               public ListenableFuture<String> apply(Optional<ByteString> avroRecord) {

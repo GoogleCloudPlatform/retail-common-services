@@ -52,6 +52,8 @@ public interface Row {
   long getLong(String columnName);
 
   Timestamp getTimestamp(String columnName);
+
+  long getSize();
   /*
   Type getType();
     int getColumnCount();

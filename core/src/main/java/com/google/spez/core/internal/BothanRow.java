@@ -104,4 +104,9 @@ public class BothanRow implements Row {
   public Timestamp getTimestamp(String columnName) {
     return row.getTimestamp(columnName);
   }
+
+  @Override
+  public long getSize() {
+    return row.getSize();
+  }
 }

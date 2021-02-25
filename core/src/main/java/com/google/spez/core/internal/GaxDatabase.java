@@ -20,9 +20,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.spannerclient.Query;
 import com.google.spannerclient.QueryOptions;
-import com.google.spannerclient.Spanner;
 import io.grpc.stub.StreamObserver;
-
 import java.io.IOException;
 
 public class GaxDatabase implements Database {
@@ -37,10 +35,8 @@ public class GaxDatabase implements Database {
   }
 
   @Override
-  public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, Query query) {
-  }
+  public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, Query query) {}
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 }

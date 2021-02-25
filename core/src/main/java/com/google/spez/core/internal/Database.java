@@ -21,9 +21,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.spannerclient.Query;
 import com.google.spannerclient.QueryOptions;
 import io.grpc.stub.StreamObserver;
-
 import java.io.Closeable;
-import java.io.IOException;
 
 public interface Database extends Closeable {
   ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service);

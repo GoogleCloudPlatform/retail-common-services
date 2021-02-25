@@ -26,11 +26,7 @@ import com.google.spannerclient.Settings;
 import com.google.spannerclient.Spanner;
 import com.google.spez.common.Inexcusables;
 import io.grpc.stub.StreamObserver;
-
 import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicLong;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class BothanDatabase implements Database {
@@ -82,7 +78,8 @@ public class BothanDatabase implements Database {
     database.close();
   }
 
-  private static class DelegatingStreamObserver implements StreamObserver<com.google.spannerclient.Row> {
+  private static class DelegatingStreamObserver
+      implements StreamObserver<com.google.spannerclient.Row> {
     private StreamObserver<Row> delegate;
 
     public DelegatingStreamObserver(StreamObserver<Row> delegate) {

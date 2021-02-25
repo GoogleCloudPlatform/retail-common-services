@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import com.google.spez.core.internal.Row;
+import io.opencensus.common.Scope;
 import io.opencensus.trace.Span;
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -36,9 +37,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO(pdex): rename to RowPublisher
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class WorkStealingHandler {
   private static final Logger log = LoggerFactory.getLogger(WorkStealingHandler.class);
+
+  private final SpezMetrics metrics = new SpezMetrics();
+  private final SpezTagging tagging = new SpezTagging();
+  private final SpezTracing tracing = new SpezTracing();
 
   private final ExecutorService workStealingPool = Executors.newWorkStealingPool();
   private final ListeningExecutorService forkJoinPool =
@@ -50,6 +56,8 @@ public class WorkStealingHandler {
   private final Instant then = Instant.now();
   private final Runtime runtime = Runtime.getRuntime();
   private final NumberFormat formatter = NumberFormat.getInstance();
+
+  private final SpezConfig.SinkConfig sinkConfig;
 
   private final SchemaSet schemaSet;
   private final EventPublisher publisher;
@@ -63,10 +71,58 @@ public class WorkStealingHandler {
    * @param extractor description
    */
   public WorkStealingHandler(
-      SchemaSet schemaSet, EventPublisher publisher, MetadataExtractor extractor) {
+      SpezConfig.SinkConfig sinkConfig,
+      SchemaSet schemaSet,
+      EventPublisher publisher,
+      MetadataExtractor extractor) {
+    this.sinkConfig = sinkConfig;
     this.schemaSet = schemaSet;
     this.publisher = publisher;
     this.extractor = extractor;
+  }
+
+  public String convertAndPublish(Row row) {
+    try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
+      try (Scope ss = tracing.processRowScope()) {
+        records.incrementAndGet();
+
+        Span span = tracing.currentSpan();
+
+        String publishId = null;
+        var metadata = extractor.extract(row);
+
+        var avroRecord = SpannerToAvroRecord.makeRecord(schemaSet, row);
+        var lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
+
+        var publishFuture = publisher.publish(avroRecord.get(), metadata, span);
+        try {
+          // Once published, returns server-assigned message ids
+          // (unique within the topic)
+          publishId = publishFuture.get();
+          published.incrementAndGet();
+          log.debug(
+              "Published message for timestamp '{}' with message id '{}'",
+              lastProcessedTimestamp,
+              publishId);
+        } catch (Exception ex) {
+          errors.incrementAndGet();
+          log.error("Error Publishing Record: ", ex);
+          throw new RuntimeException(ex);
+        }
+
+        metrics.addMessageSize(row.getSize());
+        return publishId;
+      }
+    }
+  }
+
+  // TODO(pdex): rename to publishRow
+  public String doAllTheThings(Row row) {
+    var lastProcessedTimestamp = "REPLACEME";
+
+    ListenableFuture<String> future = forkJoinPool.submit(() -> convertAndPublish(row));
+
+    return lastProcessedTimestamp;
   }
 
   /** log stats. */

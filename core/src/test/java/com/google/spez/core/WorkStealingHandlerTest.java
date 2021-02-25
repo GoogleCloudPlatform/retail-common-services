@@ -75,8 +75,7 @@ class WorkStealingHandlerTest implements WithAssertions {
             null, "sink-instance", "sink-database", "sink-table", "uuid", "timestamp", null);
     var config = new SpezConfig(null, pubsub, sink, null, null);
     var extractor = new MetadataExtractor(config);
-    var handler = new WorkStealingHandler(schemaSet, publisher, extractor);
-    var future = handler.process(0, row, "", parent);
-    future.get();
+    var handler = new WorkStealingHandler(sink, schemaSet, publisher, extractor);
+    var result = handler.convertAndPublish(row);
   }
 }

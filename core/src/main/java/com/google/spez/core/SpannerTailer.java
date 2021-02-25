@@ -27,8 +27,8 @@ import com.google.spannerclient.Query;
 import com.google.spannerclient.QueryOptions;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
-import com.google.spez.core.internal.Row;
 import com.google.spez.core.internal.Database;
+import com.google.spez.core.internal.Row;
 import io.grpc.stub.StreamObserver;
 import io.opencensus.common.Scope;
 import io.opencensus.trace.Span;
@@ -60,7 +60,6 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class SpannerTailer {
   private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
-  public static final int THREAD_POOL = 12; // TODO(pdex): move to config
 
   private final SpezMetrics metrics = new SpezMetrics();
   private final SpezTagging tagging = new SpezTagging();
@@ -145,19 +144,18 @@ public class SpannerTailer {
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
       var options =
-        QueryOptions.newBuilder()
-          .setReadOnly(true)
-          .setStale(true)
-          .setMaxStaleness(500)
-          .build(); // TODO(pdex): move to sinkConfig
+          QueryOptions.newBuilder()
+              .setReadOnly(true)
+              .setStale(true)
+              .setMaxStaleness(500)
+              .build(); // TODO(pdex): move to sinkConfig
       var observer = new RowStreamObserver(records, then);
-      var query = Query.create(
-        buildLptsTableQuery(
-          sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp));
+      var query =
+          Query.create(
+              buildLptsTableQuery(
+                  sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp));
 
-      database.executeStreaming(
-        options, observer, query
-      );
+      database.executeStreaming(options, observer, query);
     } catch (Exception e) {
       log.error("Caught error while polling", e);
       running.decrementAndGet();
@@ -180,7 +178,7 @@ public class SpannerTailer {
     metrics.logStats();
   }
 
-  //TODO(pdex): move this into the work stealing handler
+  // TODO(pdex): move this into the work stealing handler
   private void convertAndPublish(Row row) {
     try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
       //    try (Scope ss = tracer.spanBuilder("SpannerTailer.processRow").startScopedSpan()) {
@@ -227,7 +225,8 @@ public class SpannerTailer {
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.debug("onNext count = {}", count);
-      convertAndPublish(row);
+      handler.doAllTheThings(row);
+      lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
     }
 
     @Override

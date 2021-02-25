@@ -18,8 +18,6 @@ package com.google.spez.core;
 
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.spannerclient.Options;
-import com.google.spannerclient.Spanner;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.LoggerDumper;
 import com.google.spez.core.internal.BothanDatabase;
@@ -56,7 +54,7 @@ public class SpezApp {
     SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
     SchemaSet schemaSet = spannerSchema.getSchema();
     log.info("Successfully Processed the Table Schema. Starting the tailer now ...");
-    var handler = new WorkStealingHandler(schemaSet, publisher, extractor);
+    var handler = new WorkStealingHandler(config.getSink(), schemaSet, publisher, extractor);
     String databasePath = config.getSink().databasePath();
     log.info("Building database with path '{}'", databasePath);
 

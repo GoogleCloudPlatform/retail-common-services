@@ -67,8 +67,7 @@ class RowProcessorTest implements WithAssertions {
             .fields()
             .requiredBoolean("boolField")
             .endRecord();
-    SchemaSet schemaSet =
-        SchemaSet.create(avroSchema, ImmutableMap.of("key", "value"), "timestamp");
+    SchemaSet schemaSet = SchemaSet.create(avroSchema, ImmutableMap.of("key", "value"));
     var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic");
     var sink =
         new SpezConfig.SinkConfig(

@@ -111,6 +111,11 @@ public class BothanRow implements Row {
   }
 
   @Override
+  public long getSize() {
+    return row.getSize();
+  }
+
+  @Override
   public List<Timestamp> getTimestampList(String columnName) {
     return row.getTimestampList(columnName);
   }

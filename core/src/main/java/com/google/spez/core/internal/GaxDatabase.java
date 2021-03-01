@@ -18,6 +18,10 @@ package com.google.spez.core.internal;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.spannerclient.Query;
+import com.google.spannerclient.QueryOptions;
+import io.grpc.stub.StreamObserver;
+import java.io.IOException;
 
 public class GaxDatabase implements Database {
   @Override
@@ -29,4 +33,10 @@ public class GaxDatabase implements Database {
   public RowCursor execute(String query) {
     return null;
   }
+
+  @Override
+  public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, Query query) {}
+
+  @Override
+  public void close() throws IOException {}
 }

@@ -55,6 +55,8 @@ public interface Row {
 
   Timestamp getTimestamp(String columnName);
 
+  long getSize();
+
   List<Timestamp> getTimestampList(String columnName);
 
   Type getType();

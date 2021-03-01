@@ -25,6 +25,8 @@ import com.google.spannerclient.QueryOptions;
 import com.google.spannerclient.Settings;
 import com.google.spannerclient.Spanner;
 import com.google.spez.common.Inexcusables;
+import io.grpc.stub.StreamObserver;
+import java.io.IOException;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class BothanDatabase implements Database {
@@ -64,5 +66,39 @@ public class BothanDatabase implements Database {
   public RowCursor execute(String query) {
     return Inexcusables.getInexcusably(
         executeAsync(query, MoreExecutors.newDirectExecutorService()));
+  }
+
+  @Override
+  public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, Query query) {
+    Spanner.executeStreaming(options, database, new DelegatingStreamObserver(observer), query);
+  }
+
+  @Override
+  public void close() throws IOException {
+    database.close();
+  }
+
+  private static class DelegatingStreamObserver
+      implements StreamObserver<com.google.spannerclient.Row> {
+    private StreamObserver<Row> delegate;
+
+    public DelegatingStreamObserver(StreamObserver<Row> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void onNext(com.google.spannerclient.Row row) {
+      delegate.onNext(new BothanRow(row));
+    }
+
+    @Override
+    public void onError(Throwable t) {
+      delegate.onError(t);
+    }
+
+    @Override
+    public void onCompleted() {
+      delegate.onCompleted();
+    }
   }
 }

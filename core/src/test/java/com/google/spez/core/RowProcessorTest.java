@@ -18,7 +18,7 @@ package com.google.spez.core;
 
 import com.google.cloud.Timestamp;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.Value;
 import com.google.spanner.v1.StructType;
 import com.google.spanner.v1.Type;
@@ -26,15 +26,15 @@ import com.google.spanner.v1.TypeCode;
 import com.google.spez.core.internal.BothanRow;
 import com.google.spez.core.internal.Row;
 import io.opencensus.trace.Span;
-import org.apache.avro.SchemaBuilder;
 import org.assertj.core.api.WithAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class WorkStealingHandlerTest implements WithAssertions {
+class RowProcessorTest implements WithAssertions {
 
   @Test
   void logStats() {}
@@ -61,21 +61,16 @@ class WorkStealingHandlerTest implements WithAssertions {
             Value.newBuilder().setStringValue(timestamp.toString()).build());
     Row row = new BothanRow(new com.google.spannerclient.Row(fields, values));
 
-    var avroSchema =
-        SchemaBuilder.record("table")
-            .namespace("namespace")
-            .fields()
-            .requiredBoolean("boolField")
-            .endRecord();
-    SchemaSet schemaSet = SchemaSet.create(avroSchema, ImmutableMap.of("key", "value"));
     var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic");
     var sink =
         new SpezConfig.SinkConfig(
-            null, "sink-instance", "sink-database", "sink-table", "uuid", "timestamp", null);
+            null, "sink-instance", "sink-database", "sink_table", "uuid", "timestamp", null);
     var config = new SpezConfig(null, pubsub, sink, null, null);
     var extractor = new MetadataExtractor(config);
-    var handler = new WorkStealingHandler(schemaSet, sink, publisher, extractor);
-    var future = handler.process(0, row, "", parent);
-    future.get();
+    // ByteString data, Map<String, String> attrMap, Span parent
+    Mockito.when(publisher.publish(Mockito.any(), Mockito.any(), Mockito.any()))
+        .thenReturn(Futures.immediateFuture(""));
+    var handler = new RowProcessor(sink, publisher, extractor);
+    var result = handler.convertAndPublishTask(row);
   }
 }

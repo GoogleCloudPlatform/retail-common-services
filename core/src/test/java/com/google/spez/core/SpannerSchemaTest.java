@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
+@EnabledIfEnvironmentVariable(named = "INTEGRATION_TESTS", matches = "true")
 class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions {
   RemoteSpannerHelper helper;
   Database database;
@@ -59,7 +60,6 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
   }
 
   @Test
-  @EnabledIfEnvironmentVariable(named = "INTEGRATION_TESTS", matches = "true")
   void getSchema() throws IOException {
     var sinkConfig =
         new SpezConfig.SinkConfig(

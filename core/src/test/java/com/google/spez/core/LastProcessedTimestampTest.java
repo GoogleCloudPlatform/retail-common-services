@@ -34,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
+@EnabledIfEnvironmentVariable(named = "INTEGRATION_TESTS", matches = "true")
 public class LastProcessedTimestampTest extends SpannerIntegrationTest implements WithAssertions {
   RemoteSpannerHelper helper;
   Database database;
@@ -60,7 +61,6 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
   }
 
   @Test
-  @EnabledIfEnvironmentVariable(named = "INTEGRATION_TESTS", matches = "true")
   void noTimestampShouldThrow() throws IOException {
     var credentials = GoogleCredentials.getApplicationDefault(); // NOPMD
     var sink = // NOPMD
@@ -83,7 +83,6 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
   }
 
   @Test
-  @EnabledIfEnvironmentVariable(named = "INTEGRATION_TESTS", matches = "true")
   void findTimestampForTable() throws Exception {
     var credentials = GoogleCredentials.getApplicationDefault(); // NOPMD
     var setTimestamp = Timestamp.ofTimeSecondsAndNanos(0, 0);

@@ -18,9 +18,15 @@ package com.google.spez.core.internal;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.spannerclient.Query;
+import com.google.spannerclient.QueryOptions;
+import io.grpc.stub.StreamObserver;
+import java.io.Closeable;
 
-public interface Database {
+public interface Database extends Closeable {
   ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service);
+
+  void executeStreaming(QueryOptions options, StreamObserver<Row> handler, Query query);
 
   RowCursor execute(String query);
 }

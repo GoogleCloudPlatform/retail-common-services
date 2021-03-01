@@ -16,13 +16,8 @@
 
 package com.google.spez.core;
 
-import com.google.cloud.Timestamp;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spannerclient.Query;
 import com.google.spannerclient.QueryOptions;
 import com.google.spez.common.ListenableFutureErrorHandler;
@@ -30,9 +25,6 @@ import com.google.spez.common.UsefulExecutors;
 import com.google.spez.core.internal.Database;
 import com.google.spez.core.internal.Row;
 import io.grpc.stub.StreamObserver;
-import io.opencensus.common.Scope;
-import io.opencensus.trace.Span;
-import io.opencensus.trace.Status;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -67,7 +59,7 @@ public class SpannerTailer {
   private final AtomicLong running = new AtomicLong(0);
   private final SpezConfig.SinkConfig sinkConfig;
   private final Database database;
-  private final WorkStealingHandler handler;
+  private final RowProcessor handler;
   private final ListeningScheduledExecutorService scheduler;
   private String lastProcessedTimestamp;
 
@@ -80,10 +72,7 @@ public class SpannerTailer {
    * @param lastProcessedTimestamp initial last processed timestamp
    */
   public SpannerTailer(
-      SpezConfig config,
-      Database database,
-      WorkStealingHandler handler,
-      String lastProcessedTimestamp) {
+      SpezConfig config, Database database, RowProcessor handler, String lastProcessedTimestamp) {
     this.sinkConfig = config.getSink();
     this.database = database;
     this.handler = handler;
@@ -178,40 +167,6 @@ public class SpannerTailer {
     metrics.logStats();
   }
 
-  // TODO(pdex): move this into the work stealing handler
-  private void convertAndPublish(Row row) {
-    try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
-      //    try (Scope ss = tracer.spanBuilder("SpannerTailer.processRow").startScopedSpan()) {
-      try (Scope ss = tracing.processRowScope()) {
-        Span span = tracing.currentSpan();
-
-        final Timestamp timestamp = row.getTimestamp(sinkConfig.getTimestampColumn());
-
-        ListenableFuture<Boolean> result = handler.process(0, row, "", span);
-        lastProcessedTimestamp = timestamp.toString();
-        Futures.addCallback(
-            result,
-            new FutureCallback<Boolean>() {
-
-              @Override
-              public void onSuccess(Boolean result) {
-                ss.close();
-              }
-
-              @Override
-              public void onFailure(Throwable t) {
-                span.setStatus(Status.INTERNAL.withDescription(t.toString()));
-                ss.close();
-              }
-            },
-            MoreExecutors.directExecutor());
-      }
-      // processRow(row, sinkConfig);
-      lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
-      metrics.addMessageSize(row.getSize());
-    }
-  }
-
   private class RowStreamObserver implements StreamObserver<Row> {
     private final AtomicLong records;
     private final Instant then;
@@ -225,7 +180,7 @@ public class SpannerTailer {
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.debug("onNext count = {}", count);
-      handler.doAllTheThings(row);
+      handler.convertAndPublish(row);
       lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
     }
 

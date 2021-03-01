@@ -34,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class WorkStealingHandlerTest implements WithAssertions {
+class RowProcessorTest implements WithAssertions {
 
   @Test
   void logStats() {}
@@ -75,7 +75,7 @@ class WorkStealingHandlerTest implements WithAssertions {
             null, "sink-instance", "sink-database", "sink-table", "uuid", "timestamp", null);
     var config = new SpezConfig(null, pubsub, sink, null, null);
     var extractor = new MetadataExtractor(config);
-    var handler = new WorkStealingHandler(sink, schemaSet, publisher, extractor);
-    var result = handler.convertAndPublish(row);
+    var handler = new RowProcessor(sink, schemaSet, publisher, extractor);
+    var result = handler.convertAndPublishTask(row);
   }
 }

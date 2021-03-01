@@ -70,6 +70,9 @@ public class SpannerIntegrationTest {
 
   @AfterAll
   public static void tearDownBase() {
-    instanceAdmin.deleteInstance(INSTANCE_ID);
+
+    if (instanceAdmin != null) {
+      instanceAdmin.deleteInstance(INSTANCE_ID);
+    }
   }
 }

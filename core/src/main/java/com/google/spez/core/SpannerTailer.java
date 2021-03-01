@@ -54,8 +54,6 @@ public class SpannerTailer {
   private static final Logger log = LoggerFactory.getLogger(SpannerTailer.class);
 
   private final SpezMetrics metrics = new SpezMetrics();
-  private final SpezTagging tagging = new SpezTagging();
-  private final SpezTracing tracing = new SpezTracing();
   private final AtomicLong running = new AtomicLong(0);
   private final SpezConfig.SinkConfig sinkConfig;
   private final Database database;
@@ -86,6 +84,7 @@ public class SpannerTailer {
    * required in the table and will be maintained here. As of now, that field is hardcoded as
    * `Timestamp`.
    */
+  // TODO(pdex): move this out to SpezApp
   public void start() {
     var schedulerFuture =
         scheduler.scheduleAtFixedRate(
@@ -163,6 +162,7 @@ public class SpannerTailer {
     }
   }
 
+  // TODO(pdex): move this out to SpezApp
   public void logStats() {
     metrics.logStats();
   }

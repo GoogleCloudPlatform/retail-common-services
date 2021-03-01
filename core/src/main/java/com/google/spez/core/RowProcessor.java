@@ -44,7 +44,6 @@ public class RowProcessor {
 
   private final SpezConfig.SinkConfig sinkConfig;
 
-  private final SchemaSet schemaSet;
   private final EventPublisher publisher;
   private final MetadataExtractor extractor;
 
@@ -56,12 +55,8 @@ public class RowProcessor {
    * @param extractor description
    */
   public RowProcessor(
-      SpezConfig.SinkConfig sinkConfig,
-      SchemaSet schemaSet,
-      EventPublisher publisher,
-      MetadataExtractor extractor) {
+      SpezConfig.SinkConfig sinkConfig, EventPublisher publisher, MetadataExtractor extractor) {
     this.sinkConfig = sinkConfig;
-    this.schemaSet = schemaSet;
     this.publisher = publisher;
     this.extractor = extractor;
   }
@@ -73,30 +68,33 @@ public class RowProcessor {
 
         Span span = tracing.currentSpan();
 
-        String publishId = null;
         var metadata = extractor.extract(row);
 
-        var avroRecord = SpannerToAvroRecord.makeRecord(schemaSet, row);
-        var lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
+        var tableName = sinkConfig.getTable();
+        var avroNamespace = "avroNamespace"; // TODO(pdex): move to config
+        var schema = SpannerToAvroSchema.buildSchema(tableName, avroNamespace, row);
+        var avroRecord = SpannerToAvroRecord.makeRecord(schema, row);
 
         var publishFuture = publisher.publish(avroRecord.get(), metadata, span);
         try {
           // Once published, returns server-assigned message ids
           // (unique within the topic)
-          publishId = publishFuture.get();
+          var publishId = publishFuture.get();
           stats.incPublished();
-          log.debug(
-              "Published message for timestamp '{}' with message id '{}'",
-              lastProcessedTimestamp,
-              publishId);
+          if (log.isDebugEnabled()) {
+            log.debug(
+                "Published message for timestamp '{}' with message id '{}'",
+                metadata.get(SpezConfig.SINK_TIMESTAMP_KEY),
+                publishId);
+          }
+
+          metrics.addMessageSize(row.getSize());
+          return publishId;
         } catch (Exception ex) {
           stats.incErrors();
           log.error("Error Publishing Record: ", ex);
           throw new RuntimeException(ex);
         }
-
-        metrics.addMessageSize(row.getSize());
-        return publishId;
       }
     }
   }
@@ -114,6 +112,7 @@ public class RowProcessor {
   }
 
   /** log stats. */
+  // TODO(pdex): move this out to SpezApp
   public void logStats() {
     stats.logStats();
   }

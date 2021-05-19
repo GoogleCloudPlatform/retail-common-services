@@ -43,6 +43,7 @@ public class SpezConfig {
   public static final String LOGLEVEL_SPANNERCLIENT_KEY = "spez.loglevel.spannerclient";
   public static final String PUBSUB_PROJECT_ID_KEY = "spez.pubsub.project_id";
   public static final String PUBSUB_TOPIC_KEY = "spez.pubsub.topic";
+  public static final String PUBSUB_BUFFER_TIMEOUT_KEY = "spez.pubsub.buffer_timeout";
   public static final String SINK_PROJECT_ID_KEY = "spez.sink.project_id";
   public static final String SINK_INSTANCE_KEY = "spez.sink.instance";
   public static final String SINK_DATABASE_KEY = "spez.sink.database";
@@ -55,21 +56,26 @@ public class SpezConfig {
   public static final String LPTS_TABLE_KEY = "spez.lpts.table";
   public static final String SINK_UUID_KEY = "spez.sink.uuid";
   public static final String SINK_TIMESTAMP_KEY = "spez.sink.commit_timestamp";
+  public static final String SINK_POLL_RATE_KEY = "spez.sink.poll_rate";
 
   public static class PubSubConfig {
     private final String projectId;
     private final String topic;
+    private final int bufferTimeout;
 
     /** PubSubConfig value object constructor. */
-    public PubSubConfig(String projectId, String topic) {
+    public PubSubConfig(String projectId, String topic, int bufferTimeout) {
       this.projectId = projectId;
       this.topic = topic;
+      this.bufferTimeout = bufferTimeout;
     }
 
     /** PubSubConfig value object parser. */
     public static PubSubConfig parse(Config config) {
       return new PubSubConfig(
-          config.getString(PUBSUB_PROJECT_ID_KEY), config.getString(PUBSUB_TOPIC_KEY));
+          config.getString(PUBSUB_PROJECT_ID_KEY),
+          config.getString(PUBSUB_TOPIC_KEY),
+          config.getInt(PUBSUB_BUFFER_TIMEOUT_KEY));
     }
 
     /** projectId getter. */
@@ -81,6 +87,11 @@ public class SpezConfig {
     public String getTopic() {
       return topic;
     }
+
+    /** bufferTimeout getter. */
+    public int getBufferTimeout() {
+      return bufferTimeout;
+    }
   }
 
   public static class SinkConfig {
@@ -90,6 +101,7 @@ public class SpezConfig {
     private final String table;
     private final String uuidColumn;
     private final String timestampColumn;
+    private final int pollRate;
     private final GoogleCredentials credentials;
 
     /** SinkConfig value object constructor. */
@@ -100,6 +112,7 @@ public class SpezConfig {
         String table,
         String uuidColumn,
         String timestampColumn,
+        int pollRate,
         GoogleCredentials credentials) {
       this.projectId = projectId;
       this.instance = instance;
@@ -107,6 +120,7 @@ public class SpezConfig {
       this.table = table;
       this.uuidColumn = uuidColumn;
       this.timestampColumn = timestampColumn;
+      this.pollRate = pollRate;
       this.credentials = credentials;
     }
 
@@ -119,6 +133,7 @@ public class SpezConfig {
           config.getString(SINK_TABLE_KEY),
           config.getString(SINK_UUID_COLUMN_KEY),
           config.getString(SINK_TIMESTAMP_COLUMN_KEY),
+          config.getInt(SINK_POLL_RATE_KEY),
           credentials);
     }
 
@@ -160,6 +175,11 @@ public class SpezConfig {
     /** timestampColumn getter. */
     public String getTimestampColumn() {
       return timestampColumn;
+    }
+
+    /** pollRate getter. */
+    public int getPollRate() {
+      return pollRate;
     }
 
     /** databasePath getter. */
@@ -308,12 +328,14 @@ public class SpezConfig {
             LOGLEVEL_SPANNERCLIENT_KEY,
             PUBSUB_PROJECT_ID_KEY,
             PUBSUB_TOPIC_KEY,
+            PUBSUB_BUFFER_TIMEOUT_KEY,
             SINK_PROJECT_ID_KEY,
             SINK_INSTANCE_KEY,
             SINK_DATABASE_KEY,
             SINK_TABLE_KEY,
             SINK_UUID_COLUMN_KEY,
             SINK_TIMESTAMP_COLUMN_KEY,
+            SINK_POLL_RATE_KEY,
             LPTS_PROJECT_ID_KEY,
             LPTS_INSTANCE_KEY,
             LPTS_DATABASE_KEY,

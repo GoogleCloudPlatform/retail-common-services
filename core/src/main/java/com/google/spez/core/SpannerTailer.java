@@ -87,11 +87,7 @@ public class SpannerTailer {
   // TODO(pdex): move this out to SpezApp
   public void start() {
     var schedulerFuture =
-        scheduler.scheduleAtFixedRate(
-            this::poll,
-            0,
-            30, // TODO(pdex): move to config // TODO(pdex): I should be a runtime option
-            TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::poll, 0, sinkConfig.getPollRate(), TimeUnit.SECONDS);
 
     ListenableFutureErrorHandler.create(
         scheduler,

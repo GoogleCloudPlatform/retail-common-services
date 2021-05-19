@@ -173,7 +173,6 @@ public class EventPublisher {
 
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
-  private static final int DEFAULT_BUFFER_TIME = 30; // TODO(pdex): move to config
   private static final Tracer tracer = Tracing.getTracer();
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
@@ -242,7 +241,8 @@ public class EventPublisher {
             config.getPubSub().getTopic());
 
     var eventPublisher =
-        new EventPublisher(scheduler, publisher, DEFAULT_BUFFER_SIZE, DEFAULT_BUFFER_TIME);
+        new EventPublisher(
+            scheduler, publisher, DEFAULT_BUFFER_SIZE, config.getPubSub().getBufferTimeout());
     eventPublisher.start();
     return eventPublisher;
   }

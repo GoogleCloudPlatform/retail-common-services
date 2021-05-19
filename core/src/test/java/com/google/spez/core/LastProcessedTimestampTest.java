@@ -71,6 +71,7 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
             "Singers",
             "SingerId",
             "timestamp",
+            30,
             credentials);
     var lpts = // NOPMD
         new SpezConfig.LptsConfig(
@@ -124,6 +125,7 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
             "Singers",
             "SingerId",
             "timestamp",
+            30,
             credentials);
     var lpts =
         new SpezConfig.LptsConfig(

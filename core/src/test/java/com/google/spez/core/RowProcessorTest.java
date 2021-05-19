@@ -61,10 +61,10 @@ class RowProcessorTest implements WithAssertions {
             Value.newBuilder().setStringValue(timestamp.toString()).build());
     Row row = new BothanRow(new com.google.spannerclient.Row(fields, values));
 
-    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic");
+    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic", 30);
     var sink =
         new SpezConfig.SinkConfig(
-            null, "sink-instance", "sink-database", "sink_table", "uuid", "timestamp", null);
+            null, "sink-instance", "sink-database", "sink_table", "uuid", "timestamp", 30, null);
     var config = new SpezConfig(null, pubsub, sink, null, null);
     var extractor = new MetadataExtractor(config);
     // ByteString data, Map<String, String> attrMap, Span parent

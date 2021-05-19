@@ -32,10 +32,10 @@ class MetadataExtractorTest implements WithAssertions {
 
   @Test
   void extract() {
-    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic");
+    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic", 30);
     var sink =
         new SpezConfig.SinkConfig(
-            null, "sink-instance", "sink-database", "sink-table", "uuid", "timestamp", null);
+            null, "sink-instance", "sink-database", "sink-table", "uuid", "timestamp", 30, null);
     var config = new SpezConfig(null, pubsub, sink, null, null);
     var extractor = new MetadataExtractor(config);
     var fields =
@@ -61,5 +61,7 @@ class MetadataExtractorTest implements WithAssertions {
     assertThat(map).contains(Map.entry(SpezConfig.SINK_DATABASE_KEY, "sink-database"));
     assertThat(map).contains(Map.entry(SpezConfig.SINK_TABLE_KEY, "sink-table"));
     assertThat(map).contains(Map.entry(SpezConfig.PUBSUB_TOPIC_KEY, "ledger-topic"));
+    // assertThat(map).contains(Map.entry(SpezConfig.SINK_POLL_RATE_KEY, 30));
+    // assertThat(map).contains(Map.entry(SpezConfig.PUBSUB_BUFFER_TIMEOUT_KEY, 30));
   }
 }

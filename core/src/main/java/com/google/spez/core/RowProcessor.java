@@ -45,6 +45,7 @@ public class RowProcessor {
   private final SpezConfig.SinkConfig sinkConfig;
 
   private final EventPublisher publisher;
+  private final Reconciler reconciler;
   private final MetadataExtractor extractor;
 
   /**
@@ -55,9 +56,10 @@ public class RowProcessor {
    * @param extractor description
    */
   public RowProcessor(
-      SpezConfig.SinkConfig sinkConfig, EventPublisher publisher, MetadataExtractor extractor) {
+      SpezConfig.SinkConfig sinkConfig, EventPublisher publisher, Reconciler reconciler, MetadataExtractor extractor) {
     this.sinkConfig = sinkConfig;
     this.publisher = publisher;
+    this.reconciler = reconciler;
     this.extractor = extractor;
   }
 
@@ -79,17 +81,22 @@ public class RowProcessor {
         try {
           // Once published, returns server-assigned message ids
           // (unique within the topic)
-          var publishId = publishFuture.get();
+          var messageId = publishFuture.get();
           stats.incPublished();
+          if (reconciler != null) {
+            var commitTimestamp = metadata.get(SpezConfig.SINK_TIMESTAMP_KEY);
+            var uuid = metadata.get(SpezConfig.SINK_UUID_KEY);
+            reconciler.onPublish(messageId, commitTimestamp, uuid);
+          }
           if (log.isDebugEnabled()) {
             log.debug(
                 "Published message for timestamp '{}' with message id '{}'",
                 metadata.get(SpezConfig.SINK_TIMESTAMP_KEY),
-                publishId);
+                messageId);
           }
 
           metrics.addMessageSize(row.getSize());
-          return publishId;
+          return messageId;
         } catch (Exception ex) {
           stats.incErrors();
           log.error("Error Publishing Record: ", ex);

@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright 2020 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,6 +44,7 @@ public class SpezConfig {
   public static final String PUBSUB_PROJECT_ID_KEY = "spez.pubsub.project_id";
   public static final String PUBSUB_TOPIC_KEY = "spez.pubsub.topic";
   public static final String PUBSUB_BUFFER_TIMEOUT_KEY = "spez.pubsub.buffer_timeout";
+  public static final String PUBSUB_SUBSCRIPTION_KEY = "spez.pubsub.subscription";
   public static final String SINK_PROJECT_ID_KEY = "spez.sink.project_id";
   public static final String SINK_INSTANCE_KEY = "spez.sink.instance";
   public static final String SINK_DATABASE_KEY = "spez.sink.database";
@@ -61,12 +62,14 @@ public class SpezConfig {
   public static class PubSubConfig {
     private final String projectId;
     private final String topic;
+    private final String subscription;
     private final int bufferTimeout;
 
     /** PubSubConfig value object constructor. */
-    public PubSubConfig(String projectId, String topic, int bufferTimeout) {
+    public PubSubConfig(String projectId, String topic, String subscription, int bufferTimeout) {
       this.projectId = projectId;
       this.topic = topic;
+      this.subscription = subscription;
       this.bufferTimeout = bufferTimeout;
     }
 
@@ -75,6 +78,7 @@ public class SpezConfig {
       return new PubSubConfig(
           config.getString(PUBSUB_PROJECT_ID_KEY),
           config.getString(PUBSUB_TOPIC_KEY),
+          config.getString(PUBSUB_SUBSCRIPTION_KEY),
           config.getInt(PUBSUB_BUFFER_TIMEOUT_KEY));
     }
 
@@ -91,6 +95,11 @@ public class SpezConfig {
     /** bufferTimeout getter. */
     public int getBufferTimeout() {
       return bufferTimeout;
+    }
+
+    /** subscription getter. */
+    public String getSubscription() {
+      return subscription;
     }
   }
 

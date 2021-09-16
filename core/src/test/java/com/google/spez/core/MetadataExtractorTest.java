@@ -32,7 +32,7 @@ class MetadataExtractorTest implements WithAssertions {
 
   @Test
   void extract() {
-    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic", 30);
+    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic", "validator-subscription", 30);
     var sink =
         new SpezConfig.SinkConfig(
             null, "sink-instance", "sink-database", "sink-table", "uuid", "timestamp", 30, null);

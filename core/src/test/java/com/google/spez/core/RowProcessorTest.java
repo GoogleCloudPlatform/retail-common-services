@@ -61,7 +61,7 @@ class RowProcessorTest implements WithAssertions {
             Value.newBuilder().setStringValue(timestamp.toString()).build());
     Row row = new BothanRow(new com.google.spannerclient.Row(fields, values));
 
-    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic", 30);
+    var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic", "validator-subscription", 30);
     var sink =
         new SpezConfig.SinkConfig(
             null, "sink-instance", "sink-database", "sink_table", "uuid", "timestamp", 30, null);
@@ -70,7 +70,7 @@ class RowProcessorTest implements WithAssertions {
     // ByteString data, Map<String, String> attrMap, Span parent
     Mockito.when(publisher.publish(Mockito.any(), Mockito.any(), Mockito.any()))
         .thenReturn(Futures.immediateFuture(""));
-    var handler = new RowProcessor(sink, publisher, extractor);
+    var handler = new RowProcessor(sink, publisher, null, extractor);
     var result = handler.convertAndPublishTask(row);
   }
 }

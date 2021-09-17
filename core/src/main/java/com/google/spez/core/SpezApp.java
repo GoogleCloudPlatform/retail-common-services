@@ -40,11 +40,6 @@ public class SpezApp {
   public static void run(SpezConfig config) throws ExecutionException, InterruptedException {
     LoggerDumper.dump();
 
-    var reconciler = new Reconciler();
-    var subscriber = new ReconciliationSubscriber(config.getPubSub(), reconciler);
-    if (false) { // POOR MAN'S FEATURE FLAG: USE RECONCILER
-      subscriber.start();
-    }
     var publisher = EventPublisher.create(config);
     final ListeningScheduledExecutorService scheduler =
         MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
@@ -59,7 +54,7 @@ public class SpezApp {
     SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
     SchemaSet schemaSet = spannerSchema.getSchema();
     log.info("Successfully Processed the Table Schema. Starting the tailer now ...");
-    var handler = new RowProcessor(config.getSink(), publisher, null, extractor);
+    var handler = new RowProcessor(config.getSink(), publisher, extractor);
     String databasePath = config.getSink().databasePath();
     log.info("Building database with path '{}'", databasePath);
 
@@ -81,10 +76,5 @@ public class SpezApp {
         (throwable) -> {
           log.error("logStats scheduled task error", throwable);
         });
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      scheduler.shutdown();
-      subscriber.stop();
-      reconciler.stop();
-    }));
   }
 }

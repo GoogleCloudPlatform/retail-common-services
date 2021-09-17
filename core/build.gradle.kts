@@ -45,9 +45,6 @@ dependencies {
   implementation(Config.Libs.bigquery)
   // implementation(Config.Libs.rocksdb)
   implementation("com.google.api.grpc:proto-google-cloud-spanner-v1:1.55.1")
-  // pubsub BOM
-  implementation(platform("com.google.cloud:libraries-bom:18.0.0"))
-  implementation("com.google.cloud:google-cloud-pubsub")
 
   // AutoValue
   compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")

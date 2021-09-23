@@ -1,4 +1,0 @@
-* TODOS
-** TODO Understand why session pool less than 4 doesn't work
-** TODO better avro timestamps :backlog:
-we have an opportunity to better represent the timestamp types in avro (currently we are storing a string)

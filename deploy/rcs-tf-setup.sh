@@ -24,6 +24,14 @@ gcloud iam service-accounts create terraform-admin
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:terraform-admin@$PROJECT_ID.iam.gserviceaccount.com --role=roles/editor
 gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:terraform-admin@$PROJECT_ID.iam.gserviceaccount.com --role=roles/iam.securityAdmin
 
-echo "creating terraform instance"
+#echo "creating terraform instance"
 
-gcloud beta compute --project=$PROJECT_ID instances create tf-runner --zone=us-central1-a --machine-type=n1-standard-2 --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account=terraform-admin@$PROJECT_ID.iam.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name=tf-runner --reservation-affinity=any
+#gcloud beta compute --project=$PROJECT_ID instances create tf-runner --zone=us-central1-a --machine-type=n1-standard-2 --subnet=default --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account=terraform-admin@$PROJECT_ID.iam.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name=tf-runner --reservation-affinity=any
+
+echo "creating deployment state"
+
+DEPLOYMENT_DIR=$HOME/rcs-reference-deployment
+SECRETS_DIR=$DEPLOYMENT_DIR/secrets
+
+mkdir -p $SECRETS_DIR
+gcloud iam service-accounts keys create $SECRETS_DIR/terraform-admin.json --iam-account=terraform-admin@$PROJECT_ID.iam.gserviceaccount.com

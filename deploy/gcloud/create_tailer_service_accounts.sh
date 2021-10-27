@@ -19,18 +19,17 @@
 
 set -eux
 
-PROJECT="rcs-demo-prod"
-SECRETS="../secrets"
-FQ="@${PROJECT}.iam.gserviceaccount.com"
+SECRETS="../../secrets"
+FQ="@${PROJECT_ID}.iam.gserviceaccount.com"
 
 # Tailer application SA
 SA1="spez-tailer-sa"
 #gcloud iam service-accounts create $SA1
 
-gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA1$FQ --role=roles/cloudtrace.agent
-gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA1$FQ --role=roles/monitoring.metricWriter
-gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA1$FQ --role=roles/pubsub.publisher
-gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA1$FQ --role=roles/spanner.databaseUser
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SA1$FQ --role=roles/cloudtrace.agent
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SA1$FQ --role=roles/monitoring.metricWriter
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SA1$FQ --role=roles/pubsub.publisher
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SA1$FQ --role=roles/spanner.databaseUser
 
 gcloud iam service-accounts keys create ${SECRETS}/service-account.json --iam-account=$SA1$FQ
 
@@ -39,4 +38,4 @@ gcloud iam service-accounts keys create ${SECRETS}/service-account.json --iam-ac
 SA2="spez-node-sa"
 gcloud iam service-accounts create $SA2
 
-gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA2$FQ --role=roles/editor
+gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$SA2$FQ --role=roles/editor

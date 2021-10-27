@@ -19,12 +19,11 @@
 
 set -eux
 
-PROJECT="rcs-demo-prod"
 REGION="us-central1"
 
 CLUSTER="spez-tailer-cluster"
-SA="spez-node-sa@${PROJECT}.iam.gserviceaccount.com"
-SECRET="../secrets/service-account.json"
+SA="spez-node-sa@${PROJECT_ID}.iam.gserviceaccount.com"
+SECRET="../../secrets/service-account.json"
 
 #echo "Configuring GKE cluster"
 gcloud container clusters create $CLUSTER --region=$REGION \

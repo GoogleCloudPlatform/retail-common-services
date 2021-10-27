@@ -1,5 +1,5 @@
 variable "terraform_credentials_file" {
-  default = "../../secrets/terraform-admin.json"
+  default = "~/secrets/terraform-admin.json"
 }
 
 variable "project" {}

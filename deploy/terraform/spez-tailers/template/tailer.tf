@@ -26,8 +26,6 @@ provider "google" {
 }
 
 provider "kubernetes" {
-  load_config_file = false
-
   host = data.google_container_cluster.spez-tailer-cluster.endpoint
   token = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(data.google_container_cluster.spez-tailer-cluster.master_auth[0].cluster_ca_certificate)
@@ -42,7 +40,7 @@ data "google_container_cluster" "spez-tailer-cluster" {
 
 resource "kubernetes_service" "spez-tailer-service" {
   metadata {
-    name = "spez-tailer-service"
+    name = "spez-tailer-service-${var.sink_table}"
   }
   spec {
     port {
@@ -50,27 +48,27 @@ resource "kubernetes_service" "spez-tailer-service" {
       name = "jmx-port"
     }
     selector = {
-      app = "spez-tailer"
+      app = "spez-tailer-${var.sink_table}"
     }
   }
 }
 
 resource "kubernetes_deployment" "spez-tailer-deployment" {
   metadata {
-    name = "spez-tailer-deployment"
+    name = "spez-tailer-deployment-${var.sink_table}"
   }
   spec {
     replicas = 1
 
     selector {
       match_labels = {
-        app = "spez-tailer"
+        app = "spez-tailer-${var.sink_table}"
       }
     }
     template {
       metadata {
         labels = {
-          app = "spez-tailer"
+          app = "spez-tailer-${var.sink_table}"
           version = "v1"
         }
       }
@@ -91,10 +89,10 @@ resource "kubernetes_deployment" "spez-tailer-deployment" {
             read_only = "true"
           }
           resources {
-            limits {
+            limits = {
               memory = "16Gi"
             }
-            requests {
+            requests = {
               memory = "8Gi"
             }
           }

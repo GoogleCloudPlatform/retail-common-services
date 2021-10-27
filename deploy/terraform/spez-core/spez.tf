@@ -75,7 +75,7 @@ resource "google_service_account" "spez-archive-function-sa" {
 }
 resource "google_project_iam_member" "spez-archive-function-sa-project-iam-member-storage" {
   project = var.project
-  role    = "roles/storage.objectCreator"
+  role    = "roles/storage.admin"
   member  = "serviceAccount:${google_service_account.spez-archive-function-sa.email}"
 }
 resource "google_project_iam_member" "spez-archive-function-sa-project-iam-member-pubsub" {

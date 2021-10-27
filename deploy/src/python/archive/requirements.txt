@@ -1,1 +1,3 @@
 google-cloud-storage
+opencensus
+opencensus-ext-stackdriver

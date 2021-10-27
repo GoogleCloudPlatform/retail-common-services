@@ -20,9 +20,14 @@ gcloud services enable cloudresourcemanager.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
 
 echo "enabling iam"
-gcloud iam service-accounts create terraform-admin
-gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:terraform-admin@$PROJECT_ID.iam.gserviceaccount.com --role=roles/editor
-gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:terraform-admin@$PROJECT_ID.iam.gserviceaccount.com --role=roles/iam.securityAdmin
+TF_SA=terraform-admin@$PROJECT_ID.iam.gserviceaccount.com
+if ! gcloud iam service-accounts describe $TF_SA &> /dev/null; then
+  gcloud iam service-accounts create terraform-admin
+  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$TF_SA --role=roles/editor
+  gcloud projects add-iam-policy-binding $PROJECT_ID --member=serviceAccount:$TF_SA --role=roles/iam.securityAdmin
+else
+  echo "service account already created"
+fi
 
 #echo "creating terraform instance"
 
@@ -34,4 +39,7 @@ DEPLOYMENT_DIR=$HOME/rcs-reference-deployment
 SECRETS_DIR=$DEPLOYMENT_DIR/secrets
 
 mkdir -p $SECRETS_DIR
-gcloud iam service-accounts keys create $SECRETS_DIR/terraform-admin.json --iam-account=terraform-admin@$PROJECT_ID.iam.gserviceaccount.com
+TF_SA_KEY=$SECRETS_DIR/terraform-admin.json
+if ! [ -r $TF_SA_KEY ]; then
+  gcloud iam service-accounts keys create $TF_SA_KEY --iam-account=$TF_SA
+fi

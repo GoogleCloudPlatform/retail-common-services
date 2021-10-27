@@ -38,8 +38,20 @@ echo "creating deployment state"
 DEPLOYMENT_DIR=$HOME/rcs-reference-deployment
 SECRETS_DIR=$DEPLOYMENT_DIR/secrets
 
-mkdir -p $SECRETS_DIR
-TF_SA_KEY=$SECRETS_DIR/terraform-admin.json
-if ! [ -r $TF_SA_KEY ]; then
-  gcloud iam service-accounts keys create $TF_SA_KEY --iam-account=$TF_SA
-fi
+#mkdir -p $SECRETS_DIR
+#TF_SA_KEY=$SECRETS_DIR/terraform-admin.json
+#if ! [ -r $TF_SA_KEY ]; then
+#  gcloud iam service-accounts keys create $TF_SA_KEY --iam-account=$TF_SA
+#fi
+#cp -Rv terraform/spez-core terraform/spez-tailers $DEPLOYMENT_DIR
+
+docker pull hashicorp/terraform
+
+DOCKER_RUN_TF="run -u $(id -u):$(id -g) -v $HOME:$HOME -w $PWD -i -t hashicorp/terraform:latest"
+
+pushd $DEPLOYMENT_DIR
+for dir in terraform/spez-core terraform/spez-tailers; do
+  pushd $dir
+  docker $DOCKER_RUN_TF init
+  popd
+done

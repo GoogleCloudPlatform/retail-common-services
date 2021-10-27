@@ -11,6 +11,15 @@
 
 ```
 
+## Provision the RCS core components
+
+```sh
+./rcs-core-setup.sh {{project-id}}
+
+```
+
+
+
 ## Setup the terraform runner
 
 ```sh

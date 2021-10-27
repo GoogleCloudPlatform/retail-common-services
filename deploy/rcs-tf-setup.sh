@@ -49,7 +49,7 @@ docker pull hashicorp/terraform
 
 DOCKER_RUN_TF="run -u $(id -u):$(id -g) -v $HOME:$HOME -w $PWD -i -t hashicorp/terraform:latest"
 
-pushd $DEPLOYMENT_DIR
+#pushd $DEPLOYMENT_DIR
 for dir in terraform/spez-core terraform/spez-tailers; do
   pushd $dir
   docker $DOCKER_RUN_TF init

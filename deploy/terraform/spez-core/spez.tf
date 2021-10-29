@@ -60,6 +60,7 @@ resource "google_pubsub_topic" "spez-ledger-topic" {
 resource "google_storage_bucket" "spez-function-source" {
   name     = join("-", ["spez", var.project, "function-source"])
   location = var.region
+  uniform_bucket_level_access = true
 }
 #</source bucket>
 
@@ -67,6 +68,7 @@ resource "google_storage_bucket" "spez-function-source" {
 resource "google_storage_bucket" "spez-event-archive" {
   name     = join("-", ["spez", var.project, "event-archive"])
   location = var.region
+  uniform_bucket_level_access = true
 }
 
 resource "google_service_account" "spez-archive-function-sa" {

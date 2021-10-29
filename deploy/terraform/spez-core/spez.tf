@@ -95,6 +95,9 @@ resource "google_storage_bucket_object" "gcs-archive-source" {
   name   = "archive_source.zip"
   bucket = google_storage_bucket.spez-function-source.name
   source = data.archive_file.local_archive_source.output_path
+  metadata = {
+    package = "retail-common-services"
+  }
 }
 resource "google_cloudfunctions_function" "spez-archive-function" {
   name        = "spez-archive-function"
@@ -112,6 +115,9 @@ resource "google_cloudfunctions_function" "spez-archive-function" {
   service_account_email = google_service_account.spez-archive-function-sa.email
   source_archive_bucket = google_storage_bucket.spez-function-source.name
   source_archive_object = google_storage_bucket_object.gcs-archive-source.name
+  labels = {
+    package = "retail-common-services"
+  }
 }
 #</archive>
 

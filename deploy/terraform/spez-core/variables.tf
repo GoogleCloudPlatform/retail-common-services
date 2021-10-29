@@ -1,6 +1,8 @@
+/*
 variable "terraform_credentials_file" {
   default = "~/secrets/terraform-admin.json"
 }
+*/
 
 variable "project" {}
 variable "region" {

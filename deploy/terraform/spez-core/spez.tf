@@ -19,7 +19,7 @@ terraform {
 }
 
 provider "google" {
-  credentials = file(var.terraform_credentials_file)
+  //credentials = file(var.terraform_credentials_file)
 
   project = var.project
   region  = var.region

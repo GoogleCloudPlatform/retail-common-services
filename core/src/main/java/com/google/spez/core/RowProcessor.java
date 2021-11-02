@@ -16,6 +16,7 @@
 
 package com.google.spez.core;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -38,9 +39,10 @@ public class RowProcessor {
   private final SpezTagging tagging = new SpezTagging();
   private final SpezTracing tracing = new SpezTracing();
 
-  private final ExecutorService workStealingPool = Executors.newWorkStealingPool();
-  private final ListeningExecutorService forkJoinPool =
-      MoreExecutors.listeningDecorator(workStealingPool);
+  private final ExecutorService threadPool =
+      Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+  private final ListeningExecutorService listeningPool =
+      MoreExecutors.listeningDecorator(threadPool);
   // private final AtomicReference<String> lastProcessedTimestamp = new AtomicReference<String>("");
   private final RowProcessorStats stats = new RowProcessorStats();
 
@@ -52,7 +54,7 @@ public class RowProcessor {
   /**
    * Constructor.
    *
-   * @param schemaSet description
+   * @param sinkConfig description
    * @param publisher description
    * @param extractor description
    */
@@ -63,15 +65,18 @@ public class RowProcessor {
     this.extractor = extractor;
   }
 
+  /**
+   * Convert row to avro record and publish to pubsub topic. ONLY VISIBLE FOR TESTING!
+   *
+   * @param state to publish
+   * @return timestamp of the row published
+   */
+  @VisibleForTesting
   public String convertAndPublishTask(EventState state) {
     try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
       try (Scope ss = tracing.processRowScope()) {
         Row row = state.row;
         stats.incRecords();
-
-        Span span = tracing.currentSpan();
-
-        var metadata = extractor.extract(row);
 
         var tableName = sinkConfig.getTable();
         var avroNamespace = "avroNamespace"; // TODO(pdex): move to config
@@ -85,6 +90,8 @@ public class RowProcessor {
         state.convertedToMessage(avroRecord);
 
         state.queuedForPublishing();
+        Span span = tracing.currentSpan();
+        var metadata = extractor.extract(row);
         var publishFuture = publisher.publish(avroRecord, metadata, span);
         Futures.addCallback(
             publishFuture,
@@ -112,7 +119,7 @@ public class RowProcessor {
                 log.error("Error Publishing Record: ", ex);
               }
             },
-            forkJoinPool);
+            listeningPool);
         return "";
       }
     }
@@ -121,12 +128,12 @@ public class RowProcessor {
   /**
    * Convert row to avro record and publish to pubsub topic.
    *
-   * @param row to publish
+   * @param state to publish
    * @return timestamp of the row published
    */
   public ListenableFuture<String> convertAndPublish(EventState state) {
     state.queued();
-    ListenableFuture<String> future = forkJoinPool.submit(() -> convertAndPublishTask(state));
+    ListenableFuture<String> future = listeningPool.submit(() -> convertAndPublishTask(state));
 
     return future;
   }

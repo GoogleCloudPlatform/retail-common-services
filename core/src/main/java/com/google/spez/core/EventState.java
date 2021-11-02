@@ -21,6 +21,7 @@ import com.google.spez.core.internal.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class EventState {
   private static final Logger log = LoggerFactory.getLogger(EventState.class);
 

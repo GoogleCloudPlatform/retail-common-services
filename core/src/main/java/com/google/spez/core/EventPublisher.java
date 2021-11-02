@@ -173,6 +173,7 @@ public class EventPublisher {
 
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
+  private static final int MAX_PUBLISH_SIZE = 950;
   private static final Tracer tracer = Tracing.getTracer();
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
@@ -287,7 +288,7 @@ public class EventPublisher {
   @VisibleForTesting
   void publishBuffer() {
     ArrayList<BufferPayload> sink = new ArrayList<>();
-    int numberDrained = buffer.drainTo(sink);
+    int numberDrained = buffer.drainTo(sink, MAX_PUBLISH_SIZE);
     ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained); // NOPMD
     for (var payload : sink) {
       messages.add(payload.message);
@@ -308,6 +309,9 @@ public class EventPublisher {
     bufferSize.getAndAdd(-1 * numberDrained);
 
     Futures.addCallback(future, new PublishCallback(sink), scheduler);
+    if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
+      maybePublish();
+    }
   }
 
   private void maybePublish() {

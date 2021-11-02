@@ -16,6 +16,8 @@
 
 package com.google.spez.core;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -61,9 +63,10 @@ public class RowProcessor {
     this.extractor = extractor;
   }
 
-  public String convertAndPublishTask(Row row) {
+  public String convertAndPublishTask(EventState state) {
     try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
       try (Scope ss = tracing.processRowScope()) {
+        Row row = state.row;
         stats.incRecords();
 
         Span span = tracing.currentSpan();
@@ -73,28 +76,44 @@ public class RowProcessor {
         var tableName = sinkConfig.getTable();
         var avroNamespace = "avroNamespace"; // TODO(pdex): move to config
         var schema = SpannerToAvroSchema.buildSchema(tableName, avroNamespace, row);
-        var avroRecord = SpannerToAvroRecord.makeRecord(schema, row);
-
-        var publishFuture = publisher.publish(avroRecord.get(), metadata, span);
-        try {
-          // Once published, returns server-assigned message ids
-          // (unique within the topic)
-          var publishId = publishFuture.get();
-          stats.incPublished();
-          if (log.isDebugEnabled()) {
-            log.debug(
-                "Published message for timestamp '{}' with message id '{}'",
-                metadata.get(SpezConfig.SINK_TIMESTAMP_KEY),
-                publishId);
-          }
-
-          metrics.addMessageSize(row.getSize());
-          return publishId;
-        } catch (Exception ex) {
-          stats.incErrors();
-          log.error("Error Publishing Record: ", ex);
-          throw new RuntimeException(ex);
+        var maybeAvroRecord = SpannerToAvroRecord.makeRecord(schema, row);
+        if (maybeAvroRecord.isEmpty()) {
+          log.error("Empty avro record");
+          return "";
         }
+        var avroRecord = maybeAvroRecord.get();
+        state.convertedToMessage(avroRecord);
+
+        state.queuedForPublishing();
+        var publishFuture = publisher.publish(avroRecord, metadata, span);
+        Futures.addCallback(
+            publishFuture,
+            new FutureCallback<String>() {
+
+              @Override
+              public void onSuccess(String publishId) {
+                // Once published, returns server-assigned message ids
+                // (unique within the topic)
+                state.mesesagePublished(publishId);
+                stats.incPublished();
+                if (log.isDebugEnabled()) {
+                  log.debug(
+                      "Published message for timestamp '{}' with message id '{}'",
+                      metadata.get(SpezConfig.SINK_TIMESTAMP_KEY),
+                      publishId);
+                }
+
+                metrics.addMessageSize(row.getSize());
+              }
+
+              @Override
+              public void onFailure(Throwable ex) {
+                stats.incErrors();
+                log.error("Error Publishing Record: ", ex);
+              }
+            },
+            forkJoinPool);
+        return "";
       }
     }
   }
@@ -105,8 +124,9 @@ public class RowProcessor {
    * @param row to publish
    * @return timestamp of the row published
    */
-  public ListenableFuture<String> convertAndPublish(Row row) {
-    ListenableFuture<String> future = forkJoinPool.submit(() -> convertAndPublishTask(row));
+  public ListenableFuture<String> convertAndPublish(EventState state) {
+    state.queued();
+    ListenableFuture<String> future = forkJoinPool.submit(() -> convertAndPublishTask(state));
 
     return future;
   }

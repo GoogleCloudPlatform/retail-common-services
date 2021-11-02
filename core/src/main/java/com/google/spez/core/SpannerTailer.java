@@ -166,6 +166,7 @@ public class SpannerTailer {
   private class RowStreamObserver implements StreamObserver<Row> {
     private final AtomicLong records;
     private final Instant then;
+    // TODO(pdex): add polling span
 
     public RowStreamObserver(AtomicLong records, Instant then) {
       this.records = records;
@@ -176,7 +177,7 @@ public class SpannerTailer {
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.debug("onNext count = {}", count);
-      handler.convertAndPublish(row);
+      handler.convertAndPublish(new EventState(row));
       lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
     }
 

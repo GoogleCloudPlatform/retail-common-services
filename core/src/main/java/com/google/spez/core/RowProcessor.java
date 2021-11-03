@@ -72,7 +72,7 @@ public class RowProcessor {
    * @return timestamp of the row published
    */
   @VisibleForTesting
-  public String convertAndPublishTask(EventState state) {
+  public ListenableFuture<String> convertAndPublishTask(EventState state) {
     try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
       try (Scope ss = tracing.processRowScope()) {
         Row row = state.row;
@@ -83,8 +83,7 @@ public class RowProcessor {
         var schema = SpannerToAvroSchema.buildSchema(tableName, avroNamespace, row);
         var maybeAvroRecord = SpannerToAvroRecord.makeRecord(schema, row);
         if (maybeAvroRecord.isEmpty()) {
-          log.error("Empty avro record");
-          return "";
+          throw new RuntimeException("Empty avro record");
         }
         var avroRecord = maybeAvroRecord.get();
         state.convertedToMessage(avroRecord);
@@ -101,7 +100,7 @@ public class RowProcessor {
               public void onSuccess(String publishId) {
                 // Once published, returns server-assigned message ids
                 // (unique within the topic)
-                state.mesesagePublished(publishId);
+                state.messagePublished(publishId);
                 stats.incPublished();
                 if (log.isDebugEnabled()) {
                   log.debug(
@@ -120,7 +119,7 @@ public class RowProcessor {
               }
             },
             listeningPool);
-        return "";
+        return publishFuture;
       }
     }
   }
@@ -133,9 +132,9 @@ public class RowProcessor {
    */
   public ListenableFuture<String> convertAndPublish(EventState state) {
     state.queued();
-    ListenableFuture<String> future = listeningPool.submit(() -> convertAndPublishTask(state));
+    ListenableFuture<ListenableFuture<String>> future = listeningPool.submit(() -> convertAndPublishTask(state));
 
-    return future;
+    return Futures.transformAsync(future, (ListenableFuture<String> f) -> f, listeningPool);
   }
 
   /** log stats. */

@@ -16,13 +16,20 @@
 
 package com.google.spez.core;
 
+import io.opencensus.trace.BlankSpan;
 import com.google.protobuf.ByteString;
+import com.google.common.collect.Maps;
 import com.google.spez.core.internal.Row;
+import io.opencensus.trace.Span;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Map;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class EventState {
+  private static final Tracer tracer = Tracing.getTracer();
   private static final Logger log = LoggerFactory.getLogger(EventState.class);
 
   public enum WorkStage {
@@ -34,35 +41,49 @@ public class EventState {
     MessagePublished
   }
 
+  private Span createChildSpan(String name) {
+    return tracer.spanBuilderWithExplicitParent(name, pollingSpan).startSpan();
+  }
+
+  private void transitionStage(WorkStage newStage) {
+    childSpans.getOrDefault(stage, BlankSpan.INSTANCE).end();
+    stage = newStage;
+    childSpans.put(stage, createChildSpan(stage.toString()));
+  }
+
   private WorkStage stage;
   final Row row;
-  // TODO(pdex): add reference to polling span
+  final Span pollingSpan;
+  Map<WorkStage, Span> childSpans = Maps.newEnumMap(WorkStage.class);
   ByteString message;
   String publishId;
 
-  public EventState(Row row) {
+  public EventState(Row row, Span pollingSpan) {
     stage = WorkStage.RowRead;
     this.row = row;
+    this.pollingSpan = pollingSpan;
   }
 
   public void queued() {
     stage = WorkStage.QueuedForConversion;
+    childSpans.put(stage, createChildSpan(stage.toString()));
   }
 
   public void convertedToMessage(ByteString message) {
-    stage = WorkStage.ConvertedToMessage;
+    transitionStage(WorkStage.ConvertedToMessage);
     this.message = message;
   }
 
   public void queuedForPublishing() {
-    stage = WorkStage.QueuedForPublishing;
+    transitionStage(WorkStage.QueuedForPublishing);
   }
 
   public void messagePublishRequested() {
-    stage = WorkStage.MessagePublishRequested;
+    transitionStage(WorkStage.MessagePublishRequested);
   }
 
-  public void mesesagePublished(String publishId) {
+  public void messagePublished(String publishId) {
+    childSpans.getOrDefault(stage, BlankSpan.INSTANCE).end();
     stage = WorkStage.MessagePublished;
     this.publishId = publishId;
   }

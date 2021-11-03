@@ -32,4 +32,14 @@ public class SpezTracing {
   public Span currentSpan() {
     return tracer.getCurrentSpan();
   }
+
+  /**
+   * Create the parent span for the entire polling request.
+   *
+   * @return span for the polling request.
+   */
+  public static Span initialPollingSpan() {
+    return tracer.spanBuilder("SpannerTailer.poll").startSpan();
+  }
+
 }

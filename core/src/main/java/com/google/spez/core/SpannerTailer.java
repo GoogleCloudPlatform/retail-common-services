@@ -17,6 +17,9 @@
 package com.google.spez.core;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.spannerclient.Query;
 import com.google.spannerclient.QueryOptions;
@@ -24,10 +27,12 @@ import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
 import com.google.spez.core.internal.Database;
 import com.google.spez.core.internal.Row;
+import io.opencensus.trace.Span;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -124,6 +129,7 @@ public class SpannerTailer {
     }
     log.debug("POLLER ACTIVE");
     try {
+      var pollingSpan = SpezTracing.initialPollingSpan();
       log.info("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
@@ -133,7 +139,7 @@ public class SpannerTailer {
               .setStale(true)
               .setMaxStaleness(500)
               .build(); // TODO(pdex): move to sinkConfig
-      var observer = new RowStreamObserver(records, then);
+      var observer = new RowStreamObserver(records, then, pollingSpan);
       var query =
           Query.create(
               buildLptsTableQuery(
@@ -166,18 +172,20 @@ public class SpannerTailer {
   private class RowStreamObserver implements StreamObserver<Row> {
     private final AtomicLong records;
     private final Instant then;
-    // TODO(pdex): add polling span
+    private final Span pollingSpan;
+    private final List<ListenableFuture<String>> results = Lists.newArrayList();
 
-    public RowStreamObserver(AtomicLong records, Instant then) {
+    public RowStreamObserver(AtomicLong records, Instant then, Span pollingSpan) {
       this.records = records;
       this.then = then;
+      this.pollingSpan = pollingSpan;
     }
 
     @Override
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.debug("onNext count = {}", count);
-      handler.convertAndPublish(new EventState(row));
+      results.add(handler.convertAndPublish(new EventState(row, pollingSpan)));
       lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
     }
 
@@ -198,6 +206,10 @@ public class SpannerTailer {
           duration.toNanos() / 1000000000.0,
           lastProcessedTimestamp);
       running.decrementAndGet();
+      Futures.whenAllComplete(results).call(() -> {
+	pollingSpan.end();
+        return null;
+	}, scheduler);
     }
   }
 }

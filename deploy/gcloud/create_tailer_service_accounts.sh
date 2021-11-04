@@ -19,13 +19,13 @@
 
 set -eux
 
-PROJECT="css-storeops"
+PROJECT="rcs-demo-prod"
 SECRETS="../secrets"
 FQ="@${PROJECT}.iam.gserviceaccount.com"
 
 # Tailer application SA
 SA1="spez-tailer-sa"
-gcloud iam service-accounts create $SA1
+#gcloud iam service-accounts create $SA1
 
 gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA1$FQ --role=roles/cloudtrace.agent
 gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$SA1$FQ --role=roles/monitoring.metricWriter

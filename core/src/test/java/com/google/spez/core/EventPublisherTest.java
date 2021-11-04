@@ -53,14 +53,15 @@ public class EventPublisherTest implements WithAssertions {
   static String UUID = "uuid-value";
 
   @Test
-  public void shouldBufferMessage(@Mock Span parent) {
+  public void shouldBufferMessage() {
+    var eventState = new EventState(null, null, "table");
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 100 will not publish
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
 
     var event = ByteString.copyFromUtf8(EVENT);
     var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
-    var future = eventPublisher.publish(event, attributes, parent);
+    var future = eventPublisher.publish(event, attributes, eventState);
     assertThat(eventPublisher.bufferSize).hasValue(1);
     assertThat(future).isNotNull();
   }
@@ -110,15 +111,16 @@ public class EventPublisherTest implements WithAssertions {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void publishBeforeDeadline(@Mock Span parent, @Mock ListenableFuture submitFuture) {
+  public void publishBeforeDeadline(@Mock ListenableFuture submitFuture) {
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
+    var eventState = new EventState(null, null, "table");
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 1, 100);
 
     Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
     var event = ByteString.copyFromUtf8(EVENT);
     var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
-    var future = eventPublisher.publish(event, attributes, parent);
+    var future = eventPublisher.publish(event, attributes, eventState);
     assertThat(eventPublisher.bufferSize).hasValue(1);
     assertThat(future).isNotNull();
 
@@ -128,9 +130,9 @@ public class EventPublisherTest implements WithAssertions {
   @Test
   @SuppressWarnings("unchecked")
   public void publishBufferUpdatesBufferSize(
-      @Mock Span parent,
       @Mock ListenableFuture submitFuture,
       @Mock ListenableFuture<PublishResponse> publishFuture) {
+    var eventState = new EventState(null, null, "table");
     Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 1, 100);
@@ -139,7 +141,7 @@ public class EventPublisherTest implements WithAssertions {
     Mockito.when(publisher.publish(Mockito.any(), Mockito.any())).thenReturn(publishFuture);
     var event = ByteString.copyFromUtf8(EVENT);
     var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
-    var future = eventPublisher.publish(event, attributes, parent);
+    var future = eventPublisher.publish(event, attributes, eventState);
     assertThat(eventPublisher.bufferSize).hasValue(1);
     assertThat(future).isNotNull();
 
@@ -148,8 +150,9 @@ public class EventPublisherTest implements WithAssertions {
   }
 
   @Test
-  void callbackShouldAttachMessageId(@Mock Scope parent, @Mock PublishResponse response)
+  void callbackShouldAttachMessageId(@Mock PublishResponse response)
       throws ExecutionException, InterruptedException {
+    var eventState = new EventState(null, null, "table");
     var event = ByteString.copyFromUtf8(EVENT);
     var message =
         PubsubMessage.newBuilder()
@@ -158,7 +161,7 @@ public class EventPublisherTest implements WithAssertions {
             .putAttributes(SpezConfig.SINK_UUID_KEY, UUID)
             .build();
     SettableFuture<String> future = SettableFuture.create();
-    var sink = List.of(new EventPublisher.BufferPayload(message, future, parent));
+    var sink = List.of(new EventPublisher.BufferPayload(message, future, eventState));
     var callback = new EventPublisher.PublishCallback(sink);
 
     Mockito.when(response.getMessageIdsCount()).thenReturn(sink.size());

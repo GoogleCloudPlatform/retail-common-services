@@ -16,6 +16,7 @@
 
 package com.google.spez.core;
 
+import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.BlankSpan;
 import com.google.protobuf.ByteString;
 import com.google.common.collect.Maps;
@@ -41,32 +42,54 @@ public class EventState {
     MessagePublished
   }
 
-  private Span createChildSpan(String name) {
-    return tracer.spanBuilderWithExplicitParent(name, pollingSpan).startSpan();
+  private static Span createChildSpan(String name, Span parentSpan) {
+    Span span = tracer.spanBuilderWithExplicitParent(name, parentSpan).startSpan();
+    span.putAttribute("name", AttributeValue.stringAttributeValue(name));
+    return span;
   }
 
+  /*
+  private Span currentSpan() {
+    return childSpans.getOrDefault(stage, BlankSpan.INSTANCE);
+  }
+  */
+
   private void transitionStage(WorkStage newStage) {
-    childSpans.getOrDefault(stage, BlankSpan.INSTANCE).end();
     stage = newStage;
-    childSpans.put(stage, createChildSpan(stage.toString()));
+    /*
+    currentSpan().end();
+    childSpans.put(stage, createChildSpan(stage.toString(), eventSpan));
+    */
+    eventSpan.addAnnotation(stage.toString());
   }
 
   private WorkStage stage;
   final Row row;
-  final Span pollingSpan;
-  Map<WorkStage, Span> childSpans = Maps.newEnumMap(WorkStage.class);
+  final String tableName;
+  //final Span pollingSpan;
+  final Span eventSpan;
+  //Map<WorkStage, Span> childSpans = Maps.newEnumMap(WorkStage.class);
   ByteString message;
   String publishId;
 
-  public EventState(Row row, Span pollingSpan) {
-    stage = WorkStage.RowRead;
+  public EventState(Row row, Span pollingSpan, String tableName) {
+    // TODO(pdex): consider replacing the pollingSpan with a single span that represents the lifecycle of the EventState
+    eventSpan = createChildSpan("Spez Event", pollingSpan);
+    //childSpans.put(stage, createChildSpan(stage.toString(), eventSpan));
+    //currentSpan().putAttribute("uuid",
     this.row = row;
-    this.pollingSpan = pollingSpan;
+    this.tableName = tableName;
+    //this.pollingSpan = pollingSpan;
+    transitionStage(WorkStage.RowRead);
   }
 
+  public void uuid(String uuid) {
+    eventSpan.putAttribute("uuid", AttributeValue.stringAttributeValue(uuid));
+  }
+
+  // state transitions
   public void queued() {
-    stage = WorkStage.QueuedForConversion;
-    childSpans.put(stage, createChildSpan(stage.toString()));
+    transitionStage(WorkStage.QueuedForConversion);
   }
 
   public void convertedToMessage(ByteString message) {
@@ -83,8 +106,10 @@ public class EventState {
   }
 
   public void messagePublished(String publishId) {
-    childSpans.getOrDefault(stage, BlankSpan.INSTANCE).end();
-    stage = WorkStage.MessagePublished;
+    //childSpans.getOrDefault(stage, BlankSpan.INSTANCE).end();
+    transitionStage(WorkStage.MessagePublished);
+    eventSpan.putAttribute("publishId", AttributeValue.stringAttributeValue(publishId));
+    eventSpan.end();
     this.publishId = publishId;
   }
 }

@@ -25,7 +25,9 @@ dependencies {
     implementation(Config.Libs.guava)
     // implementation(Config.Libs.storage)
     // implementation(Config.Libs.rocksdb)
-    implementation("io.opencensus:opencensus-exporter-trace-stackdriver:0.26.0")
+    implementation("io.opencensus:opencensus-exporter-trace-logging:0.28.3")
+    implementation("io.opencensus:opencensus-exporter-trace-stackdriver:0.28.3")
+    implementation("io.opencensus:opencensus-exporter-stats-stackdriver:0.28.3")
     implementation("io.opencensus:opencensus-contrib-zpages:0.26.0")
     implementation("com.google.oauth-client:google-oauth-client:1.31.0")
 

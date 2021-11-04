@@ -68,19 +68,20 @@ public class EventPublisher {
   public static class BufferPayload {
     final PubsubMessage message;
     final SettableFuture<String> future;
-    final Scope scope;
+    //final Scope scope;
+    final EventState eventState;
 
     /**
      * Constructor.
      *
      * @param message pubsub message
      * @param future completion future
-     * @param scope trace propagation
+     * @param eventState trace propagation
      */
-    public BufferPayload(PubsubMessage message, SettableFuture<String> future, Scope scope) {
+    public BufferPayload(PubsubMessage message, SettableFuture<String> future, EventState eventState) {
       this.message = message;
       this.future = future;
-      this.scope = scope;
+      this.eventState = eventState;
     }
   }
 
@@ -115,6 +116,10 @@ public class EventPublisher {
                 Tags.getTagger()
                     .currentBuilder()
                     .put(
+                      SpezTagging.TAILER_TABLE_KEY,
+                      TagValue.create(payload.eventState.tableName),
+                      TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                    .put(
                         TAG_UUID,
                         TagValue.create(uuid),
                         TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
@@ -127,7 +132,7 @@ public class EventPublisher {
           payload.future.set("UNAVAILABLE");
           result = "UNAVAILABLE";
         }
-        log.info("Published message uuid {}, set future to '{}'", uuid, result);
+        //log.info("Published message uuid {}, set future to '{}'", uuid, result);
       }
     }
 
@@ -151,18 +156,18 @@ public class EventPublisher {
     ViewManager viewManager = Stats.getViewManager();
     viewManager.registerView(
         View.create(
-            Name.create("msg_received_count"),
+            SpezMetrics.MSG_RECEIVED_VIEW_NAME,
             "The count of messages received by the publisher",
             MSG_RECEIVED,
             counter,
-            Arrays.asList(TAG_UUID)));
+            Arrays.asList(SpezTagging.TAILER_TABLE_KEY)));
     viewManager.registerView(
         View.create(
-            Name.create("msg_published_count"),
+            SpezMetrics.MSG_PUBLISHED_VIEW_NAME,
             "The count of messages sent by the publisher",
             MSG_PUBLISHED,
             counter,
-            Arrays.asList(TAG_UUID)));
+            Arrays.asList(SpezTagging.TAILER_TABLE_KEY)));
   }
 
   static {
@@ -261,11 +266,13 @@ public class EventPublisher {
   }
 
   @SuppressWarnings("MustBeClosedChecker")
-  private ListenableFuture<String> addToBuffer(PubsubMessage message, Span parent) {
+  private ListenableFuture<String> addToBuffer(PubsubMessage message, EventState eventState) {
+    /*
     Scope scopedSpan = // NOPMD
         tracer.spanBuilderWithExplicitParent("EventPublisher.publish", parent).startScopedSpan();
+    */
     SettableFuture<String> future = SettableFuture.create();
-    buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, scopedSpan));
+    buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, eventState));
     bufferSize.incrementAndGet();
     Futures.addCallback(
         future,
@@ -273,12 +280,12 @@ public class EventPublisher {
 
           @Override
           public void onSuccess(String result) {
-            scopedSpan.close();
+            eventState.messagePublished(result);
           }
 
           @Override
           public void onFailure(Throwable t) {
-            scopedSpan.close();
+            // TODO(pdex): eventState needs to handle publish error
           }
         },
         scheduler);
@@ -292,6 +299,7 @@ public class EventPublisher {
     ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained); // NOPMD
     for (var payload : sink) {
       messages.add(payload.message);
+      payload.eventState.messagePublishRequested();
     }
     if (numberDrained == 0) {
       return;
@@ -317,7 +325,7 @@ public class EventPublisher {
   private void maybePublish() {
     long size = bufferSize.get();
     if (size >= publishBufferSize) {
-      log.debug("publish buffer size {}", size);
+      //log.debug("publish buffer size {}", size);
       UsefulExecutors.submit(
           scheduler,
           runPublishBuffer,
@@ -325,7 +333,7 @@ public class EventPublisher {
             log.error("Error while calling this::publishBuffer", throwable);
           });
     } else {
-      log.debug("didn't publish buffer size {}", size);
+      //log.debug("didn't publish buffer size {}", size);
     }
   }
 
@@ -338,16 +346,17 @@ public class EventPublisher {
    * @param parent propagate tracing
    */
   public ListenableFuture<String> publish(
-      ByteString data, Map<String, String> attrMap, Span parent) {
+      ByteString data, Map<String, String> attrMap, EventState eventState) {
     Preconditions.checkNotNull(data);
     Preconditions.checkNotNull(attrMap);
-    Preconditions.checkNotNull(parent);
+    Preconditions.checkNotNull(eventState);
 
     final PubsubMessage.Builder builder = PubsubMessage.newBuilder().setData(data)
         // .setOrderingKey(publisher.getTopicPath())
         ;
 
     String uuid = attrMap.get(SpezConfig.SINK_UUID_KEY);
+    eventState.uuid(uuid);
     statsRecorder
         .newMeasureMap()
         .put(MSG_RECEIVED, 1)
@@ -355,12 +364,17 @@ public class EventPublisher {
         .record(
             Tags.getTagger()
                 .currentBuilder()
+            .put(
+                SpezTagging.TAILER_TABLE_KEY,
+                TagValue.create(eventState.tableName),
+                TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+
                 .put(
                     TAG_UUID,
                     TagValue.create(uuid),
                     TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                 .build());
-    log.info("Received message uuid {}", uuid);
+    //log.info("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap
           .entrySet()
@@ -370,7 +384,7 @@ public class EventPublisher {
               });
     }
 
-    ListenableFuture<String> future = addToBuffer(builder.build(), parent);
+    ListenableFuture<String> future = addToBuffer(builder.build(), eventState);
 
     maybePublish();
     return future;

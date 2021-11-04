@@ -73,8 +73,10 @@ public class RowProcessor {
    */
   @VisibleForTesting
   public ListenableFuture<String> convertAndPublishTask(EventState state) {
+    /*
     try (Scope scopedTags = tagging.tagFor(sinkConfig.getTable())) {
       try (Scope ss = tracing.processRowScope()) {
+      */
         Row row = state.row;
         stats.incRecords();
 
@@ -89,9 +91,9 @@ public class RowProcessor {
         state.convertedToMessage(avroRecord);
 
         state.queuedForPublishing();
-        Span span = tracing.currentSpan();
+        //Span span = tracing.currentSpan();
         var metadata = extractor.extract(row);
-        var publishFuture = publisher.publish(avroRecord, metadata, span);
+        var publishFuture = publisher.publish(avroRecord, metadata, state);
         Futures.addCallback(
             publishFuture,
             new FutureCallback<String>() {
@@ -109,7 +111,7 @@ public class RowProcessor {
                       publishId);
                 }
 
-                metrics.addMessageSize(row.getSize());
+                metrics.addMessageSize(row.getSize(), state.tableName);
               }
 
               @Override
@@ -120,8 +122,10 @@ public class RowProcessor {
             },
             listeningPool);
         return publishFuture;
+        /*
       }
     }
+    */
   }
 
   /**

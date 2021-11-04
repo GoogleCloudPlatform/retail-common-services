@@ -71,7 +71,7 @@ class RowProcessorTest implements WithAssertions {
     Mockito.when(publisher.publish(Mockito.any(), Mockito.any(), Mockito.any()))
         .thenReturn(Futures.immediateFuture(""));
     var handler = new RowProcessor(sink, publisher, extractor);
-    var result = handler.convertAndPublishTask(new EventState(row, null));
+    var result = handler.convertAndPublishTask(new EventState(row, null, null));
     assertThat(result.get()).isEqualTo("");
   }
 }

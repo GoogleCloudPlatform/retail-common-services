@@ -44,7 +44,7 @@ public class SpezMetrics {
   // The view has bucket boundaries (0, 16 * MiB, 65536 * MiB) that will group measure
   // values into histogram buckets.
   private static final View.Name MESSAGE_SIZE_VIEW_NAME =
-      View.Name.create("spez/views/message-size");
+      View.Name.create("spez_message_size");
   private static final View MESSAGE_SIZE_VIEW =
       View.create(
           MESSAGE_SIZE_VIEW_NAME,
@@ -54,18 +54,28 @@ public class SpezMetrics {
               BucketBoundaries.create(Arrays.asList(0.0, 16.0 * MiB, 256.0 * MiB))),
           Collections.singletonList(SpezTagging.TAILER_TABLE_KEY));
 
+
+  public static final View.Name MSG_RECEIVED_VIEW_NAME = View.Name.create("spez_msg_received_count");
+  public static final View.Name MSG_PUBLISHED_VIEW_NAME = View.Name.create("spez_msg_published_count");
+
   public SpezMetrics() {
     viewManager.registerView(MESSAGE_SIZE_VIEW);
   }
 
-  public void addMessageSize(long size) {
-    statsRecorder.newMeasureMap().put(MESSAGE_SIZE, size).record();
+  public void addMessageSize(long size, String tableName) {
+    statsRecorder.newMeasureMap().put(MESSAGE_SIZE, size).record(SpezTagging.tagForTable(tableName));
   }
 
   /** log the recorded to stats. */
   public void logStats() {
-    ViewData viewData = viewManager.getView(MESSAGE_SIZE_VIEW_NAME);
-    log.info(
-        String.format("Recorded stats for %s:\n %s", MESSAGE_SIZE_VIEW_NAME.asString(), viewData));
+    for (var view : Arrays.asList(MESSAGE_SIZE_VIEW_NAME, MSG_RECEIVED_VIEW_NAME, MSG_PUBLISHED_VIEW_NAME)) {
+      /*
+      ViewData viewData = viewManager.getView(MESSAGE_SIZE_VIEW_NAME);
+      log.info(
+          String.format("Recorded stats for %s:\n %s", MESSAGE_SIZE_VIEW_NAME.asString(), viewData));
+          */
+      log.info(
+          String.format("Recorded stats for %s:\n %s", view.asString(), viewManager.getView(view)));
+    }
   }
 }

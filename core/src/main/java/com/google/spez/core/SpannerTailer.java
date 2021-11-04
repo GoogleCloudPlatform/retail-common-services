@@ -130,6 +130,7 @@ public class SpannerTailer {
     log.debug("POLLER ACTIVE");
     try {
       var pollingSpan = SpezTracing.initialPollingSpan();
+      pollingSpan.addAnnotation("Start polling");
       log.info("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
@@ -185,7 +186,7 @@ public class SpannerTailer {
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.debug("onNext count = {}", count);
-      results.add(handler.convertAndPublish(new EventState(row, pollingSpan)));
+      results.add(handler.convertAndPublish(new EventState(row, pollingSpan, sinkConfig.getTable())));
       lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
     }
 
@@ -207,6 +208,7 @@ public class SpannerTailer {
           lastProcessedTimestamp);
       running.decrementAndGet();
       Futures.whenAllComplete(results).call(() -> {
+        pollingSpan.addAnnotation("End polling");
 	pollingSpan.end();
         return null;
 	}, scheduler);

@@ -74,6 +74,7 @@ public class RowProcessor {
    * @return timestamp of the row published
    */
   @VisibleForTesting
+
   public ListenableFuture<String> convertAndPublishTask(EventState eventState) {
     Row row = eventState.getRow();
     stats.incRecords();

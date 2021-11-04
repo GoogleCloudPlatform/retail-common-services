@@ -44,6 +44,12 @@ public class EventState {
     nanosNow = System.nanoTime();
   }
 
+  /*
+  private Span currentSpan() {
+    return childSpans.getOrDefault(stage, BlankSpan.INSTANCE);
+  }
+  */
+
   private void transitionStage(WorkStage newStage) {
     var nanosThen = nanosNow;
     nanosNow = System.nanoTime();
@@ -111,6 +117,11 @@ public class EventState {
     statsCollector.addRowSize(row.getSize());
   }
 
+  public void uuid(String uuid) {
+    eventSpan.putAttribute("uuid", AttributeValue.stringAttributeValue(uuid));
+  }
+
+  // state transitions
   public void queued() {
     transitionStage(WorkStage.QueuedForConversion);
   }

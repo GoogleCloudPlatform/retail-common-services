@@ -43,7 +43,8 @@ public class StackdriverConfigurator {
         traceConfig
             .getActiveTraceParams()
             .toBuilder()
-            .setSampler(Samplers.alwaysSample()) // TODO(pdex): move to config
+            //.setSampler(Samplers.alwaysSample()) // TODO(pdex): move to config
+            .setSampler(Samplers.probabilitySampler(0.1)) // TODO(pdex): move to config [value between 0.0 and 1.0]
             .build());
 
     // Create the Stackdriver trace exporter

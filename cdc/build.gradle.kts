@@ -110,7 +110,6 @@ application {
     "-Dio.netty.allocator.type=pooled",
     "-XX:+UnlockExperimentalVMOptions",
     "-XX:+UseZGC",
-    "-Xlog:gc:mylog.log*",
     "-XX:ConcGCThreads=4",
     "-XX:+UseTransparentHugePages",
     "-XX:+UseNUMA",

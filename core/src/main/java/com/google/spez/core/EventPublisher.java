@@ -259,7 +259,7 @@ public class EventPublisher {
   @VisibleForTesting
   void start() {
     var future =
-        scheduler.scheduleAtFixedRate(runPublishBuffer, 0, publishBufferTime, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(runPublishBuffer, 0, publishBufferTime, TimeUnit.MILLISECONDS);
     ListenableFutureErrorHandler.create(
         scheduler,
         future,

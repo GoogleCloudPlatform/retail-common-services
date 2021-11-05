@@ -70,13 +70,13 @@ public class EventPublisherTest implements WithAssertions {
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
     Mockito.when(
             scheduler.scheduleAtFixedRate(
-                eventPublisher.runPublishBuffer, 0, 100, TimeUnit.SECONDS))
+                eventPublisher.runPublishBuffer, 0, 100, TimeUnit.MILLISECONDS))
         .thenReturn(future);
 
     eventPublisher.start();
 
     Mockito.verify(scheduler, Mockito.times(1))
-        .scheduleAtFixedRate(eventPublisher.runPublishBuffer, 0, 100, TimeUnit.SECONDS);
+        .scheduleAtFixedRate(eventPublisher.runPublishBuffer, 0, 100, TimeUnit.MILLISECONDS);
   }
 
   @Test

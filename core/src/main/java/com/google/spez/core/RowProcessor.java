@@ -36,10 +36,12 @@ public class RowProcessor {
   private final SpezTagging tagging = new SpezTagging();
   private final SpezTracing tracing = new SpezTracing();
 
-  private final ExecutorService threadPool =
-      Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+  /*
+  private final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
   private final ListeningExecutorService listeningPool =
       MoreExecutors.listeningDecorator(threadPool);
+      */
+  private final ListeningExecutorService listeningPool = MoreExecutors.newDirectExecutorService();
   private final RowProcessorStats stats = new RowProcessorStats();
 
   private final SpezConfig.SinkConfig sinkConfig;

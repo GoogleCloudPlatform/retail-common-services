@@ -178,6 +178,11 @@ public class EventPublisher {
 
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
+  /**
+   * PubSub has a limit of 1000 messages per PublishRequest.
+   * We will batch up at most MAX_PUBLISH_SIZE messages for each request.
+   * This number should be less than 1000 base on experience with PubSub grumpiness.
+   */
   private static final int MAX_PUBLISH_SIZE = 950;
   private static final Tracer tracer = Tracing.getTracer();
 
@@ -318,7 +323,8 @@ public class EventPublisher {
 
     Futures.addCallback(future, new PublishCallback(sink), scheduler);
     if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
-      maybePublish();
+      // We have enough messages for another batch, fire off in the same thread.
+      publishBuffer();
     }
   }
 

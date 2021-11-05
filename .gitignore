@@ -1,6 +1,7 @@
 deploy/build/
 deploy/secrets/
 deploy/terraform/spez-core/.terraform/
+deploy/terraform/spez-tailers/example/
 
 *.terraform
 *.tfstate

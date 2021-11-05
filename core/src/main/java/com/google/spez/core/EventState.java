@@ -18,11 +18,16 @@ package com.google.spez.core;
 
 import com.google.protobuf.ByteString;
 import com.google.spez.core.internal.Row;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Span;
+import io.opencensus.trace.Tracer;
+import io.opencensus.trace.Tracing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class EventState {
+  private static final Tracer tracer = Tracing.getTracer();
   private static final Logger log = LoggerFactory.getLogger(EventState.class);
 
   public enum WorkStage {
@@ -34,36 +39,63 @@ public class EventState {
     MessagePublished
   }
 
+  private static Span createChildSpan(String name, Span parentSpan) {
+    Span span = tracer.spanBuilderWithExplicitParent(name, parentSpan).startSpan();
+    span.putAttribute("name", AttributeValue.stringAttributeValue(name));
+    return span;
+  }
+
+  private void transitionStage(WorkStage newStage) {
+    stage = newStage;
+    eventSpan.addAnnotation(stage.toString());
+  }
+
   private WorkStage stage;
-  final Row row;
-  // TODO(pdex): add reference to polling span
+  final String tableName;
+  final Span eventSpan;
+  Row row;
   ByteString message;
   String publishId;
 
-  public EventState(Row row) {
-    stage = WorkStage.RowRead;
+  public EventState(Span pollingSpan, String tableName) {
+    eventSpan = createChildSpan("Spez Event", pollingSpan);
+    this.tableName = tableName;
+  }
+
+  public void uuid(String uuid) {
+    eventSpan.putAttribute("uuid", AttributeValue.stringAttributeValue(uuid));
+  }
+
+  // state transitions
+  public void rowRead(Row row) {
     this.row = row;
+    transitionStage(WorkStage.RowRead);
+    eventSpan.putAttribute("rowSize", AttributeValue.longAttributeValue(row.getSize()));
   }
 
   public void queued() {
-    stage = WorkStage.QueuedForConversion;
+    transitionStage(WorkStage.QueuedForConversion);
   }
 
   public void convertedToMessage(ByteString message) {
-    stage = WorkStage.ConvertedToMessage;
+    transitionStage(WorkStage.ConvertedToMessage);
     this.message = message;
+    eventSpan.putAttribute("messageSize", AttributeValue.longAttributeValue(message.size()));
   }
 
-  public void queuedForPublishing() {
-    stage = WorkStage.QueuedForPublishing;
+  public void queuedForPublishing(long bufferSize) {
+    transitionStage(WorkStage.QueuedForPublishing);
+    eventSpan.putAttribute("bufferSizeWhenQueued", AttributeValue.longAttributeValue(bufferSize));
   }
 
   public void messagePublishRequested() {
-    stage = WorkStage.MessagePublishRequested;
+    transitionStage(WorkStage.MessagePublishRequested);
   }
 
-  public void mesesagePublished(String publishId) {
-    stage = WorkStage.MessagePublished;
+  public void messagePublished(String publishId) {
+    transitionStage(WorkStage.MessagePublished);
+    eventSpan.putAttribute("publishId", AttributeValue.stringAttributeValue(publishId));
+    eventSpan.end();
     this.publishId = publishId;
   }
 }

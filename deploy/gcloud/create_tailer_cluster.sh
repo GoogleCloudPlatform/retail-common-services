@@ -19,7 +19,7 @@
 
 set -eux
 
-PROJECT=""
+PROJECT="rcs-demo-prod"
 REGION="us-central1"
 
 CLUSTER="spez-tailer-cluster"

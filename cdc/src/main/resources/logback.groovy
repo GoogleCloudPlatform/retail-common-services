@@ -71,8 +71,8 @@ set_logger("com", log_level_default)
 set_logger("com.google", log_level_default)
 set_logger("com.google.spannerclient", log_level_spannerclient)
 set_logger("com.google.spannerclient.Database", log_level_spannerclient)
-set_logger("com.google.spannerclient.GrpcClient", log_level_spannerclient)
-set_logger("com.google.spannerclient.Spanner", log_level_spannerclient)
+set_logger("com.google.spannerclient.GrpcClient", OFF)
+set_logger("com.google.spannerclient.Spanner", OFF)
 set_logger("com.google.spannerclient.Util", log_level_spannerclient)
 set_logger("com.google.spez", log_level_default)
 set_logger("com.google.spez.cdc", log_level_cdc)
@@ -131,7 +131,7 @@ switch (System.getProperty("PRICE-ENV")) {
     break
   case "DEV":
   default:
-    root(ALL, ["DEV-CONSOLE", "DEBUGGER"])
+    root(ALL, ["DEV-CONSOLE"])
     break
 }
 

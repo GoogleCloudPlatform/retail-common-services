@@ -21,6 +21,7 @@
 int main(int argc, char **argv) {
   char* args[MAX_ARGS];
   int i = 0;
+  args[i++] = "java";
   args[i++] = "@/app/jvm-arguments";
   for (int j = 1; j < argc; j++) {
     args[i++] = argv[j];

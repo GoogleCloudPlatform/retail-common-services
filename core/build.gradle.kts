@@ -64,8 +64,8 @@ dependencies {
   errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
 
   // OpenCensus core
-  compile("io.opencensus:opencensus-api:0.24.0")
-  runtime("io.opencensus:opencensus-impl:0.24.0")
+  compile("io.opencensus:opencensus-api:0.28.3")
+  runtime("io.opencensus:opencensus-impl:0.28.3")
 
   // Junit and friends
   testImplementation("org.junit.jupiter:junit-jupiter-engine:5.6.2")

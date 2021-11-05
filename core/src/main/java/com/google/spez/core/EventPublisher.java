@@ -35,20 +35,17 @@ import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
-import io.opencensus.common.Scope;
 import io.opencensus.metrics.data.AttachmentValue;
 import io.opencensus.stats.Aggregation;
 import io.opencensus.stats.Measure.MeasureLong;
 import io.opencensus.stats.Stats;
 import io.opencensus.stats.StatsRecorder;
 import io.opencensus.stats.View;
-import io.opencensus.stats.View.Name;
 import io.opencensus.stats.ViewManager;
 import io.opencensus.tags.TagKey;
 import io.opencensus.tags.TagMetadata;
 import io.opencensus.tags.TagValue;
 import io.opencensus.tags.Tags;
-import io.opencensus.trace.Span;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.ArrayList;
@@ -68,19 +65,20 @@ public class EventPublisher {
   public static class BufferPayload {
     final PubsubMessage message;
     final SettableFuture<String> future;
-    final Scope scope;
+    final EventState eventState;
 
     /**
      * Constructor.
      *
      * @param message pubsub message
      * @param future completion future
-     * @param scope trace propagation
+     * @param eventState trace propagation
      */
-    public BufferPayload(PubsubMessage message, SettableFuture<String> future, Scope scope) {
+    public BufferPayload(
+        PubsubMessage message, SettableFuture<String> future, EventState eventState) {
       this.message = message;
       this.future = future;
-      this.scope = scope;
+      this.eventState = eventState;
     }
   }
 
@@ -115,6 +113,10 @@ public class EventPublisher {
                 Tags.getTagger()
                     .currentBuilder()
                     .put(
+                        SpezTagging.TAILER_TABLE_KEY,
+                        TagValue.create(payload.eventState.tableName),
+                        TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                    .put(
                         TAG_UUID,
                         TagValue.create(uuid),
                         TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
@@ -127,7 +129,7 @@ public class EventPublisher {
           payload.future.set("UNAVAILABLE");
           result = "UNAVAILABLE";
         }
-        log.info("Published message uuid {}, set future to '{}'", uuid, result);
+        log.debug("Published message uuid {}, set future to '{}'", uuid, result);
       }
     }
 
@@ -151,18 +153,18 @@ public class EventPublisher {
     ViewManager viewManager = Stats.getViewManager();
     viewManager.registerView(
         View.create(
-            Name.create("msg_received_count"),
+            SpezMetrics.MSG_RECEIVED_VIEW_NAME,
             "The count of messages received by the publisher",
             MSG_RECEIVED,
             counter,
-            Arrays.asList(TAG_UUID)));
+            Arrays.asList(SpezTagging.TAILER_TABLE_KEY)));
     viewManager.registerView(
         View.create(
-            Name.create("msg_published_count"),
+            SpezMetrics.MSG_PUBLISHED_VIEW_NAME,
             "The count of messages sent by the publisher",
             MSG_PUBLISHED,
             counter,
-            Arrays.asList(TAG_UUID)));
+            Arrays.asList(SpezTagging.TAILER_TABLE_KEY)));
   }
 
   static {
@@ -173,7 +175,13 @@ public class EventPublisher {
 
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
+  /**
+   * PubSub has a limit of 1000 messages per PublishRequest. We will batch up at most
+   * MAX_PUBLISH_SIZE messages for each request. This number should be less than 1000 base on
+   * experience with PubSub grumpiness.
+   */
   private static final int MAX_PUBLISH_SIZE = 950;
+
   private static final Tracer tracer = Tracing.getTracer();
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
@@ -251,7 +259,7 @@ public class EventPublisher {
   @VisibleForTesting
   void start() {
     var future =
-        scheduler.scheduleAtFixedRate(runPublishBuffer, 0, publishBufferTime, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(runPublishBuffer, 0, publishBufferTime, TimeUnit.MILLISECONDS);
     ListenableFutureErrorHandler.create(
         scheduler,
         future,
@@ -261,11 +269,9 @@ public class EventPublisher {
   }
 
   @SuppressWarnings("MustBeClosedChecker")
-  private ListenableFuture<String> addToBuffer(PubsubMessage message, Span parent) {
-    Scope scopedSpan = // NOPMD
-        tracer.spanBuilderWithExplicitParent("EventPublisher.publish", parent).startScopedSpan();
+  private ListenableFuture<String> addToBuffer(PubsubMessage message, EventState eventState) {
     SettableFuture<String> future = SettableFuture.create();
-    buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, scopedSpan));
+    buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, eventState));
     bufferSize.incrementAndGet();
     Futures.addCallback(
         future,
@@ -273,12 +279,12 @@ public class EventPublisher {
 
           @Override
           public void onSuccess(String result) {
-            scopedSpan.close();
+            eventState.messagePublished(result);
           }
 
           @Override
           public void onFailure(Throwable t) {
-            scopedSpan.close();
+            // TODO(pdex): eventState needs to handle publish error
           }
         },
         scheduler);
@@ -292,6 +298,7 @@ public class EventPublisher {
     ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained); // NOPMD
     for (var payload : sink) {
       messages.add(payload.message);
+      payload.eventState.messagePublishRequested();
     }
     if (numberDrained == 0) {
       return;
@@ -310,12 +317,14 @@ public class EventPublisher {
 
     Futures.addCallback(future, new PublishCallback(sink), scheduler);
     if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
-      maybePublish();
+      // We have enough messages for another batch, fire off in the same thread.
+      publishBuffer();
     }
   }
 
-  private void maybePublish() {
+  private void maybePublish(EventState eventState) {
     long size = bufferSize.get();
+    eventState.queuedForPublishing(size);
     if (size >= publishBufferSize) {
       log.debug("publish buffer size {}", size);
       UsefulExecutors.submit(
@@ -338,16 +347,17 @@ public class EventPublisher {
    * @param parent propagate tracing
    */
   public ListenableFuture<String> publish(
-      ByteString data, Map<String, String> attrMap, Span parent) {
+      ByteString data, Map<String, String> attrMap, EventState eventState) {
     Preconditions.checkNotNull(data);
     Preconditions.checkNotNull(attrMap);
-    Preconditions.checkNotNull(parent);
+    Preconditions.checkNotNull(eventState);
 
     final PubsubMessage.Builder builder = PubsubMessage.newBuilder().setData(data)
         // .setOrderingKey(publisher.getTopicPath())
         ;
 
     String uuid = attrMap.get(SpezConfig.SINK_UUID_KEY);
+    eventState.uuid(uuid);
     statsRecorder
         .newMeasureMap()
         .put(MSG_RECEIVED, 1)
@@ -356,11 +366,15 @@ public class EventPublisher {
             Tags.getTagger()
                 .currentBuilder()
                 .put(
+                    SpezTagging.TAILER_TABLE_KEY,
+                    TagValue.create(eventState.tableName),
+                    TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                .put(
                     TAG_UUID,
                     TagValue.create(uuid),
                     TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                 .build());
-    log.info("Received message uuid {}", uuid);
+    log.debug("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap
           .entrySet()
@@ -370,9 +384,9 @@ public class EventPublisher {
               });
     }
 
-    ListenableFuture<String> future = addToBuffer(builder.build(), parent);
+    ListenableFuture<String> future = addToBuffer(builder.build(), eventState);
 
-    maybePublish();
+    maybePublish(eventState);
     return future;
   }
 }

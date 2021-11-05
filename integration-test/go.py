@@ -38,15 +38,20 @@ uuid_column = 'uuid'
 # Get a Cloud Spanner database by ID.
 database = instance.database(database_id)
 
-def insert_rows(transaction, offset, num=100):
-  values=[]
-  for i in range(1, num+1):
-    values.append([offset + i, COMMIT_TIMESTAMP])
+def insert_row(transaction, uuid):
+  values=[uuid, COMMIT_TIMESTAMP]
   transaction.insert(
     table_name,
     columns=[uuid_column, 'CommitTimestamp'],
-    values=values,
+    values=[values],
   )
+
+def insert_rows(offset, num=10000):
+  for i in range(1, num+1):
+    print(f"{i}/{num}", end="\r")
+    uuid = offset + i
+    database.run_in_transaction(insert_row, uuid)
+  print(f"\ninserted rows with uuid {offset}..{offset+num}")
 
 offset = int(sys.argv[1])
 
@@ -56,4 +61,4 @@ if offset == -1:
     offset = result[0]
     print("new offset: ", offset)
 
-database.run_in_transaction(insert_rows, offset)
+insert_rows(offset)

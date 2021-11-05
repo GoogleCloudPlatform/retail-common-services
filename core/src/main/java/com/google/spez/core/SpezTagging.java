@@ -36,14 +36,13 @@ public class SpezTagging {
    * @return a tag
    */
   public static TagContext tagForTable(String tableName) {
-    return
-        tagger
-            .currentBuilder()
-            .put(
-                TAILER_TABLE_KEY,
-                TagValue.create(tableName),
-                TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
-            .build();
+    return tagger
+        .currentBuilder()
+        .put(
+            TAILER_TABLE_KEY,
+            TagValue.create(tableName),
+            TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+        .build();
   }
 
   /**

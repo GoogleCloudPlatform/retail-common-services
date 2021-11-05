@@ -35,20 +35,17 @@ import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
-import io.opencensus.common.Scope;
 import io.opencensus.metrics.data.AttachmentValue;
 import io.opencensus.stats.Aggregation;
 import io.opencensus.stats.Measure.MeasureLong;
 import io.opencensus.stats.Stats;
 import io.opencensus.stats.StatsRecorder;
 import io.opencensus.stats.View;
-import io.opencensus.stats.View.Name;
 import io.opencensus.stats.ViewManager;
 import io.opencensus.tags.TagKey;
 import io.opencensus.tags.TagMetadata;
 import io.opencensus.tags.TagValue;
 import io.opencensus.tags.Tags;
-import io.opencensus.trace.Span;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 import java.util.ArrayList;
@@ -68,7 +65,6 @@ public class EventPublisher {
   public static class BufferPayload {
     final PubsubMessage message;
     final SettableFuture<String> future;
-    //final Scope scope;
     final EventState eventState;
 
     /**
@@ -78,7 +74,8 @@ public class EventPublisher {
      * @param future completion future
      * @param eventState trace propagation
      */
-    public BufferPayload(PubsubMessage message, SettableFuture<String> future, EventState eventState) {
+    public BufferPayload(
+        PubsubMessage message, SettableFuture<String> future, EventState eventState) {
       this.message = message;
       this.future = future;
       this.eventState = eventState;
@@ -116,9 +113,9 @@ public class EventPublisher {
                 Tags.getTagger()
                     .currentBuilder()
                     .put(
-                      SpezTagging.TAILER_TABLE_KEY,
-                      TagValue.create(payload.eventState.tableName),
-                      TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
+                        SpezTagging.TAILER_TABLE_KEY,
+                        TagValue.create(payload.eventState.tableName),
+                        TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                     .put(
                         TAG_UUID,
                         TagValue.create(uuid),
@@ -132,7 +129,7 @@ public class EventPublisher {
           payload.future.set("UNAVAILABLE");
           result = "UNAVAILABLE";
         }
-        //log.info("Published message uuid {}, set future to '{}'", uuid, result);
+        log.debug("Published message uuid {}, set future to '{}'", uuid, result);
       }
     }
 
@@ -179,11 +176,12 @@ public class EventPublisher {
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
   /**
-   * PubSub has a limit of 1000 messages per PublishRequest.
-   * We will batch up at most MAX_PUBLISH_SIZE messages for each request.
-   * This number should be less than 1000 base on experience with PubSub grumpiness.
+   * PubSub has a limit of 1000 messages per PublishRequest. We will batch up at most
+   * MAX_PUBLISH_SIZE messages for each request. This number should be less than 1000 base on
+   * experience with PubSub grumpiness.
    */
   private static final int MAX_PUBLISH_SIZE = 950;
+
   private static final Tracer tracer = Tracing.getTracer();
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
@@ -272,10 +270,6 @@ public class EventPublisher {
 
   @SuppressWarnings("MustBeClosedChecker")
   private ListenableFuture<String> addToBuffer(PubsubMessage message, EventState eventState) {
-    /*
-    Scope scopedSpan = // NOPMD
-        tracer.spanBuilderWithExplicitParent("EventPublisher.publish", parent).startScopedSpan();
-    */
     SettableFuture<String> future = SettableFuture.create();
     buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, eventState));
     bufferSize.incrementAndGet();
@@ -371,11 +365,10 @@ public class EventPublisher {
         .record(
             Tags.getTagger()
                 .currentBuilder()
-            .put(
-                SpezTagging.TAILER_TABLE_KEY,
-                TagValue.create(eventState.tableName),
-                TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
-
+                .put(
+                    SpezTagging.TAILER_TABLE_KEY,
+                    TagValue.create(eventState.tableName),
+                    TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                 .put(
                     TAG_UUID,
                     TagValue.create(uuid),

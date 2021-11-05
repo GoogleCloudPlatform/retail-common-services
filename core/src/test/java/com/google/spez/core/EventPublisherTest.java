@@ -26,8 +26,6 @@ import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.spannerclient.Publisher;
 import com.google.spez.common.UsefulExecutors;
-import io.opencensus.common.Scope;
-import io.opencensus.trace.Span;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -54,7 +52,7 @@ public class EventPublisherTest implements WithAssertions {
 
   @Test
   public void shouldBufferMessage() {
-    var eventState = new EventState(null, null, "table");
+    var eventState = new EventState(null, "table");
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 100 will not publish
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
@@ -114,7 +112,7 @@ public class EventPublisherTest implements WithAssertions {
   public void publishBeforeDeadline(@Mock ListenableFuture submitFuture) {
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
-    var eventState = new EventState(null, null, "table");
+    var eventState = new EventState(null, "table");
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 1, 100);
 
     Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
@@ -130,9 +128,8 @@ public class EventPublisherTest implements WithAssertions {
   @Test
   @SuppressWarnings("unchecked")
   public void publishBufferUpdatesBufferSize(
-      @Mock ListenableFuture submitFuture,
-      @Mock ListenableFuture<PublishResponse> publishFuture) {
-    var eventState = new EventState(null, null, "table");
+      @Mock ListenableFuture submitFuture, @Mock ListenableFuture<PublishResponse> publishFuture) {
+    var eventState = new EventState(null, "table");
     Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
     EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 1, 100);
@@ -152,7 +149,7 @@ public class EventPublisherTest implements WithAssertions {
   @Test
   void callbackShouldAttachMessageId(@Mock PublishResponse response)
       throws ExecutionException, InterruptedException {
-    var eventState = new EventState(null, null, "table");
+    var eventState = new EventState(null, "table");
     var event = ByteString.copyFromUtf8(EVENT);
     var message =
         PubsubMessage.newBuilder()

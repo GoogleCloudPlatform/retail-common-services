@@ -16,16 +16,16 @@
 
 package com.google.spez.common;
 
+import io.opencensus.common.Duration;
+import io.opencensus.exporter.stats.stackdriver.StackdriverStatsConfiguration;
+import io.opencensus.exporter.stats.stackdriver.StackdriverStatsExporter;
+import io.opencensus.exporter.trace.logging.LoggingExporter;
 import io.opencensus.exporter.trace.stackdriver.StackdriverTraceConfiguration;
 import io.opencensus.exporter.trace.stackdriver.StackdriverTraceExporter;
-import io.opencensus.exporter.stats.stackdriver.StackdriverStatsExporter;
-import io.opencensus.exporter.stats.stackdriver.StackdriverStatsConfiguration;
-import io.opencensus.exporter.trace.logging.LoggingExporter;
 import io.opencensus.trace.Tracing;
 import io.opencensus.trace.config.TraceConfig;
 import io.opencensus.trace.samplers.Samplers;
 import java.io.IOException;
-import io.opencensus.common.Duration;
 
 public class StackdriverConfigurator {
   /**
@@ -54,13 +54,13 @@ public class StackdriverConfigurator {
             .build());
 
     StackdriverStatsExporter.createAndRegister(
-        StackdriverStatsConfiguration
-        .builder()
-        .setProjectId(config.getProjectId())
-        .setExportInterval(Duration.fromMillis(60_000))
-        .build()
-        );
+        StackdriverStatsConfiguration.builder()
+            .setProjectId(config.getProjectId())
+            .setExportInterval(Duration.fromMillis(60_000))
+            .build());
 
-    //LoggingExporter.register();
+    if (System.getenv().getOrDefault("LOGGING_EXPORTER", "false").toLowerCase().equals("true")) {
+      LoggingExporter.register();
+    }
   }
 }

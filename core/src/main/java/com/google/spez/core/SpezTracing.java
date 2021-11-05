@@ -41,5 +41,4 @@ public class SpezTracing {
   public static Span initialPollingSpan() {
     return tracer.spanBuilder("SpannerTailer.poll").startSpan();
   }
-
 }

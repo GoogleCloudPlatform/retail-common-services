@@ -27,8 +27,9 @@ import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
 import com.google.spez.core.internal.Database;
 import com.google.spez.core.internal.Row;
-import io.opencensus.trace.Span;
 import io.grpc.stub.StreamObserver;
+import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.Span;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -130,6 +131,8 @@ public class SpannerTailer {
     log.debug("POLLER ACTIVE");
     try {
       var pollingSpan = SpezTracing.initialPollingSpan();
+      pollingSpan.putAttribute(
+          "tableName", AttributeValue.stringAttributeValue(sinkConfig.getTable()));
       pollingSpan.addAnnotation("Start polling");
       log.info("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
@@ -186,7 +189,9 @@ public class SpannerTailer {
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.debug("onNext count = {}", count);
-      results.add(handler.convertAndPublish(new EventState(row, pollingSpan, sinkConfig.getTable())));
+      var eventState = new EventState(pollingSpan, sinkConfig.getTable());
+      eventState.rowRead(row);
+      results.add(handler.convertAndPublish(eventState));
       lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
     }
 
@@ -207,11 +212,14 @@ public class SpannerTailer {
           duration.toNanos() / 1000000000.0,
           lastProcessedTimestamp);
       running.decrementAndGet();
-      Futures.whenAllComplete(results).call(() -> {
-        pollingSpan.addAnnotation("End polling");
-	pollingSpan.end();
-        return null;
-	}, scheduler);
+      Futures.whenAllComplete(results)
+          .call(
+              () -> {
+                pollingSpan.addAnnotation("End polling");
+                pollingSpan.end();
+                return null;
+              },
+              scheduler);
     }
   }
 }

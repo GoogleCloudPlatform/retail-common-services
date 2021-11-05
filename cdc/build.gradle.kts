@@ -87,11 +87,13 @@ tasks.register<Jar>("spannerTailerService") {
   })
 }
 
+val project_id = System.getenv().getOrDefault("PROJECT_ID", "rcs-demo-prod")
+
 application {
   mainClassName = "com.google.spez.cdc.Main"
   applicationDefaultJvmArgs = listOf(
-    "-Dspez.auth.cloud_secrets_dir=/home/xjdr/src/xjdrlabs/spez/secrets",
-    "-Dspez.project_id=rcs-demo-prod",
+    "-Dspez.auth.cloud_secrets_dir=${rootProject.projectDir}/secrets",
+    "-Dspez.project_id=$project_id",
     "-Dspez.auth.credentials=credentials.json",
     "-Dspez.pubsub.topic=spez-ledger-topic",
     "-Dspez.sink.instance=example-event-sink-instance",
@@ -103,7 +105,7 @@ application {
     "-Dspez.lpts.database=spez-lpts-database",
     "-Dspez.lpts.table=lpts",
     "-Dspez.loglevel.default=INFO",
-    "-Dspez.loglevel.com.google.spez.core.EventPublisher=DEBUG",
+    "-Dspez.loglevel.com.google.spez.core.EventPublisher=INFO",
     "-Djava.net.preferIPv4Stack=true",
     "-Dio.netty.allocator.type=pooled",
     "-XX:+UnlockExperimentalVMOptions",

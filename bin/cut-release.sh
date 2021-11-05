@@ -33,4 +33,4 @@ git checkout -b release-$TAG $TAG || git checkout release-$TAG
 
 git push origin HEAD
 
-git checkout master
+git checkout main

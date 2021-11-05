@@ -40,6 +40,7 @@ release {
   val gitConfig = getProperty("git") as GitAdapter.GitConfig
   gitConfig.pushToRemote = "origin"
   gitConfig.pushOptions = listOf("--tags")
+  gitConfig.requireBranch = "main"
 }
 
 subprojects {

@@ -328,10 +328,11 @@ public class EventPublisher {
     }
   }
 
-  private void maybePublish() {
+  private void maybePublish(EventState eventState) {
     long size = bufferSize.get();
+    eventState.queuedForPublishing(size);
     if (size >= publishBufferSize) {
-      //log.debug("publish buffer size {}", size);
+      log.debug("publish buffer size {}", size);
       UsefulExecutors.submit(
           scheduler,
           runPublishBuffer,
@@ -339,7 +340,7 @@ public class EventPublisher {
             log.error("Error while calling this::publishBuffer", throwable);
           });
     } else {
-      //log.debug("didn't publish buffer size {}", size);
+      log.debug("didn't publish buffer size {}", size);
     }
   }
 
@@ -380,7 +381,7 @@ public class EventPublisher {
                     TagValue.create(uuid),
                     TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                 .build());
-    //log.info("Received message uuid {}", uuid);
+    log.debug("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap
           .entrySet()
@@ -392,7 +393,7 @@ public class EventPublisher {
 
     ListenableFuture<String> future = addToBuffer(builder.build(), eventState);
 
-    maybePublish();
+    maybePublish(eventState);
     return future;
   }
 }

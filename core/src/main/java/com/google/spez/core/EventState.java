@@ -97,8 +97,9 @@ public class EventState {
     this.message = message;
   }
 
-  public void queuedForPublishing() {
+  public void queuedForPublishing(long bufferSize) {
     transitionStage(WorkStage.QueuedForPublishing);
+    eventSpan.putAttribute("bufferSizeWhenQueued", AttributeValue.longAttributeValue(bufferSize));
   }
 
   public void messagePublishRequested() {

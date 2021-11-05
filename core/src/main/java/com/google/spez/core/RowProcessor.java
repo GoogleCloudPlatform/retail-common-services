@@ -90,7 +90,6 @@ public class RowProcessor {
         var avroRecord = maybeAvroRecord.get();
         state.convertedToMessage(avroRecord);
 
-        state.queuedForPublishing();
         //Span span = tracing.currentSpan();
         var metadata = extractor.extract(row);
         var publishFuture = publisher.publish(avroRecord, metadata, state);

@@ -24,13 +24,16 @@ import sys
 spanner_client = spanner.Client()
 
 # Your Cloud Spanner instance ID.
-instance_id = 'spez-test-instance'
+instance_id = 'example-event-sink-instance'
 
 # Get a Cloud Spanner instance by ID.
 instance = spanner_client.instance(instance_id)
 
 # Your Cloud Spanner database ID.
-database_id = 'spez-test-database'
+database_id = 'example-event-sink-database'
+
+table_name = 'example'
+uuid_column = 'uuid'
 
 # Get a Cloud Spanner database by ID.
 database = instance.database(database_id)
@@ -40,8 +43,8 @@ def insert_rows(transaction, offset, num=100):
   for i in range(1, num+1):
     values.append([offset + i, COMMIT_TIMESTAMP])
   transaction.insert(
-    'test',
-    columns=['Id', 'CommitTimestamp'],
+    table_name,
+    columns=[uuid_column, 'CommitTimestamp'],
     values=values,
   )
 
@@ -49,7 +52,7 @@ offset = int(sys.argv[1])
 
 if offset == -1:
   with database.snapshot() as snapshot:
-    result = snapshot.execute_sql("select max(Id) as max_id from test").one()
+    result = snapshot.execute_sql(f"select max({uuid_column}) as max_id from {table_name}").one()
     offset = result[0]
     print("new offset: ", offset)
 

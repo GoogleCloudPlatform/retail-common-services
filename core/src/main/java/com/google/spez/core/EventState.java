@@ -19,9 +19,11 @@ package com.google.spez.core;
 import com.google.protobuf.ByteString;
 import com.google.spez.core.internal.Row;
 import io.opencensus.trace.AttributeValue;
+import io.opencensus.trace.BlankSpan;
 import io.opencensus.trace.Span;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,19 +53,24 @@ public class EventState {
   }
 
   private WorkStage stage;
+  final Span pollingSpan;
   final String tableName;
   final Span eventSpan;
   Row row;
   ByteString message;
+  String uuid;
   String publishId;
 
   public EventState(Span pollingSpan, String tableName) {
-    eventSpan = createChildSpan("Spez Event", pollingSpan);
+    this.pollingSpan = pollingSpan;
+    //eventSpan = createChildSpan("Spez Event", pollingSpan);
     this.tableName = tableName;
+    eventSpan = BlankSpan.INSTANCE;
   }
 
   public void uuid(String uuid) {
     eventSpan.putAttribute("uuid", AttributeValue.stringAttributeValue(uuid));
+    this.uuid = uuid;
   }
 
   // state transitions
@@ -96,6 +103,12 @@ public class EventState {
     transitionStage(WorkStage.MessagePublished);
     eventSpan.putAttribute("publishId", AttributeValue.stringAttributeValue(publishId));
     eventSpan.end();
+    pollingSpan.addAnnotation("Event " + uuid + " published",
+      Map.of(
+        "uuid", AttributeValue.stringAttributeValue(uuid),
+        "publishId", AttributeValue.stringAttributeValue(publishId)
+      )
+    );
     this.publishId = publishId;
   }
 }

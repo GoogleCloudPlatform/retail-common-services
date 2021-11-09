@@ -23,34 +23,47 @@ import java.util.List;
 public class StackdriverConfig {
   public static class Parser {
     private final String projectIdKey;
+    private final String samplingRateKey;
 
     public Parser(String baseKeyPath) {
       projectIdKey = baseKeyPath + ".project_id";
+      samplingRateKey = baseKeyPath + ".trace_sampling_rate";
     }
 
     /** StackdriverConfig value object parser. */
     public StackdriverConfig parse(Config config) {
-      return new StackdriverConfig(config.getString(projectIdKey));
+      double samplingRate = config.getDouble(samplingRateKey);
+      if (samplingRate < 0.0 || samplingRate > 1.0) {
+        throw new RuntimeException("Invalid trace_sampling_rate '" + samplingRate + "' must be a value between 0.0 and 1.0 inclusive");
+      }
+      return new StackdriverConfig(config.getString(projectIdKey), samplingRate);
     }
 
     public List<String> configKeys() {
-      return List.of(projectIdKey);
+      return List.of(projectIdKey, samplingRateKey);
     }
   }
 
   private final String projectId;
+  private final double samplingRate;
 
   /** SinkConfig value object constructor. */
-  private StackdriverConfig(String projectId) {
+  private StackdriverConfig(String projectId, double samplingRate) {
     this.projectId = projectId;
+    this.samplingRate = samplingRate;
   }
 
   public static Parser newParser(String baseKeyPath) {
-    return new Parser(baseKeyPath);
+    return new Parser(baseKeyPath + ".stackdriver");
   }
 
   /** projectId getter. */
   public String getProjectId() {
     return projectId;
+  }
+
+  /** samplingRate getter. */
+  public double getSamplingRate() {
+    return samplingRate;
   }
 }

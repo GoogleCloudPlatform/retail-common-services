@@ -34,7 +34,10 @@ public class StackdriverConfig {
     public StackdriverConfig parse(Config config) {
       double samplingRate = config.getDouble(samplingRateKey);
       if (samplingRate < 0.0 || samplingRate > 1.0) {
-        throw new RuntimeException("Invalid trace_sampling_rate '" + samplingRate + "' must be a value between 0.0 and 1.0 inclusive");
+        throw new RuntimeException(
+            "Invalid trace_sampling_rate '"
+                + samplingRate
+                + "' must be a value between 0.0 and 1.0 inclusive");
       }
       return new StackdriverConfig(config.getString(projectIdKey), samplingRate);
     }

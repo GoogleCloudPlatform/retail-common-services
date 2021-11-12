@@ -84,9 +84,11 @@ public class EventPublisher {
 
   public static class PublishCallback implements FutureCallback<PublishResponse> {
     final List<BufferPayload> sink;
+    final String tableName;
 
-    PublishCallback(List<BufferPayload> sink) {
+    PublishCallback(List<BufferPayload> sink, String tableName) {
       this.sink = sink;
+      this.tableName = tableName;
     }
 
     @Override
@@ -114,7 +116,7 @@ public class EventPublisher {
                     .currentBuilder()
                     .put(
                         SpezTagging.TAILER_TABLE_KEY,
-                        TagValue.create(payload.eventState.tableName),
+                        TagValue.create(tableName),
                         TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                     .put(
                         TAG_UUID,
@@ -187,6 +189,7 @@ public class EventPublisher {
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
   @VisibleForTesting final AtomicLong bufferSize = new AtomicLong(0);
 
+  private final String tableName;
   private final ListeningScheduledExecutorService scheduler;
   private final int publishBufferSize;
   private final int publishBufferTime;
@@ -197,6 +200,7 @@ public class EventPublisher {
   /**
    * constructor visible for testing.
    *
+   * @param tableName name of the table that we're publishing from
    * @param scheduler scheduler service
    * @param publisher publisher
    * @param publishSize publish size
@@ -205,15 +209,18 @@ public class EventPublisher {
    */
   @VisibleForTesting
   public EventPublisher(
+      String tableName,
       ListeningScheduledExecutorService scheduler,
       Publisher publisher,
       int publishSize,
       int publishTime,
       Runnable runPublishBuffer) {
+    Preconditions.checkNotNull(tableName, "tableName must not be null");
     Preconditions.checkNotNull(scheduler, "scheduler must not be null");
     Preconditions.checkNotNull(publisher, "publisher must not be null");
     Preconditions.checkArgument(publishSize >= 0, "publishSize must be greater than or equal to 0");
     Preconditions.checkArgument(publishTime >= 0, "publishTime must be greater than or equal to 0");
+    this.tableName = tableName;
     this.scheduler = scheduler;
     this.publisher = publisher;
     if (runPublishBuffer != null) {
@@ -226,11 +233,12 @@ public class EventPublisher {
   }
 
   public EventPublisher(
+      String tableName,
       ListeningScheduledExecutorService scheduler,
       Publisher publisher,
       int publishSize,
       int publishTime) {
-    this(scheduler, publisher, publishSize, publishTime, null);
+    this(tableName, scheduler, publisher, publishSize, publishTime, null);
   }
 
   /**
@@ -251,7 +259,11 @@ public class EventPublisher {
 
     var eventPublisher =
         new EventPublisher(
-            scheduler, publisher, DEFAULT_BUFFER_SIZE, config.getPubSub().getBufferTimeout());
+            config.getSink().getTable(),
+            scheduler,
+            publisher,
+            DEFAULT_BUFFER_SIZE,
+            config.getPubSub().getBufferTimeout());
     eventPublisher.start();
     return eventPublisher;
   }
@@ -259,7 +271,8 @@ public class EventPublisher {
   @VisibleForTesting
   void start() {
     var future =
-        scheduler.scheduleAtFixedRate(runPublishBuffer, 0, publishBufferTime, TimeUnit.MILLISECONDS);
+        scheduler.scheduleAtFixedRate(
+            runPublishBuffer, 0, publishBufferTime, TimeUnit.MILLISECONDS);
     ListenableFutureErrorHandler.create(
         scheduler,
         future,
@@ -315,7 +328,7 @@ public class EventPublisher {
     log.debug("{} messages drained and published", numberDrained);
     bufferSize.getAndAdd(-1 * numberDrained);
 
-    Futures.addCallback(future, new PublishCallback(sink), scheduler);
+    Futures.addCallback(future, new PublishCallback(sink, tableName), scheduler);
     if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
       // We have enough messages for another batch, fire off in the same thread.
       publishBuffer();
@@ -367,7 +380,7 @@ public class EventPublisher {
                 .currentBuilder()
                 .put(
                     SpezTagging.TAILER_TABLE_KEY,
-                    TagValue.create(eventState.tableName),
+                    TagValue.create(tableName),
                     TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
                 .put(
                     TAG_UUID,

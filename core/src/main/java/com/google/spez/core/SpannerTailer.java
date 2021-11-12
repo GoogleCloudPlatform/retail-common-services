@@ -189,7 +189,7 @@ public class SpannerTailer {
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.debug("onNext count = {}", count);
-      var eventState = new EventState(pollingSpan, sinkConfig.getTable());
+      var eventState = new EventState(pollingSpan);
       eventState.rowRead(row);
       results.add(handler.convertAndPublish(eventState));
       lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();

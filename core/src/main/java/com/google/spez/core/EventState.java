@@ -19,20 +19,18 @@ package com.google.spez.core;
 import com.google.protobuf.ByteString;
 import com.google.spez.core.internal.Row;
 import io.opencensus.trace.AttributeValue;
-import io.opencensus.trace.BlankSpan;
 import io.opencensus.trace.Span;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
+import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class EventState {
-  private static final Tracer tracer = Tracing.getTracer();
   private static final Logger log = LoggerFactory.getLogger(EventState.class);
 
   public enum WorkStage {
+    Unknown,
     RowRead,
     QueuedForConversion,
     ConvertedToMessage,
@@ -41,43 +39,51 @@ public class EventState {
     MessagePublished
   }
 
-  private static Span createChildSpan(String name, Span parentSpan) {
-    Span span = tracer.spanBuilderWithExplicitParent(name, parentSpan).startSpan();
-    span.putAttribute("name", AttributeValue.stringAttributeValue(name));
-    return span;
+  private void initialStage(WorkStage newStage) {
+    stage = newStage;
+    nanosNow = System.nanoTime();
   }
 
   private void transitionStage(WorkStage newStage) {
+    var nanosThen = nanosNow;
+    nanosNow = System.nanoTime();
+    String duration = Long.toString(nanosNow - nanosThen) + "ns";
+    attributes.put(stage.toString() + " duration", AttributeValue.stringAttributeValue(duration));
+
     stage = newStage;
-    eventSpan.addAnnotation(stage.toString());
   }
 
   private WorkStage stage;
-  final Span pollingSpan;
-  final String tableName;
-  final Span eventSpan;
-  Row row;
+  private long nanosNow;
+  private final Span pollingSpan;
+  final Map<String, AttributeValue> attributes = new HashMap<>();
+  private Row row;
   ByteString message;
-  String uuid;
-  String publishId;
+  private String uuid;
 
-  public EventState(Span pollingSpan, String tableName) {
+  public EventState(Span pollingSpan) {
+    this.stage = WorkStage.Unknown;
     this.pollingSpan = pollingSpan;
-    //eventSpan = createChildSpan("Spez Event", pollingSpan);
-    this.tableName = tableName;
-    eventSpan = BlankSpan.INSTANCE;
+  }
+
+  public Row getRow() {
+    return row;
+  }
+
+  public Span getPollingSpan() {
+    return pollingSpan;
   }
 
   public void uuid(String uuid) {
-    eventSpan.putAttribute("uuid", AttributeValue.stringAttributeValue(uuid));
     this.uuid = uuid;
+    attributes.put("uuid", AttributeValue.stringAttributeValue(uuid));
   }
 
   // state transitions
   public void rowRead(Row row) {
     this.row = row;
-    transitionStage(WorkStage.RowRead);
-    eventSpan.putAttribute("rowSize", AttributeValue.longAttributeValue(row.getSize()));
+    initialStage(WorkStage.RowRead);
+    attributes.put("rowSize", AttributeValue.longAttributeValue(row.getSize()));
   }
 
   public void queued() {
@@ -87,12 +93,12 @@ public class EventState {
   public void convertedToMessage(ByteString message) {
     transitionStage(WorkStage.ConvertedToMessage);
     this.message = message;
-    eventSpan.putAttribute("messageSize", AttributeValue.longAttributeValue(message.size()));
+    attributes.put("messageSize", AttributeValue.longAttributeValue(message.size()));
   }
 
   public void queuedForPublishing(long bufferSize) {
     transitionStage(WorkStage.QueuedForPublishing);
-    eventSpan.putAttribute("bufferSizeWhenQueued", AttributeValue.longAttributeValue(bufferSize));
+    attributes.put("bufferSizeWhenQueued", AttributeValue.longAttributeValue(bufferSize));
   }
 
   public void messagePublishRequested() {
@@ -101,14 +107,7 @@ public class EventState {
 
   public void messagePublished(String publishId) {
     transitionStage(WorkStage.MessagePublished);
-    eventSpan.putAttribute("publishId", AttributeValue.stringAttributeValue(publishId));
-    eventSpan.end();
-    pollingSpan.addAnnotation("Event " + uuid + " published",
-      Map.of(
-        "uuid", AttributeValue.stringAttributeValue(uuid),
-        "publishId", AttributeValue.stringAttributeValue(publishId)
-      )
-    );
-    this.publishId = publishId;
+    attributes.put("publishId", AttributeValue.stringAttributeValue(publishId));
+    pollingSpan.addAnnotation("Event " + uuid + " published", attributes);
   }
 }

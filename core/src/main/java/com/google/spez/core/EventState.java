@@ -47,23 +47,47 @@ public class EventState {
   private void transitionStage(WorkStage newStage) {
     var nanosThen = nanosNow;
     nanosNow = System.nanoTime();
-    String duration = Long.toString(nanosNow - nanosThen) + "ns";
-    attributes.put(stage.toString() + " duration", AttributeValue.stringAttributeValue(duration));
 
     stage = newStage;
+    long duration = nanosNow - nanosThen;
+    switch (stage) {
+      case RowRead:
+        statsCollector.addRowReadDuration(duration);
+        break;
+      case QueuedForConversion:
+        statsCollector.addQueuedForConversionDuration(duration);
+        break;
+      case ConvertedToMessage:
+        statsCollector.addConvertedToMessageDuration(duration);
+        break;
+      case QueuedForPublishing:
+        statsCollector.addQueuedForPublishingDuration(duration);
+        break;
+      case MessagePublishRequested:
+        statsCollector.addMessagePublishedDuration(duration);
+        break;
+      case MessagePublished:
+        statsCollector.addMessagePublishedDuration(duration);
+        break;
+      case Unknown:
+      default:
+        break;
+    }
   }
 
   private WorkStage stage;
   private long nanosNow;
   private final Span pollingSpan;
+  private final StatsCollector statsCollector;
   final Map<String, AttributeValue> attributes = new HashMap<>();
   private Row row;
   ByteString message;
   private String uuid;
 
-  public EventState(Span pollingSpan) {
+  public EventState(Span pollingSpan, StatsCollector statsCollector) {
     this.stage = WorkStage.Unknown;
     this.pollingSpan = pollingSpan;
+    this.statsCollector = statsCollector;
   }
 
   public Row getRow() {
@@ -77,13 +101,14 @@ public class EventState {
   public void uuid(String uuid) {
     this.uuid = uuid;
     attributes.put("uuid", AttributeValue.stringAttributeValue(uuid));
+    statsCollector.attachUuid(uuid);
   }
 
   // state transitions
   public void rowRead(Row row) {
     this.row = row;
     initialStage(WorkStage.RowRead);
-    attributes.put("rowSize", AttributeValue.longAttributeValue(row.getSize()));
+    statsCollector.addRowSize(row.getSize());
   }
 
   public void queued() {
@@ -93,12 +118,13 @@ public class EventState {
   public void convertedToMessage(ByteString message) {
     transitionStage(WorkStage.ConvertedToMessage);
     this.message = message;
-    attributes.put("messageSize", AttributeValue.longAttributeValue(message.size()));
+    statsCollector.addMessageSize(message.size());
   }
 
   public void queuedForPublishing(long bufferSize) {
     transitionStage(WorkStage.QueuedForPublishing);
-    attributes.put("bufferSizeWhenQueued", AttributeValue.longAttributeValue(bufferSize));
+    statsCollector.addBufferSizeWhenQueued(bufferSize);
+    statsCollector.incrementReceived();
   }
 
   public void messagePublishRequested() {
@@ -109,5 +135,8 @@ public class EventState {
     transitionStage(WorkStage.MessagePublished);
     attributes.put("publishId", AttributeValue.stringAttributeValue(publishId));
     pollingSpan.addAnnotation("Event " + uuid + " published", attributes);
+    statsCollector.attachPublishId(publishId);
+    statsCollector.incrementPublished();
+    statsCollector.collect();
   }
 }

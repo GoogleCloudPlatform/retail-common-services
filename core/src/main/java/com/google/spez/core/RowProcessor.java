@@ -110,8 +110,6 @@ public class RowProcessor {
                   metadata.get(SpezConfig.SINK_TIMESTAMP_KEY),
                   publishId);
             }
-
-            metrics.addMessageSize(row.getSize(), tableName);
           }
 
           @Override

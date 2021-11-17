@@ -43,7 +43,9 @@ class RowProcessorTest implements WithAssertions {
   void publishRecord() {}
 
   @Test
-  void process(@Mock EventPublisher publisher, @Mock Span parent) throws Exception {
+  void process(
+      @Mock StatsCollector statsCollector, @Mock EventPublisher publisher, @Mock Span parent)
+      throws Exception {
     var fields =
         ImmutableList.of(
             StructType.Field.newBuilder()
@@ -71,7 +73,7 @@ class RowProcessorTest implements WithAssertions {
     Mockito.when(publisher.publish(Mockito.any(), Mockito.any(), Mockito.any()))
         .thenReturn(Futures.immediateFuture(""));
     var handler = new RowProcessor(sink, publisher, extractor);
-    var eventState = new EventState(null);
+    var eventState = new EventState(null, statsCollector);
     eventState.rowRead(row);
     var result = handler.convertAndPublishTask(eventState);
     assertThat(result.get()).isEqualTo("");

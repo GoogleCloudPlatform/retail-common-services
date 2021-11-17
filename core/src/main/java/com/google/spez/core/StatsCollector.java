@@ -41,7 +41,8 @@ public class StatsCollector {
   }
 
   public StatsCollector attachSpan(Span span) {
-    ExemplarUtils.putSpanContextAttachments(measureMap, span.getContext());
+    //TODO(pdex): maybe turn this back on if it's not causing "duplicate attachment" errors
+    //ExemplarUtils.putSpanContextAttachments(measureMap, span.getContext());
     return this;
   }
 

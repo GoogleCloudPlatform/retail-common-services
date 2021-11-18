@@ -37,7 +37,6 @@ public class StackdriverConfigurator {
    */
   public static void setupStackdriver(StackdriverConfig config, AuthConfig authConfig)
       throws IOException {
-    // For demo purposes, always sample
     TraceConfig traceConfig = Tracing.getTraceConfig();
     traceConfig.updateActiveTraceParams(
         traceConfig
@@ -56,7 +55,8 @@ public class StackdriverConfigurator {
     StackdriverStatsExporter.createAndRegister(
         StackdriverStatsConfiguration.builder()
             .setProjectId(config.getProjectId())
-            .setExportInterval(Duration.fromMillis(60_000))
+            .setCredentials(authConfig.getCredentials())
+            .setExportInterval(config.getExportRate())
             .build());
 
     if (System.getenv().getOrDefault("LOGGING_EXPORTER", "false").toLowerCase().equals("true")) {

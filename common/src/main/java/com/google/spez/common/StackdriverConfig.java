@@ -17,6 +17,8 @@
 package com.google.spez.common;
 
 import com.typesafe.config.Config;
+import io.opencensus.common.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
@@ -24,10 +26,12 @@ public class StackdriverConfig {
   public static class Parser {
     private final String projectIdKey;
     private final String samplingRateKey;
+    private final String exportRateKey;
 
     public Parser(String baseKeyPath) {
       projectIdKey = baseKeyPath + ".project_id";
       samplingRateKey = baseKeyPath + ".trace_sampling_rate";
+      exportRateKey = baseKeyPath + ".stats_export_rate";
     }
 
     /** StackdriverConfig value object parser. */
@@ -39,21 +43,24 @@ public class StackdriverConfig {
                 + samplingRate
                 + "' must be a value between 0.0 and 1.0 inclusive");
       }
-      return new StackdriverConfig(config.getString(projectIdKey), samplingRate);
+      Duration exportRate = Duration.fromMillis(config.getDuration(exportRateKey, TimeUnit.MILLISECONDS));
+      return new StackdriverConfig(config.getString(projectIdKey), samplingRate, exportRate);
     }
 
     public List<String> configKeys() {
-      return List.of(projectIdKey, samplingRateKey);
+      return List.of(projectIdKey, samplingRateKey, exportRateKey);
     }
   }
 
   private final String projectId;
   private final double samplingRate;
+  private final Duration exportRate;
 
   /** SinkConfig value object constructor. */
-  private StackdriverConfig(String projectId, double samplingRate) {
+  private StackdriverConfig(String projectId, double samplingRate, Duration exportRate) {
     this.projectId = projectId;
     this.samplingRate = samplingRate;
+    this.exportRate = exportRate;
   }
 
   public static Parser newParser(String baseKeyPath) {
@@ -68,5 +75,10 @@ public class StackdriverConfig {
   /** samplingRate getter. */
   public double getSamplingRate() {
     return samplingRate;
+  }
+
+  /** exportRate getter. */
+  public Duration getExportRate() {
+    return exportRate;
   }
 }

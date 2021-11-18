@@ -23,6 +23,8 @@ import io.opencensus.stats.Stats;
 import io.opencensus.trace.Span;
 
 public class StatsCollector {
+  // TODO(pdex): maybe turn this back on if it's not causing "duplicate attachment" errors
+  private final boolean USE_ATTACHMENTS = false;
   private final String tableName;
   private final MeasureMap measureMap;
 
@@ -36,20 +38,24 @@ public class StatsCollector {
   }
 
   public StatsCollector attachPublishId(String publishId) {
-    measureMap.putAttachment("publishId", AttachmentValue.AttachmentValueString.create(publishId));
+    if (USE_ATTACHMENTS) {
+      measureMap.putAttachment(
+          "publishId", AttachmentValue.AttachmentValueString.create(publishId));
+    }
     return this;
   }
 
   public StatsCollector attachSpan(Span span) {
-    // TODO(pdex): maybe turn this back on if it's not causing "duplicate attachment" errors
-    if (false) {
+    if (USE_ATTACHMENTS) {
       ExemplarUtils.putSpanContextAttachments(measureMap, span.getContext());
     }
     return this;
   }
 
   public StatsCollector attachUuid(String uuid) {
-    measureMap.putAttachment("uuid", AttachmentValue.AttachmentValueString.create(uuid));
+    if (USE_ATTACHMENTS) {
+      measureMap.putAttachment("uuid", AttachmentValue.AttachmentValueString.create(uuid));
+    }
     return this;
   }
 

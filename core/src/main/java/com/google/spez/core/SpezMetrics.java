@@ -55,11 +55,13 @@ public class SpezMetrics {
 
   /** log the recorded to stats. */
   public void logStats() {
-    for (var view : VIEWS) {
-      var viewName = view.getName();
-      log.info(
-          String.format(
-              "Recorded stats for %s:\n %s", viewName.asString(), viewManager.getView(viewName)));
+    if (log.isDebugEnabled()) {
+      for (var view : VIEWS) {
+        var viewName = view.getName();
+        log.debug(
+            String.format(
+                "Recorded stats for %s:\n %s", viewName.asString(), viewManager.getView(viewName)));
+      }
     }
   }
 

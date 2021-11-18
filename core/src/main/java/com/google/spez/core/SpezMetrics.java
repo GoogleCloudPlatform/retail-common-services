@@ -46,7 +46,7 @@ public class SpezMetrics {
           RowReadDuration.VIEW,
           RowSize.VIEW);
 
-  static {
+  public static void setupViews() {
     for (var view : VIEWS) {
       viewManager.registerView(view);
     }

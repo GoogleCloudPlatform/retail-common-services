@@ -32,10 +32,6 @@ import org.slf4j.LoggerFactory;
 public class RowProcessor {
   private static final Logger log = LoggerFactory.getLogger(RowProcessor.class);
 
-  private final SpezMetrics metrics = new SpezMetrics();
-  private final SpezTagging tagging = new SpezTagging();
-  private final SpezTracing tracing = new SpezTracing();
-
   private ListeningExecutorService buildThreadPool(boolean useDirectExecutor) {
     ListeningExecutorService listeningPool;
     if (useDirectExecutor) {
@@ -115,7 +111,7 @@ public class RowProcessor {
           @Override
           public void onFailure(Throwable ex) {
             stats.incErrors();
-            log.error("Error Publishing Record: ", ex);
+            eventState.error(ex);
           }
         },
         listeningPool);

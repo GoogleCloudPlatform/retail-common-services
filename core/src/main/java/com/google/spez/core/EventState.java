@@ -139,4 +139,9 @@ public class EventState {
     statsCollector.incrementPublished();
     statsCollector.collect();
   }
+
+  public void error(Throwable throwable) {
+    log.error("Aborted processing event {} due to error", uuid, throwable);
+    statsCollector.collect();
+  }
 }

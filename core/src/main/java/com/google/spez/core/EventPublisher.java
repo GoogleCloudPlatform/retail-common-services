@@ -35,8 +35,6 @@ import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -126,8 +124,6 @@ public class EventPublisher {
    * experience with PubSub grumpiness.
    */
   private static final int MAX_PUBLISH_SIZE = 950;
-
-  private static final Tracer tracer = Tracing.getTracer();
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
   @VisibleForTesting final AtomicLong bufferSize = new AtomicLong(0);
@@ -229,21 +225,6 @@ public class EventPublisher {
     SettableFuture<String> future = SettableFuture.create();
     buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, eventState));
     bufferSize.incrementAndGet();
-    Futures.addCallback(
-        future,
-        new FutureCallback<String>() {
-
-          @Override
-          public void onSuccess(String result) {
-            eventState.messagePublished(result);
-          }
-
-          @Override
-          public void onFailure(Throwable t) {
-            // TODO(pdex): eventState needs to handle publish error
-          }
-        },
-        scheduler);
     return future;
   }
 

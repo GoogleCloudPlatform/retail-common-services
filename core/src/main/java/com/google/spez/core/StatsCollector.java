@@ -41,8 +41,10 @@ public class StatsCollector {
   }
 
   public StatsCollector attachSpan(Span span) {
-    //TODO(pdex): maybe turn this back on if it's not causing "duplicate attachment" errors
-    //ExemplarUtils.putSpanContextAttachments(measureMap, span.getContext());
+    // TODO(pdex): maybe turn this back on if it's not causing "duplicate attachment" errors
+    if (false) {
+      ExemplarUtils.putSpanContextAttachments(measureMap, span.getContext());
+    }
     return this;
   }
 
@@ -58,6 +60,11 @@ public class StatsCollector {
 
   public StatsCollector incrementReceived() {
     measureMap.put(SpezMetrics.MessageReceived.MEASURE, 1);
+    return this;
+  }
+
+  public StatsCollector incrementTablePolled() {
+    measureMap.put(SpezMetrics.TablePolled.MEASURE, 1);
     return this;
   }
 

@@ -16,7 +16,6 @@
 
 package com.google.spez.common;
 
-import io.opencensus.common.Duration;
 import io.opencensus.exporter.stats.stackdriver.StackdriverStatsConfiguration;
 import io.opencensus.exporter.stats.stackdriver.StackdriverStatsExporter;
 import io.opencensus.exporter.trace.logging.LoggingExporter;

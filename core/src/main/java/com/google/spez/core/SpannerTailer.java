@@ -130,6 +130,7 @@ public class SpannerTailer {
     }
     log.debug("POLLER ACTIVE");
     try {
+      StatsCollector.newForTable(sinkConfig.getTable()).incrementTablePolled().collect();
       var pollingSpan = SpezTracing.initialPollingSpan();
       pollingSpan.putAttribute(
           "tableName", AttributeValue.stringAttributeValue(sinkConfig.getTable()));

@@ -44,7 +44,8 @@ public class SpezMetrics {
           QueuedForConversionDuration.VIEW,
           QueuedForPublishingDuration.VIEW,
           RowReadDuration.VIEW,
-          RowSize.VIEW);
+          RowSize.VIEW,
+          TablePolled.VIEW);
 
   public static void setupViews() {
     for (var view : VIEWS) {
@@ -121,7 +122,6 @@ public class SpezMetrics {
     public static final String DESCRIPTION = "Number of messages sent by the publisher";
     public static final Measure.MeasureLong MEASURE =
         Measure.MeasureLong.create("message-published", DESCRIPTION, "");
-    public static final BucketBoundaries BUCKETS = SpezMetrics.byteBuckets();
     public static final Aggregation AGGREGATION = Aggregation.Count.create();
     public static final List<TagKey> TAGS = List.of(SpezTagging.TAILER_TABLE_KEY);
     public static final View VIEW = View.create(NAME, DESCRIPTION, MEASURE, AGGREGATION, TAGS);
@@ -168,7 +168,6 @@ public class SpezMetrics {
     public static final String DESCRIPTION = "Number of messages received by the publisher";
     public static final Measure.MeasureLong MEASURE =
         Measure.MeasureLong.create("message-published", DESCRIPTION, "");
-    public static final BucketBoundaries BUCKETS = SpezMetrics.byteBuckets();
     public static final Aggregation AGGREGATION = Aggregation.Count.create();
     public static final List<TagKey> TAGS = List.of(SpezTagging.TAILER_TABLE_KEY);
     public static final View VIEW = View.create(NAME, DESCRIPTION, MEASURE, AGGREGATION, TAGS);
@@ -245,6 +244,20 @@ public class SpezMetrics {
         Measure.MeasureLong.create("row-size", "Spanner row size", "By");
     public static final BucketBoundaries BUCKETS = SpezMetrics.byteBuckets();
     public static final Aggregation AGGREGATION = Aggregation.Distribution.create(BUCKETS);
+    public static final List<TagKey> TAGS = List.of(SpezTagging.TAILER_TABLE_KEY);
+    public static final View VIEW = View.create(NAME, DESCRIPTION, MEASURE, AGGREGATION, TAGS);
+  }
+
+  /**
+   * This class groups together all of the parts needed to track metrics around the number of table
+   * polls.
+   */
+  public static class TablePolled {
+    public static final View.Name NAME = View.Name.create("spez_table_polled");
+    public static final String DESCRIPTION = "Number of times the table has been polled";
+    public static final Measure.MeasureLong MEASURE =
+        Measure.MeasureLong.create("table-polled", DESCRIPTION, "");
+    public static final Aggregation AGGREGATION = Aggregation.Count.create();
     public static final List<TagKey> TAGS = List.of(SpezTagging.TAILER_TABLE_KEY);
     public static final View VIEW = View.create(NAME, DESCRIPTION, MEASURE, AGGREGATION, TAGS);
   }

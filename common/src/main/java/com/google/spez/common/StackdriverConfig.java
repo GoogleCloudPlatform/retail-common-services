@@ -18,8 +18,8 @@ package com.google.spez.common;
 
 import com.typesafe.config.Config;
 import io.opencensus.common.Duration;
-import java.util.concurrent.TimeUnit;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class StackdriverConfig {
@@ -43,7 +43,8 @@ public class StackdriverConfig {
                 + samplingRate
                 + "' must be a value between 0.0 and 1.0 inclusive");
       }
-      Duration exportRate = Duration.fromMillis(config.getDuration(exportRateKey, TimeUnit.MILLISECONDS));
+      Duration exportRate =
+          Duration.fromMillis(config.getDuration(exportRateKey, TimeUnit.MILLISECONDS));
       return new StackdriverConfig(config.getString(projectIdKey), samplingRate, exportRate);
     }
 

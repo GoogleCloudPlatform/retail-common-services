@@ -17,40 +17,69 @@
 package com.google.spez.common;
 
 import com.typesafe.config.Config;
+import io.opencensus.common.Duration;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class StackdriverConfig {
   public static class Parser {
     private final String projectIdKey;
+    private final String samplingRateKey;
+    private final String exportRateKey;
 
     public Parser(String baseKeyPath) {
       projectIdKey = baseKeyPath + ".project_id";
+      samplingRateKey = baseKeyPath + ".trace_sampling_rate";
+      exportRateKey = baseKeyPath + ".stats_export_rate";
     }
 
     /** StackdriverConfig value object parser. */
     public StackdriverConfig parse(Config config) {
-      return new StackdriverConfig(config.getString(projectIdKey));
+      double samplingRate = config.getDouble(samplingRateKey);
+      if (samplingRate < 0.0 || samplingRate > 1.0) {
+        throw new RuntimeException(
+            "Invalid trace_sampling_rate '"
+                + samplingRate
+                + "' must be a value between 0.0 and 1.0 inclusive");
+      }
+      Duration exportRate =
+          Duration.fromMillis(config.getDuration(exportRateKey, TimeUnit.MILLISECONDS));
+      return new StackdriverConfig(config.getString(projectIdKey), samplingRate, exportRate);
     }
 
     public List<String> configKeys() {
-      return List.of(projectIdKey);
+      return List.of(projectIdKey, samplingRateKey, exportRateKey);
     }
   }
 
   private final String projectId;
+  private final double samplingRate;
+  private final Duration exportRate;
 
   /** SinkConfig value object constructor. */
-  private StackdriverConfig(String projectId) {
+  private StackdriverConfig(String projectId, double samplingRate, Duration exportRate) {
     this.projectId = projectId;
+    this.samplingRate = samplingRate;
+    this.exportRate = exportRate;
   }
 
   public static Parser newParser(String baseKeyPath) {
-    return new Parser(baseKeyPath);
+    return new Parser(baseKeyPath + ".stackdriver");
   }
 
   /** projectId getter. */
   public String getProjectId() {
     return projectId;
+  }
+
+  /** samplingRate getter. */
+  public double getSamplingRate() {
+    return samplingRate;
+  }
+
+  /** exportRate getter. */
+  public Duration getExportRate() {
+    return exportRate;
   }
 }

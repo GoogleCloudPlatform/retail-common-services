@@ -28,6 +28,7 @@ import org.apache.avro.SchemaBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO(pdex): remove this class in preference of on demand schema
 public class SpannerToAvroSchema {
   private static final Logger log = LoggerFactory.getLogger(SpannerToAvroSchema.class);
 

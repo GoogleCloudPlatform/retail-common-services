@@ -35,21 +35,7 @@ import com.google.spannerclient.PublishOptions;
 import com.google.spannerclient.Publisher;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
-import io.opencensus.metrics.data.AttachmentValue;
-import io.opencensus.stats.Aggregation;
-import io.opencensus.stats.Measure.MeasureLong;
-import io.opencensus.stats.Stats;
-import io.opencensus.stats.StatsRecorder;
-import io.opencensus.stats.View;
-import io.opencensus.stats.ViewManager;
-import io.opencensus.tags.TagKey;
-import io.opencensus.tags.TagMetadata;
-import io.opencensus.tags.TagValue;
-import io.opencensus.tags.Tags;
-import io.opencensus.trace.Tracer;
-import io.opencensus.trace.Tracing;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedTransferQueue;
@@ -84,9 +70,11 @@ public class EventPublisher {
 
   public static class PublishCallback implements FutureCallback<PublishResponse> {
     final List<BufferPayload> sink;
+    final String tableName;
 
-    PublishCallback(List<BufferPayload> sink) {
+    PublishCallback(List<BufferPayload> sink, String tableName) {
       this.sink = sink;
+      this.tableName = tableName;
     }
 
     @Override
@@ -104,23 +92,6 @@ public class EventPublisher {
       }
       for (int i = 0; i < sink.size(); i++) {
         var payload = sink.get(i);
-        String uuid = payload.message.getAttributesMap().get(SpezConfig.SINK_UUID_KEY);
-        statsRecorder
-            .newMeasureMap()
-            .put(MSG_PUBLISHED, 1)
-            .putAttachment("attach_uuid", AttachmentValue.AttachmentValueString.create(uuid))
-            .record(
-                Tags.getTagger()
-                    .currentBuilder()
-                    .put(
-                        SpezTagging.TAILER_TABLE_KEY,
-                        TagValue.create(payload.eventState.tableName),
-                        TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
-                    .put(
-                        TAG_UUID,
-                        TagValue.create(uuid),
-                        TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
-                    .build());
         String result;
         if (i < response.getMessageIdsCount()) {
           payload.future.set(response.getMessageIds(i));
@@ -129,7 +100,10 @@ public class EventPublisher {
           payload.future.set("UNAVAILABLE");
           result = "UNAVAILABLE";
         }
-        log.debug("Published message uuid {}, set future to '{}'", uuid, result);
+        if (log.isDebugEnabled()) {
+          String uuid = payload.message.getAttributesMap().get(SpezConfig.SINK_UUID_KEY);
+          log.debug("Published message uuid {}, set future to '{}'", uuid, result);
+        }
       }
     }
 
@@ -142,37 +116,6 @@ public class EventPublisher {
     }
   }
 
-  private static final MeasureLong MSG_RECEIVED =
-      MeasureLong.create("msg_received", "the number of messages received by the publisher", "");
-  private static final MeasureLong MSG_PUBLISHED =
-      MeasureLong.create("msg_published", "the number of messages sent by the publisher", "");
-  private static final Aggregation counter = Aggregation.Count.create();
-  private static final TagKey TAG_UUID = TagKey.create("tag_uuid");
-
-  private static void setupViews() {
-    ViewManager viewManager = Stats.getViewManager();
-    viewManager.registerView(
-        View.create(
-            SpezMetrics.MSG_RECEIVED_VIEW_NAME,
-            "The count of messages received by the publisher",
-            MSG_RECEIVED,
-            counter,
-            Arrays.asList(SpezTagging.TAILER_TABLE_KEY)));
-    viewManager.registerView(
-        View.create(
-            SpezMetrics.MSG_PUBLISHED_VIEW_NAME,
-            "The count of messages sent by the publisher",
-            MSG_PUBLISHED,
-            counter,
-            Arrays.asList(SpezTagging.TAILER_TABLE_KEY)));
-  }
-
-  static {
-    setupViews();
-  }
-
-  private static final StatsRecorder statsRecorder = Stats.getStatsRecorder();
-
   private static final Logger log = LoggerFactory.getLogger(EventPublisher.class);
   private static final int DEFAULT_BUFFER_SIZE = 950; // TODO(pdex): move to config
   /**
@@ -182,11 +125,10 @@ public class EventPublisher {
    */
   private static final int MAX_PUBLISH_SIZE = 950;
 
-  private static final Tracer tracer = Tracing.getTracer();
-
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
   @VisibleForTesting final AtomicLong bufferSize = new AtomicLong(0);
 
+  private final String tableName;
   private final ListeningScheduledExecutorService scheduler;
   private final int publishBufferSize;
   private final int publishBufferTime;
@@ -197,6 +139,7 @@ public class EventPublisher {
   /**
    * constructor visible for testing.
    *
+   * @param tableName name of the table that we're publishing from
    * @param scheduler scheduler service
    * @param publisher publisher
    * @param publishSize publish size
@@ -205,15 +148,18 @@ public class EventPublisher {
    */
   @VisibleForTesting
   public EventPublisher(
+      String tableName,
       ListeningScheduledExecutorService scheduler,
       Publisher publisher,
       int publishSize,
       int publishTime,
       Runnable runPublishBuffer) {
+    Preconditions.checkNotNull(tableName, "tableName must not be null");
     Preconditions.checkNotNull(scheduler, "scheduler must not be null");
     Preconditions.checkNotNull(publisher, "publisher must not be null");
     Preconditions.checkArgument(publishSize >= 0, "publishSize must be greater than or equal to 0");
     Preconditions.checkArgument(publishTime >= 0, "publishTime must be greater than or equal to 0");
+    this.tableName = tableName;
     this.scheduler = scheduler;
     this.publisher = publisher;
     if (runPublishBuffer != null) {
@@ -226,11 +172,12 @@ public class EventPublisher {
   }
 
   public EventPublisher(
+      String tableName,
       ListeningScheduledExecutorService scheduler,
       Publisher publisher,
       int publishSize,
       int publishTime) {
-    this(scheduler, publisher, publishSize, publishTime, null);
+    this(tableName, scheduler, publisher, publishSize, publishTime, null);
   }
 
   /**
@@ -251,7 +198,11 @@ public class EventPublisher {
 
     var eventPublisher =
         new EventPublisher(
-            scheduler, publisher, DEFAULT_BUFFER_SIZE, config.getPubSub().getBufferTimeout());
+            config.getSink().getTable(),
+            scheduler,
+            publisher,
+            DEFAULT_BUFFER_SIZE,
+            config.getPubSub().getBufferTimeout());
     eventPublisher.start();
     return eventPublisher;
   }
@@ -274,21 +225,6 @@ public class EventPublisher {
     SettableFuture<String> future = SettableFuture.create();
     buffer.add(new BufferPayload(OPEN_CENSUS_MESSAGE_TRANSFORM.apply(message), future, eventState));
     bufferSize.incrementAndGet();
-    Futures.addCallback(
-        future,
-        new FutureCallback<String>() {
-
-          @Override
-          public void onSuccess(String result) {
-            eventState.messagePublished(result);
-          }
-
-          @Override
-          public void onFailure(Throwable t) {
-            // TODO(pdex): eventState needs to handle publish error
-          }
-        },
-        scheduler);
     return future;
   }
 
@@ -316,7 +252,7 @@ public class EventPublisher {
     log.debug("{} messages drained and published", numberDrained);
     bufferSize.getAndAdd(-1 * numberDrained);
 
-    Futures.addCallback(future, new PublishCallback(sink), scheduler);
+    Futures.addCallback(future, new PublishCallback(sink, tableName), scheduler);
     if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
       // We have enough messages for another batch, fire off in the same thread.
       publishBuffer();
@@ -359,22 +295,6 @@ public class EventPublisher {
 
     String uuid = attrMap.get(SpezConfig.SINK_UUID_KEY);
     eventState.uuid(uuid);
-    statsRecorder
-        .newMeasureMap()
-        .put(MSG_RECEIVED, 1)
-        .putAttachment("attach_uuid", AttachmentValue.AttachmentValueString.create(uuid))
-        .record(
-            Tags.getTagger()
-                .currentBuilder()
-                .put(
-                    SpezTagging.TAILER_TABLE_KEY,
-                    TagValue.create(eventState.tableName),
-                    TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
-                .put(
-                    TAG_UUID,
-                    TagValue.create(uuid),
-                    TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
-                .build());
     log.debug("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap

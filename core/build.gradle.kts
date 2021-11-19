@@ -65,6 +65,7 @@ dependencies {
 
   // OpenCensus core
   compile("io.opencensus:opencensus-api:0.28.3")
+  compile("io.opencensus:opencensus-contrib-exemplar-util:0.28.3")
   runtime("io.opencensus:opencensus-impl:0.28.3")
 
   // Junit and friends

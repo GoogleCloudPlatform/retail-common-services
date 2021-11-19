@@ -16,7 +16,6 @@
 
 package com.google.spez.core;
 
-import io.opencensus.common.Scope;
 import io.opencensus.tags.TagContext;
 import io.opencensus.tags.TagKey;
 import io.opencensus.tags.TagMetadata;
@@ -43,23 +42,5 @@ public class SpezTagging {
             TagValue.create(tableName),
             TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
         .build();
-  }
-
-  /**
-   * Created a scoped tag for a given tableName.
-   *
-   * @param tableName name of the table
-   * @return a scoped tag
-   */
-  public Scope scopedTagFor(String tableName) {
-    Scope scopedTags =
-        tagger
-            .currentBuilder()
-            .put(
-                TAILER_TABLE_KEY,
-                TagValue.create(tableName),
-                TagMetadata.create(TagMetadata.TagTtl.UNLIMITED_PROPAGATION))
-            .buildScoped();
-    return scopedTags;
   }
 }

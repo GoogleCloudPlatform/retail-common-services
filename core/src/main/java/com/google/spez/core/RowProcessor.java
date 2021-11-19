@@ -23,6 +23,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spez.core.internal.Row;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,16 +32,19 @@ import org.slf4j.LoggerFactory;
 public class RowProcessor {
   private static final Logger log = LoggerFactory.getLogger(RowProcessor.class);
 
-  private final SpezMetrics metrics = new SpezMetrics();
-  private final SpezTagging tagging = new SpezTagging();
-  private final SpezTracing tracing = new SpezTracing();
+  private ListeningExecutorService buildThreadPool(boolean useDirectExecutor) {
+    ListeningExecutorService listeningPool;
+    if (useDirectExecutor) {
+      listeningPool = MoreExecutors.newDirectExecutorService();
+    } else {
+      ExecutorService threadPool =
+          Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+      listeningPool = MoreExecutors.listeningDecorator(threadPool);
+    }
+    return listeningPool;
+  }
 
-  /*
-  private final ExecutorService threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-  private final ListeningExecutorService listeningPool =
-      MoreExecutors.listeningDecorator(threadPool);
-      */
-  private final ListeningExecutorService listeningPool = MoreExecutors.newDirectExecutorService();
+  private final ListeningExecutorService listeningPool;
   private final RowProcessorStats stats = new RowProcessorStats();
 
   private final SpezConfig.SinkConfig sinkConfig;
@@ -56,6 +61,7 @@ public class RowProcessor {
    */
   public RowProcessor(
       SpezConfig.SinkConfig sinkConfig, EventPublisher publisher, MetadataExtractor extractor) {
+    this.listeningPool = buildThreadPool(true);
     this.sinkConfig = sinkConfig;
     this.publisher = publisher;
     this.extractor = extractor;
@@ -64,12 +70,12 @@ public class RowProcessor {
   /**
    * Convert row to avro record and publish to pubsub topic. ONLY VISIBLE FOR TESTING!
    *
-   * @param state to publish
+   * @param eventState to publish
    * @return timestamp of the row published
    */
   @VisibleForTesting
-  public ListenableFuture<String> convertAndPublishTask(EventState state) {
-    Row row = state.row;
+  public ListenableFuture<String> convertAndPublishTask(EventState eventState) {
+    Row row = eventState.getRow();
     stats.incRecords();
 
     var tableName = sinkConfig.getTable();
@@ -80,10 +86,10 @@ public class RowProcessor {
       throw new RuntimeException("Empty avro record");
     }
     var avroRecord = maybeAvroRecord.get();
-    state.convertedToMessage(avroRecord);
+    eventState.convertedToMessage(avroRecord);
 
     var metadata = extractor.extract(row);
-    var publishFuture = publisher.publish(avroRecord, metadata, state);
+    var publishFuture = publisher.publish(avroRecord, metadata, eventState);
     Futures.addCallback(
         publishFuture,
         new FutureCallback<String>() {
@@ -92,7 +98,7 @@ public class RowProcessor {
           public void onSuccess(String publishId) {
             // Once published, returns server-assigned message ids
             // (unique within the topic)
-            state.messagePublished(publishId);
+            eventState.messagePublished(publishId);
             stats.incPublished();
             if (log.isDebugEnabled()) {
               log.debug(
@@ -100,14 +106,12 @@ public class RowProcessor {
                   metadata.get(SpezConfig.SINK_TIMESTAMP_KEY),
                   publishId);
             }
-
-            metrics.addMessageSize(row.getSize(), state.tableName);
           }
 
           @Override
           public void onFailure(Throwable ex) {
             stats.incErrors();
-            log.error("Error Publishing Record: ", ex);
+            eventState.error(ex);
           }
         },
         listeningPool);
@@ -117,13 +121,14 @@ public class RowProcessor {
   /**
    * Convert row to avro record and publish to pubsub topic.
    *
-   * @param state to publish
+   * @param eventState to publish
    * @return timestamp of the row published
    */
-  public ListenableFuture<String> convertAndPublish(EventState state) {
-    state.queued();
+  @SuppressWarnings("FutureReturnValueIgnored")
+  public ListenableFuture<String> convertAndPublish(EventState eventState) {
+    eventState.queued();
     ListenableFuture<ListenableFuture<String>> future =
-        listeningPool.submit(() -> convertAndPublishTask(state));
+        listeningPool.submit(() -> convertAndPublishTask(eventState));
 
     return Futures.transformAsync(future, (ListenableFuture<String> f) -> f, listeningPool);
   }

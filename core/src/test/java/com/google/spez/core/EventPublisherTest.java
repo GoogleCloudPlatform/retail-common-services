@@ -51,11 +51,11 @@ public class EventPublisherTest implements WithAssertions {
   static String UUID = "uuid-value";
 
   @Test
-  public void shouldBufferMessage() {
-    var eventState = new EventState(null, "table");
+  public void shouldBufferMessage(@Mock StatsCollector statsCollector) {
+    var eventState = new EventState(null, statsCollector);
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 100 will not publish
-    EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
+    EventPublisher eventPublisher = new EventPublisher("", scheduler, publisher, 100, 100);
 
     var event = ByteString.copyFromUtf8(EVENT);
     var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
@@ -67,7 +67,7 @@ public class EventPublisherTest implements WithAssertions {
   @Test
   @SuppressWarnings("unchecked")
   public void shouldStartScheduler(@Mock ListenableScheduledFuture future) {
-    EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 100, 100);
+    EventPublisher eventPublisher = new EventPublisher("", scheduler, publisher, 100, 100);
     Mockito.when(
             scheduler.scheduleAtFixedRate(
                 eventPublisher.runPublishBuffer, 0, 100, TimeUnit.MILLISECONDS))
@@ -84,6 +84,7 @@ public class EventPublisherTest implements WithAssertions {
     var scheduler = UsefulExecutors.listeningScheduler();
     EventPublisher eventPublisher = // NOPMD
         new EventPublisher(
+            "",
             scheduler,
             publisher,
             100,
@@ -109,11 +110,12 @@ public class EventPublisherTest implements WithAssertions {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void publishBeforeDeadline(@Mock ListenableFuture submitFuture) {
+  public void publishBeforeDeadline(
+      @Mock StatsCollector statsCollector, @Mock ListenableFuture submitFuture) {
     // Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
-    var eventState = new EventState(null, "table");
-    EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 1, 100);
+    var eventState = new EventState(null, statsCollector);
+    EventPublisher eventPublisher = new EventPublisher("", scheduler, publisher, 1, 100);
 
     Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
     var event = ByteString.copyFromUtf8(EVENT);
@@ -128,11 +130,13 @@ public class EventPublisherTest implements WithAssertions {
   @Test
   @SuppressWarnings("unchecked")
   public void publishBufferUpdatesBufferSize(
-      @Mock ListenableFuture submitFuture, @Mock ListenableFuture<PublishResponse> publishFuture) {
-    var eventState = new EventState(null, "table");
+      @Mock StatsCollector statsCollector,
+      @Mock ListenableFuture submitFuture,
+      @Mock ListenableFuture<PublishResponse> publishFuture) {
+    var eventState = new EventState(null, statsCollector);
     Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
-    EventPublisher eventPublisher = new EventPublisher(scheduler, publisher, 1, 100);
+    EventPublisher eventPublisher = new EventPublisher("", scheduler, publisher, 1, 100);
 
     Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
     Mockito.when(publisher.publish(Mockito.any(), Mockito.any())).thenReturn(publishFuture);
@@ -149,7 +153,7 @@ public class EventPublisherTest implements WithAssertions {
   @Test
   void callbackShouldAttachMessageId(@Mock PublishResponse response)
       throws ExecutionException, InterruptedException {
-    var eventState = new EventState(null, "table");
+    var eventState = new EventState(null, null);
     var event = ByteString.copyFromUtf8(EVENT);
     var message =
         PubsubMessage.newBuilder()
@@ -159,7 +163,7 @@ public class EventPublisherTest implements WithAssertions {
             .build();
     SettableFuture<String> future = SettableFuture.create();
     var sink = List.of(new EventPublisher.BufferPayload(message, future, eventState));
-    var callback = new EventPublisher.PublishCallback(sink);
+    var callback = new EventPublisher.PublishCallback(sink, "");
 
     Mockito.when(response.getMessageIdsCount()).thenReturn(sink.size());
     Mockito.when(response.getMessageIds(0)).thenReturn("published-message-id");

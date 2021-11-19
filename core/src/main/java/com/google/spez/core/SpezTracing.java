@@ -16,22 +16,12 @@
 
 package com.google.spez.core;
 
-import io.opencensus.common.Scope;
 import io.opencensus.trace.Span;
 import io.opencensus.trace.Tracer;
 import io.opencensus.trace.Tracing;
 
 public class SpezTracing {
   private static final Tracer tracer = Tracing.getTracer();
-
-  @SuppressWarnings("MustBeClosedChecker")
-  public Scope processRowScope() {
-    return tracer.spanBuilder("SpannerTailer.processRow").startScopedSpan();
-  }
-
-  public Span currentSpan() {
-    return tracer.getCurrentSpan();
-  }
 
   /**
    * Create the parent span for the entire polling request.

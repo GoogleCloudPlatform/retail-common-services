@@ -16,7 +16,6 @@
 
 package com.google.spez.common;
 
-import io.opencensus.common.Duration;
 import io.opencensus.exporter.stats.stackdriver.StackdriverStatsConfiguration;
 import io.opencensus.exporter.stats.stackdriver.StackdriverStatsExporter;
 import io.opencensus.exporter.trace.logging.LoggingExporter;
@@ -37,16 +36,12 @@ public class StackdriverConfigurator {
    */
   public static void setupStackdriver(StackdriverConfig config, AuthConfig authConfig)
       throws IOException {
-    // For demo purposes, always sample
     TraceConfig traceConfig = Tracing.getTraceConfig();
     traceConfig.updateActiveTraceParams(
         traceConfig
             .getActiveTraceParams()
             .toBuilder()
-            // .setSampler(Samplers.alwaysSample()) // TODO(pdex): move to config
-            .setSampler(
-                Samplers.probabilitySampler(
-                    0.1)) // TODO(pdex): move to config [value between 0.0 and 1.0]
+            .setSampler(Samplers.probabilitySampler(config.getSamplingRate()))
             .build());
 
     // Create the Stackdriver trace exporter
@@ -59,7 +54,8 @@ public class StackdriverConfigurator {
     StackdriverStatsExporter.createAndRegister(
         StackdriverStatsConfiguration.builder()
             .setProjectId(config.getProjectId())
-            .setExportInterval(Duration.fromMillis(60_000))
+            .setCredentials(authConfig.getCredentials())
+            .setExportInterval(config.getExportRate())
             .build());
 
     if (System.getenv().getOrDefault("LOGGING_EXPORTER", "false").toLowerCase().equals("true")) {

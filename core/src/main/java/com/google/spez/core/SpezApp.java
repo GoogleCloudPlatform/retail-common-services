@@ -39,6 +39,7 @@ public class SpezApp {
    */
   public static void run(SpezConfig config) throws ExecutionException, InterruptedException {
     LoggerDumper.dump();
+    SpezMetrics.setupViews();
 
     var publisher = EventPublisher.create(config);
     final ListeningScheduledExecutorService scheduler =

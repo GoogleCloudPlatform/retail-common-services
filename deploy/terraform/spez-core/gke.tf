@@ -28,7 +28,7 @@ resource "google_project_iam_member" "node_sa_role" {
     ] )
   project  = var.project
   role     = each.key
-  member   = "user:${google_service_account.node_sa.email}"
+  member   = "serviceAccount:${google_service_account.node_sa.email}"
 }
 
 resource "google_container_cluster" "primary" {

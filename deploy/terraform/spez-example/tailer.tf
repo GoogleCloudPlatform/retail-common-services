@@ -16,13 +16,12 @@
 
 terraform {
   required_version = ">= 0.12.0"
-}
-
-provider "google" {
   backend "gcs" {
     prefix  = "spez-example-terraform-state"
   }
+}
 
+provider "google" {
   project = var.project
   region  = var.region
 }

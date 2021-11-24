@@ -15,13 +15,13 @@
  */
 
 terraform {
+  backend "gcs" {
+    prefix  = "spez-core-terraform-state"
+  }
   required_version = ">= 0.12.0"
 }
 
 provider "google" {
-  backend "gcs" {
-    prefix  = "spez-core-terraform-state"
-  }
   project = var.project
   region  = var.region
 }

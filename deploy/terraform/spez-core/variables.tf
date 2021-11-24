@@ -15,6 +15,7 @@
  */
 
 variable "project" {}
+
 variable "region" {
   default = "us-central1"
 }
@@ -22,9 +23,11 @@ variable "region" {
 variable "lpts_instance" {
   default = "spez-lpts-instance"
 }
+
 variable "lpts_database" {
   default = "spez-lpts-database"
 }
+
 variable "lpts_table" {
   default = "lpts"
 }

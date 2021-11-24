@@ -16,6 +16,9 @@
 
 # <lpts table>
 resource "google_spanner_instance" "spez-lpts-instance" {
+  depends_on = [
+    google_project_service.spanner
+  ]
   name   = "spez-lpts-instance"
   config = join("-", ["regional", var.region])
 
@@ -38,15 +41,19 @@ resource "google_service_account" "spez-lpts-function-sa" {
   account_id   = "spez-lpts-function-sa"
   display_name = "Spez Last Processed Timestamp Function Service Account"
 }
-resource "google_project_iam_member" "spez-lpts-function-sa-project-iam-member-spanner" {
-  project = var.project
-  role    = "roles/spanner.databaseUser"
-  member  = "serviceAccount:${google_service_account.spez-lpts-function-sa.email}"
-}
-resource "google_project_iam_member" "spez-lpts-function-sa-project-iam-member-pubsub" {
-  project = var.project
-  role    = "roles/pubsub.subscriber"
-  member  = "serviceAccount:${google_service_account.spez-lpts-function-sa.email}"
+
+resource "google_project_iam_member" "spez-lpts-function-sa-role" {
+  depends_on = [
+    google_project_service.cloudresourcemanager,
+    google_project_service.iam
+  ]
+  for_each = toset( [
+    "roles/pubsub.subscriber",
+    "roles/spanner.databaseUser"
+    ] )
+  project  = var.project
+  role     = each.key
+  member   = "serviceAccount:${google_service_account.spez-lpts-function-sa.email}"
 }
 
 data "archive_file" "local_lpts_source" {
@@ -56,12 +63,18 @@ data "archive_file" "local_lpts_source" {
 }
 
 resource "google_storage_bucket_object" "gcs-lpts-source" {
+  depends_on = [
+    google_project_service.storage-component
+  ]
   name   = "lpts_source.zip"
   bucket = google_storage_bucket.spez-function-source.name
   source = data.archive_file.local_lpts_source.output_path
 }
 
 resource "google_cloudfunctions_function" "spez-lpts-function" {
+  depends_on = [
+    google_project_service.cloudfunctions
+  ]
   name        = "spez-lpts-function"
   description = "Spez Last Processed Timestamp Cluster"
   runtime     = "python37"

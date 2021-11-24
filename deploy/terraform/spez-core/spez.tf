@@ -30,6 +30,9 @@ provider "archive" {}
 
 # <ledger>
 resource "google_pubsub_topic" "spez-ledger-topic" {
+  depends_on = [
+    google_project_service.pubsub
+  ]
   name = "spez-ledger-topic"
 
   message_storage_policy {
@@ -40,6 +43,9 @@ resource "google_pubsub_topic" "spez-ledger-topic" {
 
 # <source bucket>
 resource "google_storage_bucket" "spez-function-source" {
+  depends_on = [
+    google_project_service.storage-component
+  ]
   name     = join("-", ["spez", var.project, "function-source"])
   location = var.region
   uniform_bucket_level_access = true

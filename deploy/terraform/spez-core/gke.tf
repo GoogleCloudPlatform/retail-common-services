@@ -34,9 +34,9 @@ resource "google_project_iam_member" "node_sa_role" {
 resource "google_container_cluster" "primary" {
   name               = "spanner-event-exporter"
   location           = var.region
-  machine_type       = "n1-standard-8"
   initial_node_count = 1
   node_config {
+    machine_type       = "n1-standard-8"
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
     service_account = google_service_account.node_sa.email
     oauth_scopes = [

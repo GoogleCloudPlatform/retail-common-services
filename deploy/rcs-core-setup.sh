@@ -20,6 +20,11 @@ set -x
 
 pushd terraform/spez-core
 
+terraform plan -var project=$PROJECT_ID -target=google_project_service.enabled -out=tf-services.plan
+if [ "$DRYRUN" = "" ]; then
+    terraform apply -auto-approve tf-services.plan
+fi
+
 terraform plan -var project=$PROJECT_ID -out=tf.plan
 if [ "$DRYRUN" = "" ]; then
     terraform apply -auto-approve tf.plan

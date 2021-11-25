@@ -27,6 +27,9 @@ resource "google_spanner_instance" "spez-lpts-instance" {
 }
 
 resource "google_spanner_database" "spez-lpts-database" {
+  depends_on = [
+    google_project_service.enabled
+  ]
   name     = "spez-lpts-database"
   instance = google_spanner_instance.spez-lpts-instance.name
 

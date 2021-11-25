@@ -28,7 +28,7 @@ resource "google_project_service" "enabled" {
     "storage-component.googleapis.com"
     ] )
   service = each.key
-  disable_dependent_services = true
+  disable_on_destroy = false
   provisioner "local-exec" {
   command = <<EOF
 for i in {1..10}; do

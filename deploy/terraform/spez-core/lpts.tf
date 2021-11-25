@@ -17,7 +17,7 @@
 # <lpts table>
 resource "google_spanner_instance" "spez-lpts-instance" {
   depends_on = [
-    google_project_service.spanner
+    google_project_service.enabled
   ]
   name   = "spez-lpts-instance"
   config = join("-", ["regional", var.region])
@@ -44,8 +44,7 @@ resource "google_service_account" "spez-lpts-function-sa" {
 
 resource "google_project_iam_member" "spez-lpts-function-sa-role" {
   depends_on = [
-    google_project_service.cloudresourcemanager,
-    google_project_service.iam
+    google_project_service.enabled
   ]
   for_each = toset( [
     "roles/pubsub.subscriber",
@@ -64,7 +63,7 @@ data "archive_file" "local_lpts_source" {
 
 resource "google_storage_bucket_object" "gcs-lpts-source" {
   depends_on = [
-    google_project_service.storage-component
+    google_project_service.enabled
   ]
   name   = "lpts_source.zip"
   bucket = google_storage_bucket.spez-function-source.name
@@ -73,7 +72,7 @@ resource "google_storage_bucket_object" "gcs-lpts-source" {
 
 resource "google_cloudfunctions_function" "spez-lpts-function" {
   depends_on = [
-    google_project_service.cloudfunctions
+    google_project_service.enabled
   ]
   name        = "spez-lpts-function"
   description = "Spez Last Processed Timestamp Cluster"

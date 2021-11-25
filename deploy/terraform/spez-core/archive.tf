@@ -17,7 +17,7 @@
 # <archive function>
 resource "google_storage_bucket" "spez-event-archive" {
   depends_on = [
-    google_project_service.storage-component
+    google_project_service.enabled
   ]
   name     = join("-", ["spez", var.project, "event-archive"])
   location = var.region
@@ -31,8 +31,7 @@ resource "google_service_account" "spez-archive-function-sa" {
 
 resource "google_project_iam_member" "spez-archive-function-sa-role" {
   depends_on = [
-    google_project_service.cloudresourcemanager,
-    google_project_service.iam
+    google_project_service.enabled
   ]
   for_each = toset( [
     "roles/pubsub.subscriber",
@@ -51,7 +50,7 @@ data "archive_file" "local_archive_source" {
 
 resource "google_storage_bucket_object" "gcs-archive-source" {
   depends_on = [
-    google_project_service.storage-component
+    google_project_service.enabled
   ]
   name   = "archive_source.zip"
   bucket = google_storage_bucket.spez-function-source.name
@@ -63,7 +62,7 @@ resource "google_storage_bucket_object" "gcs-archive-source" {
 
 resource "google_cloudfunctions_function" "spez-archive-function" {
   depends_on = [
-    google_project_service.cloudfunctions
+    google_project_service.enabled
   ]
   name        = "spez-archive-function"
   description = "Spez Archive Function"

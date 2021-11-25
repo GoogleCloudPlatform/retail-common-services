@@ -21,8 +21,7 @@ resource "google_service_account" "node_sa" {
 
 resource "google_project_iam_member" "node_sa_role" {
   depends_on = [
-    google_project_service.cloudresourcemanager,
-    google_project_service.iam
+    google_project_service.enabled
   ]
   for_each = toset( [
     "roles/cloudtrace.agent",
@@ -37,7 +36,7 @@ resource "google_project_iam_member" "node_sa_role" {
 
 resource "google_container_cluster" "primary" {
   depends_on = [
-    google_project_service.container
+    google_project_service.enabled
   ]
   name               = "spanner-event-exporter"
   location           = var.region

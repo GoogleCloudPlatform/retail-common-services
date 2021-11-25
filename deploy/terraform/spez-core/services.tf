@@ -14,52 +14,32 @@
  * limitations under the License.
  */
 
-resource "google_project_service" "cloudbuild" {
-  service = "cloudbuild.googleapis.com"
+resource "google_project_service" "enabled" {
+  for_each = toset( [
+    "cloudbuild.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "compute.googleapis.com",
+    "container.googleapis.com",
+    "containerregistry.googleapis.com",
+    "iam.googleapis.com",
+    "pubsub.googleapis.com",
+    "spanner.googleapis.com",
+    "storage-component.googleapis.com"
+    ] )
+  service = each.key
   disable_dependent_services = true
-}
+  provisioner "local-exec" {
+  command = <<EOF
+for i in {1..10}; do
+  sleep $i
+  if gcloud services list --project="${var.project}" | grep "${each.key}"; then
+    exit 0
+  fi
+done
 
-resource "google_project_service" "cloudfunctions" {
-  service = "cloudfunctions.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "cloudresourcemanager" {
-  service = "cloudresourcemanager.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "compute" {
-  service = "compute.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "container" {
-  service = "container.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "containerregistry" {
-  service = "containerregistry.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "iam" {
-  service = "iam.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "pubsub" {
-  service = "pubsub.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "spanner" {
-  service = "spanner.googleapis.com"
-  disable_dependent_services = true
-}
-
-resource "google_project_service" "storage-component" {
-  service = "storage-component.googleapis.com"
-  disable_dependent_services = true
+echo "Service ${each.key} was not enabled after 55s"
+exit 1
+EOF
+  }
 }

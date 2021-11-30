@@ -29,17 +29,4 @@ resource "google_project_service" "enabled" {
     ] )
   service = each.key
   disable_on_destroy = false
-  provisioner "local-exec" {
-  command = <<EOF
-for i in {1..10}; do
-  sleep $i
-  if gcloud services list --project="${var.project}" | grep "${each.key}"; then
-    exit 0
-  fi
-done
-
-echo "Service ${each.key} was not enabled after 55s"
-exit 1
-EOF
-  }
 }

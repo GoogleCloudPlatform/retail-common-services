@@ -32,6 +32,7 @@ resource "google_spanner_database" "spez-lpts-database" {
   ]
   name     = "spez-lpts-database"
   instance = google_spanner_instance.spez-lpts-instance.name
+  deletion_protection = false
 
   ddl = [
     "CREATE TABLE lpts (instance STRING(MAX), database STRING(MAX), table STRING(MAX), LastProcessedTimestamp TIMESTAMP, CommitTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true)) PRIMARY KEY(instance, database, table)"

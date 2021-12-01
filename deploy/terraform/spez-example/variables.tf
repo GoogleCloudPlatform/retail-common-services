@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-variable "terraform_credentials_file" {
-  default = "~/secrets/terraform-admin.json"
-}
-
 variable "project" {}
+
 variable "region" {
   default = "us-central1"
 }
@@ -46,7 +43,7 @@ variable "secret_name" {
 }
 
 variable "spez_tailer_cluster" {
-  default = "spez-tailer-cluster"
+  default = "spanner-event-exporter"
 }
 
 variable "sink_instance" {}

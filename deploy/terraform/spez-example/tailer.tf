@@ -26,6 +26,11 @@ provider "google" {
   region  = var.region
 }
 
+data "google_container_cluster" "spez-tailer-cluster" {
+  name     = var.spez_tailer_cluster
+  location = var.region
+}
+
 provider "kubernetes" {
   host = data.google_container_cluster.spez-tailer-cluster.endpoint
   token = data.google_client_config.default.access_token
@@ -33,11 +38,6 @@ provider "kubernetes" {
 }
 
 data "google_client_config" "default" {}
-
-data "google_container_cluster" "spez-tailer-cluster" {
-  name     = var.spez_tailer_cluster
-  location = var.region
-}
 
 resource "kubernetes_service" "spez-tailer-service" {
   metadata {

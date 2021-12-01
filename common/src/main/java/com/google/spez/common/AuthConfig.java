@@ -32,6 +32,7 @@ public class AuthConfig {
     private final String authCloudSecretsDirKey;
     private final String authCredentialsKey;
     private final String authScopesKey;
+    private final String authSourceKey;
 
     /**
      * Parser constructor.
@@ -42,6 +43,7 @@ public class AuthConfig {
       authCloudSecretsDirKey = baseKeyPath + ".auth.cloud_secrets_dir";
       authCredentialsKey = baseKeyPath + ".auth.credentials";
       authScopesKey = baseKeyPath + ".auth.scopes";
+      authSourceKey = baseKeyPath + ".auth.source";
     }
 
     /** AuthConfig value object parser. */
@@ -50,11 +52,13 @@ public class AuthConfig {
           authCloudSecretsDirKey,
           config.getString(authCloudSecretsDirKey),
           config.getString(authCredentialsKey),
-          config.getStringList(authScopesKey));
+          config.getStringList(authScopesKey),
+          authSourceKey,
+          config.getString(authSourceKey));
     }
 
     public List<String> configKeys() {
-      return List.of(authCloudSecretsDirKey, authCredentialsKey, authScopesKey);
+      return List.of(authCloudSecretsDirKey, authCredentialsKey, authScopesKey, authSourceKey);
     }
   }
 
@@ -63,15 +67,24 @@ public class AuthConfig {
   private final String cloudSecretsDir;
   private final String credentialsFile;
   private final ImmutableList<String> scopes;
+  private final String authSourceKey;
+  private final String authSource;
   private GoogleCredentials credentials;
 
   /** AuthConfig value object constructor. */
   public AuthConfig(
-      String secretsDirKey, String cloudSecretsDir, String credentialsFile, List<String> scopes) {
+      String secretsDirKey,
+      String cloudSecretsDir,
+      String credentialsFile,
+      List<String> scopes,
+      String authSourceKey,
+      String authSource) {
     this.secretsDirKey = secretsDirKey;
     this.cloudSecretsDir = cloudSecretsDir;
     this.credentialsFile = credentialsFile;
     this.scopes = ImmutableList.copyOf(scopes);
+    this.authSourceKey = authSourceKey;
+    this.authSource = authSource;
   }
 
   public static Parser newParser(String baseKeyPath) {
@@ -84,7 +97,21 @@ public class AuthConfig {
       return credentials;
     }
 
+    if (!List.of("default", "file").contains(authSource)) {
+      throw new RuntimeException(
+          "Invalid value '"
+              + authSource
+              + "' for "
+              + authSourceKey
+              + " must be either 'default' or 'file'");
+    }
+
     try {
+      if (authSource.equals("default")) {
+        credentials = GoogleCredentials.getApplicationDefault();
+        return credentials;
+      }
+
       var path = Paths.get(cloudSecretsDir, credentialsFile);
       if (!path.toFile().exists()) {
         var dir = new java.io.File(cloudSecretsDir);

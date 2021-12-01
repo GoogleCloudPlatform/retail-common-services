@@ -1,8 +1,3 @@
-project = ""
-
-sink_instance = ""
-sink_database = ""
-sink_table = ""
-
-timestamp_column = ""
-uuid_column = ""
+sink_instance = "event-sink-instance"
+sink_database = "event-sink-database"
+sink_table = "example"

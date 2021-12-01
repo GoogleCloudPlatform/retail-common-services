@@ -18,7 +18,11 @@
 
 ```
 
+## Provision the RCS example tailer
 
+```sh
+./rcs-example-setup.sh {{project-id}}
+```
 
 ## Setup the terraform runner
 

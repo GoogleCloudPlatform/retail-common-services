@@ -20,6 +20,10 @@ variable "region" {
   default = "us-central1"
 }
 
+variable "tailer_image" {
+  default = "gcr.io/spanner-event-exporter/spez:latest"
+}
+
 variable "ledger_topic" {
   default = "spez-ledger-topic"
 }
@@ -31,28 +35,39 @@ variable "log_level" {
 variable "lpts_instance" {
   default = "spez-lpts-instance"
 }
+
 variable "lpts_database" {
   default = "spez-lpts-database"
 }
+
 variable "lpts_table" {
   default = "lpts"
-}
-
-variable "secret_name" {
-  default = "service-account.json"
 }
 
 variable "spez_tailer_cluster" {
   default = "spanner-event-exporter"
 }
 
-variable "sink_instance" {}
-variable "sink_database" {}
-variable "sink_table" {}
-
-variable "tailer_image" {
-  default = "gcr.io/spanner-event-exporter/spez:latest"
+variable "sink_instance" {
+  default = "event-sink-instance"
 }
 
-variable "timestamp_column" {}
-variable "uuid_column" {}
+variable "sink_database" {
+  default = "event-sink-database"
+}
+
+variable "sink_table" {
+  default = "example"
+}
+
+variable "timestamp_column" {
+  default = "CommitTimestamp"
+}
+
+variable "uuid_column" {
+  default = "uuid"
+}
+
+variable "jmx_port" {
+  default = "9010"
+}

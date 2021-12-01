@@ -26,7 +26,7 @@ provider "google" {
   region  = var.region
 }
 
-data "google_container_cluster" "spez-tailer-cluster" {
+data "google_container_cluster" "primary" {
   name     = var.spez_tailer_cluster
   location = var.region
 }
@@ -45,7 +45,7 @@ resource "kubernetes_service" "spez-tailer-service" {
   }
   spec {
     port {
-      port = 9010
+      port = var.jmx_port
       name = "jmx-port"
     }
     selector = {
@@ -84,11 +84,6 @@ resource "kubernetes_deployment" "spez-tailer-deployment" {
           name = "spez-tailer"
           image = var.tailer_image
           image_pull_policy = "Always"
-          volume_mount {
-            name = "service-account"
-            mount_path = "/var/run/secret/cloud.google.com"
-            read_only = "true"
-          }
           resources {
             limits = {
               memory = "16Gi"
@@ -98,11 +93,28 @@ resource "kubernetes_deployment" "spez-tailer-deployment" {
             }
           }
           port {
-            container_port = 9010
+            container_port = var.jmx_port
           }
           args = [
+            "-ea",
+            "-Djava.net.preferIPv4Stack=true",
+            "-Dio.netty.allocator.type=pooled",
+            "-XX:+UnlockExperimentalVMOptions",
+            "-XX:+UseZGC",
+            "-XX:ConcGCThreads=4",
+            "-XX:+UseTransparentHugePages",
+            "-XX:+UseNUMA",
+            "-XX:+UseStringDeduplication",
+            "-XX:+HeapDumpOnOutOfMemoryError",
+            "-Dcom.sun.management.jmxremote",
+            "-Dcom.sun.management.jmxremote.port=${var.jmx_port}",
+            "-Dcom.sun.management.jmxremote.rmi.port=${var.jmx_port}",
+            "-Dcom.sun.management.jmxremote.local.only=false",
+            "-Dcom.sun.management.jmxremote.authenticate=false",
+            "-Dcom.sun.management.jmxremote.ssl=false",
+            "-Djava.rmi.server.hostname=127.0.0.1",
             "-Dspez.project_id=${var.project}",
-            "-Dspez.auth.credentials=${var.secret_name}",
+            "-Dspez.auth.credentials=default",
             "-Dspez.pubsub.topic=${var.ledger_topic}",
             "-Dspez.sink.instance=${var.sink_instance}",
             "-Dspez.sink.database=${var.sink_database}",

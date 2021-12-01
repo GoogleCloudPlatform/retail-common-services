@@ -19,8 +19,6 @@ WORKDIR /app
 COPY *.gradle gradle.* gradlew /app/
 COPY gradle /app/gradle
 RUN /app/gradlew --version
-RUN apt-get update
-RUN apt-get install -y build-essential
 
 FROM build-env as app-build
 ADD . /app
@@ -28,13 +26,10 @@ WORKDIR /app
 USER root
 RUN ./gradlew clean :cdc:spannerTailerService && \
   mv cdc/build/libs/Main-fat-*.jar Main.jar
-RUN make -C ./scripts
 
 FROM gcr.io/distroless/java:${DISTROLESS_JAVA_VERSION} as prod
 COPY --from=app-build /app/Main.jar /app/Main.jar
-COPY --from=app-build /app/scripts/run-spez /app/run-spez
 ENV JVM_HEAP_SIZE=12g
 ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
-ADD cdc/docker/jvm-arguments /app/
 WORKDIR /app
-ENTRYPOINT ["/app/run-spez"]
+ENTRYPOINT ["java"]

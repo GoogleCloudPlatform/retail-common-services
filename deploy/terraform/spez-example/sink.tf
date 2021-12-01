@@ -23,7 +23,7 @@ resource "google_spanner_instance" "event-sink-instance" {
 }
 
 locals {
-  example_ddl <<-EOT
+  example_ddl = <<-EOT
     CREATE TABLE ${var.sink_table} (
       uuid INT64 NOT NULL,
       CommitTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true)

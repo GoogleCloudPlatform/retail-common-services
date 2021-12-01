@@ -1,6 +1,6 @@
 # This workflow will build a docker image and push it to ghcr.io
 
-name: Java CI with Gradle
+name: package and release with docker
 
 on:
   push:

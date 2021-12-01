@@ -92,11 +92,12 @@ jobs:
       with:
         path: '**/build/reports/checkstyle/*.xml'
 
-    - name: pmd
-      uses: jwgmeligmeyling/pmd-github-action@v1.2
-      if: ${{ always() }}
-      with:
-        path: '**/build/reports/pmd/*.xml'
+# disable because of HttpError
+#   - name: pmd
+#     uses: jwgmeligmeyling/pmd-github-action@v1.2
+#     if: ${{ always() }}
+#     with:
+#       path: '**/build/reports/pmd/*.xml'
 
     - name: spotbugs
       uses: jwgmeligmeyling/spotbugs-github-action@v1.2

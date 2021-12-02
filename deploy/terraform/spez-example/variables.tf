@@ -21,7 +21,7 @@ variable "region" {
 }
 
 variable "tailer_image" {
-  default = "gcr.io/spanner-event-exporter/spez:latest"
+  default = ""
 }
 
 variable "ledger_topic" {

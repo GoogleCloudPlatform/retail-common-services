@@ -20,7 +20,7 @@ set -x
 
 pushd terraform/spez-example
 
-terraform plan -var project=$PROJECT_ID -out=tf.plan
+terraform plan -var project=$PROJECT_ID -var "tailer_image=gcr.io/${PROJECT_ID}/spanner-event-exporter:latest" -out=tf.plan
 if [ "$DRYRUN" = "" ]; then
     terraform apply -auto-approve tf.plan
 fi

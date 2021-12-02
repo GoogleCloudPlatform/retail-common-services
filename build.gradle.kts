@@ -41,6 +41,7 @@ release {
   gitConfig.pushToRemote = "origin"
   gitConfig.pushOptions = listOf("--tags")
   gitConfig.requireBranch = "main"
+  tagTemplate = "v$version"
 }
 
 subprojects {

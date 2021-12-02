@@ -4,8 +4,8 @@ name: package and release with docker
 
 on:
   push:
-    branches:
-      - 'release-*'
+    tags::
+      - 'v*'
 
 env:
   REGISTRY: ghcr.io

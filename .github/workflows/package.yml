@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: spanner-event-expoter
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push-image:

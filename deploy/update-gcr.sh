@@ -17,10 +17,12 @@ cat "$GH_TOKEN" | docker login -u $GH_USER --password-stdin $GH_HOST
 gcloud auth configure-docker --project $PROJECT_ID
 
 # pull from github
+echo "Pulling from github"
 
 docker pull $GH_REPO
 docker tag $GH_REPO $GCR_REPO
 
 # push to gcr
+echo "Pushing to gcr"
 
 docker push $GCR_REPO

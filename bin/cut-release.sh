@@ -29,9 +29,9 @@ if ! git tag --contains $TAG > /dev/null 2>&1; then
   ./gradlew release -Prelease.useAutomaticVersion=true -Prelease.releaseVersion=$TAG -Prelease.newVersion=$NEXT_TAG-SNAPSHOT
 fi
 
-# ./gradlew release should do this for us, uncomment if it doesn't
-#git checkout -b release-$TAG $TAG || git checkout release-$TAG
+# ./gradlew release doesn't do this for us
+git checkout -b release-$TAG $TAG || git checkout release-$TAG
 
-#git push origin HEAD
+git push origin HEAD
 
-#git checkout main
+git checkout main

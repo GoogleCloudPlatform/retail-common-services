@@ -263,7 +263,7 @@ public class EventPublisher {
     long size = bufferSize.get();
     eventState.queuedForPublishing(size);
     if (size >= publishBufferSize) {
-      //log.debug("publish buffer size {}", size);
+      log.debug("publish buffer size {}", size);
       UsefulExecutors.submit(
           scheduler,
           runPublishBuffer,
@@ -271,7 +271,7 @@ public class EventPublisher {
             log.error("Error while calling this::publishBuffer", throwable);
           });
     } else {
-      //log.debug("didn't publish buffer size {}", size);
+      log.debug("didn't publish buffer size {}", size);
     }
   }
 

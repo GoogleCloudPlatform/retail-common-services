@@ -25,6 +25,7 @@ resource "google_project_iam_member" "node_sa_role" {
   ]
   for_each = toset( [
     "roles/cloudtrace.agent",
+    "roles/editor",
     "roles/monitoring.metricWriter",
     "roles/pubsub.publisher",
     "roles/spanner.databaseUser",

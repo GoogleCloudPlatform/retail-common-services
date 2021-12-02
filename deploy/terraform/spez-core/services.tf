@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-variable "project" {}
-
-variable "region" {
-  default = "us-central1"
-}
-
-variable "lpts_instance" {
-  default = "spez-lpts-instance"
-}
-
-variable "lpts_database" {
-  default = "spez-lpts-database"
-}
-
-variable "lpts_table" {
-  default = "lpts"
+resource "google_project_service" "enabled" {
+  for_each = toset( [
+    "cloudbuild.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "compute.googleapis.com",
+    "container.googleapis.com",
+    "containerregistry.googleapis.com",
+    "iam.googleapis.com",
+    "pubsub.googleapis.com",
+    "spanner.googleapis.com",
+    "storage-component.googleapis.com"
+    ] )
+  service = each.key
+  disable_on_destroy = false
 }

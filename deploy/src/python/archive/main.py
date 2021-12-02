@@ -20,8 +20,17 @@ import os
 import random
 
 from google.cloud import storage
+from opencensus.common.transports.async_ import AsyncTransport
+from opencensus.ext.stackdriver.trace_exporter import StackdriverExporter
+from opencensus.trace.samplers import AlwaysOnSampler
+from opencensus.trace.span_context import SpanContext
+from opencensus.trace.tracer import Tracer
+
 
 def archive(event, context):
+    version, trace_id, span_id, options = event["attributes"]["googclient_OpenCensusTraceContextKey"].split("-")
+    tracer = setup_tracing(trace_id, span_id)
+    client = storage.Client()
     bucket_name = os.environ.get("BUCKET")
 
     sink_instance = event["attributes"]["spez.sink.instance"]
@@ -29,16 +38,30 @@ def archive(event, context):
     sink_table = event["attributes"]["spez.sink.table"]
     sink_uuid = event["attributes"]["spez.sink.uuid"]
     sink_commit_timestamp = event["attributes"]["spez.sink.commit_timestamp"]
-
     o_path = sink_instance + "/" + sink_database + "/" + sink_table +"/"
     o_name = sink_uuid + "_" + sink_commit_timestamp + "#" + random_appendix()
     o = o_path + o_name
 
-    client = storage.Client()
-    bucket = client.get_bucket(bucket_name)
-    blob = bucket.blob(o)  
-    data = base64.b64decode(event['data']).decode('utf-8')
-    blob.upload_from_string(data, content_type="protobuf/bytes")
+    with tracer.span(name="archive") as span:
+        client = storage.Client()
+        bucket = client.get_bucket(bucket_name)
+        blob = bucket.blob(o)
+        span.add_annotation("invoking archive")
+        try:
+            blob.upload_from_string(base64.b64decode(event['data']), content_type="avro/bytes")
+        except:
+            pass
+
+def setup_tracing(trace_id, span_id):
+    span_context = SpanContext(trace_id=trace_id, span_id=span_id)
+    
+    exporter = StackdriverExporter(
+                    project_id=os.environ.get("GCP_PROJECT_ID"),
+                    transport=AsyncTransport
+                )
+
+    tracer = Tracer(span_context=span_context, exporter=exporter, sampler=AlwaysOnSampler())
+    return tracer
 
 def random_appendix():
     letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

@@ -20,6 +20,18 @@ variable "region" {
   default = "us-central1"
 }
 
+variable "tailer_image" {
+  default = ""
+}
+
+variable "ledger_topic" {
+  default = "spez-ledger-topic"
+}
+
+variable "log_level" {
+  default = "INFO"
+}
+
 variable "lpts_instance" {
   default = "spez-lpts-instance"
 }
@@ -30,4 +42,32 @@ variable "lpts_database" {
 
 variable "lpts_table" {
   default = "lpts"
+}
+
+variable "spez_tailer_cluster" {
+  default = "spanner-event-exporter"
+}
+
+variable "sink_instance" {
+  default = "event-sink-instance"
+}
+
+variable "sink_database" {
+  default = "event-sink-database"
+}
+
+variable "sink_table" {
+  default = "example"
+}
+
+variable "timestamp_column" {
+  default = "CommitTimestamp"
+}
+
+variable "uuid_column" {
+  default = "uuid"
+}
+
+variable "jmx_port" {
+  default = "9010"
 }

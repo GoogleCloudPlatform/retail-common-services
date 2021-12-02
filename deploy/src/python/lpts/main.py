@@ -36,7 +36,7 @@ def lpts(event, context):
     database = instance.database(lpts_database)
 
     with database.batch() as batch:
-        batch.insert(
+        batch.update(
             table = lpts_table,
             columns = ('instance', 'database', 'table', 'LastProcessedTimestamp', 'CommitTimestamp'),
             values = [(sink_instance, sink_database, sink_table, sink_commit_timestamp, spanner.COMMIT_TIMESTAMP)]

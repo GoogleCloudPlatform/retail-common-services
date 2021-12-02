@@ -9,7 +9,7 @@ PROJECT_ID="$1"
 GH_USER="$2"
 GH_TOKEN="$3"
 GH_HOST=ghcr.io
-GH_REPO="${GH_HOST}/GoogleCloudPlatform/retail-common-services/spanner-event-exporter"
+GH_REPO="${GH_HOST}/googlecloudplatform/retail-common-services/spanner-event-exporter"
 GCR_HOST=gcr.io
 GCR_REPO="${GCR_HOST}/${PROJECT_ID}/spanner-event-exporter"
 

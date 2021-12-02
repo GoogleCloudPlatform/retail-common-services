@@ -27,7 +27,8 @@ resource "google_project_iam_member" "node_sa_role" {
     "roles/cloudtrace.agent",
     "roles/monitoring.metricWriter",
     "roles/pubsub.publisher",
-    "roles/spanner.databaseUser"
+    "roles/spanner.databaseUser",
+    "roles/storage.objectViewer"
     ] )
   project  = var.project
   role     = each.key

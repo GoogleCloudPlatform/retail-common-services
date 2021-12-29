@@ -25,6 +25,7 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TransactionContext;
 import com.google.cloud.spanner.TransactionRunner;
 import com.google.cloud.spanner.testing.RemoteSpannerHelper;
+import com.google.spez.spanner.DatabaseFactory;
 import java.io.IOException;
 import java.util.List;
 import org.assertj.core.api.WithAssertions;
@@ -76,8 +77,9 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
     var lpts = // NOPMD
         new SpezConfig.LptsConfig(
             projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", credentials);
+    var database = DatabaseFactory.openLptsDatabase(lpts);
     var throwable =
-        catchThrowable(() -> LastProcessedTimestamp.getLastProcessedTimestamp(sink, lpts));
+        catchThrowable(() -> LastProcessedTimestamp.getLastProcessedTimestamp(database, sink, lpts));
     assertThat(throwable)
         .isInstanceOf(RuntimeException.class)
         .hasMessage("LastProcessedTimestamp was unavailable");
@@ -130,7 +132,8 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
     var lpts =
         new SpezConfig.LptsConfig(
             projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", credentials);
-    var timestamp = LastProcessedTimestamp.getLastProcessedTimestamp(sink, lpts);
+    var database = DatabaseFactory.openLptsDatabase(lpts);
+    var timestamp = LastProcessedTimestamp.getLastProcessedTimestamp(database, sink, lpts);
     assertThat(timestamp).isEqualTo("1970-01-01T00:00:00Z");
   }
 }

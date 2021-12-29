@@ -17,12 +17,8 @@
 package com.google.spez.core;
 
 import com.google.cloud.Timestamp;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.spannerclient.Database;
-import com.google.spannerclient.Query;
-import com.google.spannerclient.QueryOptions;
-import com.google.spannerclient.RowCursor;
-import com.google.spannerclient.Spanner;
+import com.google.spez.spanner.Database;
+import com.google.spez.spanner.RowCursor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,19 +64,9 @@ public class LastProcessedTimestamp {
    * @param lpts config for where to find the last processed timestamp
    * @return the last processed timestamp as a string
    */
-  public static String getLastProcessedTimestamp(
+  public static String getLastProcessedTimestamp(Database database,
       SpezConfig.SinkConfig sink, SpezConfig.LptsConfig lpts) {
-    final ListenableFuture<Database> dbFuture = Spanner.openDatabaseAsync(lpts.getSettings());
 
-    Database lptsDatabase;
-    try {
-      log.info("waiting for lpts db");
-      lptsDatabase = dbFuture.get(); // NOPMD
-      log.info("LPTS Database returned!");
-    } catch (Exception e) {
-      log.error("Failed to get Database, throwing");
-      throw new RuntimeException(e);
-    }
     String lptsQuery = buildQuery(sink, lpts);
 
     log.info(
@@ -88,16 +74,14 @@ public class LastProcessedTimestamp {
         lptsQuery,
         lpts.databasePath());
 
-    RowCursor lptsCursor = // NOPMD
-        Spanner.execute(QueryOptions.DEFAULT(), lptsDatabase, Query.create(lptsQuery));
-
-    if (lptsCursor == null) {
+    RowCursor cursor = database.execute(lptsQuery);
+    if (cursor == null) {
       throw new RuntimeException("Couldn't find lpts row");
     }
 
     boolean gotTimestamp = false;
     String timestamp = null;
-    while (lptsCursor.next()) {
+    while (cursor.next()) {
       if (gotTimestamp) {
         log.error(
             "Got more than one row from table '{}', using the first value {}",
@@ -105,7 +89,7 @@ public class LastProcessedTimestamp {
             timestamp);
         break;
       }
-      timestamp = parseLastProcessedTimestamp(lptsCursor);
+      timestamp = parseLastProcessedTimestamp(cursor);
       if (timestamp != null) {
         gotTimestamp = true;
       }

@@ -48,9 +48,11 @@ public class SpezApp {
 
     var database = BothanDatabase.openDatabase(config.getSink().getSettings());
 
+    var lptsDatabase = DatabaseFactory.openLptsDatabase(config.getLpts());
     log.info("Fetching last processed timestamp");
     var lastProcessedTimestamp =
-        LastProcessedTimestamp.getLastProcessedTimestamp(config.getSink(), config.getLpts());
+      LastProcessedTimestamp.getLastProcessedTimestamp(lptsDatabase, config.getSink(), config.getLpts());
+
     log.info("Retrieved last processed timestamp, parsing schema");
     SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
     SchemaSet schemaSet = spannerSchema.getSchema();

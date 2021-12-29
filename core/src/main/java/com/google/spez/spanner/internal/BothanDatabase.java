@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner.internal;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -25,6 +25,9 @@ import com.google.spannerclient.QueryOptions;
 import com.google.spannerclient.Settings;
 import com.google.spannerclient.Spanner;
 import com.google.spez.common.Inexcusables;
+import com.google.spez.spanner.Database;
+import com.google.spez.spanner.Row;
+import com.google.spez.spanner.RowCursor;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 

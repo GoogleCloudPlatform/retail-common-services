@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner.internal;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.spanner.v1.Type;
+import com.google.spez.spanner.Row;
 import java.util.List;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")

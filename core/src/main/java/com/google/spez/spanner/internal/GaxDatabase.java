@@ -14,19 +14,32 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner.internal;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.spannerclient.Query;
 import com.google.spannerclient.QueryOptions;
+import com.google.spez.spanner.Database;
+import com.google.spez.spanner.Row;
+import com.google.spez.spanner.RowCursor;
 import io.grpc.stub.StreamObserver;
-import java.io.Closeable;
+import java.io.IOException;
 
-public interface Database extends Closeable {
-  ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service);
+public class GaxDatabase implements Database {
+  @Override
+  public ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service) {
+    return null;
+  }
 
-  void executeStreaming(QueryOptions options, StreamObserver<Row> handler, Query query);
+  @Override
+  public RowCursor execute(String query) {
+    return null;
+  }
 
-  RowCursor execute(String query);
+  @Override
+  public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, Query query) {}
+
+  @Override
+  public void close() throws IOException {}
 }

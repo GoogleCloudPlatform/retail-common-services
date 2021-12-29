@@ -18,7 +18,7 @@ package com.google.spez.core;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import com.google.spez.core.internal.Row;
+import com.google.spez.spanner.Row;
 import java.util.Map;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")

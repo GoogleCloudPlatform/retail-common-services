@@ -16,7 +16,7 @@
 
 package com.google.spez.core;
 
-import com.google.spez.core.internal.RowCursor;
+import com.google.spez.spanner.RowCursor;
 
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 class UuidColumnChecker {

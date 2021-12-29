@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner;
 
-public class GaxRow {}
+import com.google.spez.spanner.Row;
+
+public interface RowCursor {
+  String getString(String columnName);
+
+  Row getCurrentRow();
+
+  boolean next();
+}

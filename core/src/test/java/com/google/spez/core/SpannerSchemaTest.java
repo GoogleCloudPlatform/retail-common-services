@@ -20,7 +20,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.InstanceId;
 import com.google.cloud.spanner.testing.RemoteSpannerHelper;
-import com.google.spez.core.internal.BothanDatabase;
+import com.google.spez.spanner.internal.BothanDatabase;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;

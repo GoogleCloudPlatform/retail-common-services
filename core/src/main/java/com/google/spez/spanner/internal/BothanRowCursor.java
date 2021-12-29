@@ -14,21 +14,31 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner.internal;
 
-public class GaxRowCursor implements RowCursor {
+import com.google.spez.spanner.Row;
+import com.google.spez.spanner.RowCursor;
+
+@SuppressWarnings("PMD.BeanMembersShouldSerialize")
+public class BothanRowCursor implements RowCursor {
+  private final com.google.spannerclient.RowCursor cursor;
+
+  public BothanRowCursor(com.google.spannerclient.RowCursor cursor) {
+    this.cursor = cursor;
+  }
+
   @Override
   public String getString(String columnName) {
-    return null;
+    return cursor.getString(columnName);
   }
 
   @Override
   public Row getCurrentRow() {
-    return null;
+    return new BothanRow(cursor.getCurrentRow());
   }
 
   @Override
   public boolean next() {
-    return false;
+    return cursor.next();
   }
 }

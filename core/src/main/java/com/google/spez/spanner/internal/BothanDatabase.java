@@ -72,8 +72,8 @@ public class BothanDatabase implements Database {
   }
 
   @Override
-  public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, Query query) {
-    Spanner.executeStreaming(options, database, new DelegatingStreamObserver(observer), query);
+  public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, String query) {
+    Spanner.executeStreaming(convert(options), database, new DelegatingStreamObserver(observer), Query.create(query));
   }
 
   @Override

@@ -18,17 +18,11 @@ package com.google.spez.spanner;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.spannerclient.Query;
-import com.google.spannerclient.QueryOptions;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 
 public interface Database extends Closeable {
-  ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service);
-
-  // TODO(pdex): change QueryOptions to a spez class
-  // TODO(pdex): change Query to String
-  void executeStreaming(QueryOptions options, StreamObserver<Row> handler, Query query);
+  void executeStreaming(QueryOptions options, StreamObserver<Row> handler, String query);
 
   RowCursor execute(String query);
 }

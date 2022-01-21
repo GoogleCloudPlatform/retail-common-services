@@ -21,6 +21,7 @@ import com.google.spez.spanner.RowCursor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO(pdex): refactor this into a CheckRunner class and delete SchemaSet
 @SuppressWarnings("PMD.BeanMembersShouldSerialize")
 public class SpannerSchema {
   private static final Logger log = LoggerFactory.getLogger(SpannerSchema.class);

@@ -16,8 +16,6 @@
 
 package com.google.spez.spanner;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 

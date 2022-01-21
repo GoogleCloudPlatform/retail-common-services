@@ -20,7 +20,7 @@ import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.LoggerDumper;
-import com.google.spez.core.internal.BothanDatabase;
+import com.google.spez.spanner.DatabaseFactory;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -58,25 +58,20 @@ public class SpezApp {
     LoggerDumper.dump();
     SpezMetrics.setupViews();
 
-    var publisher = EventPublisher.create(config);
-    final ListeningScheduledExecutorService scheduler =
-        MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
-    var extractor = new MetadataExtractor(config);
-
-    var database = BothanDatabase.openDatabase(config.getSink().getSettings());
-
     var lptsDatabase = DatabaseFactory.openLptsDatabase(config.getLpts());
     log.info("Fetching last processed timestamp");
     var lastProcessedTimestamp =
       LastProcessedTimestamp.getLastProcessedTimestamp(lptsDatabase, config.getSink(), config.getLpts());
 
+    var database = DatabaseFactory.openSinkDatabase(config.getSink());
     log.info("Retrieved last processed timestamp, parsing schema");
     SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
     SchemaSet schemaSet = spannerSchema.getSchema();
+
     log.info("Successfully Processed the Table Schema. Starting the tailer now ...");
+    var publisher = EventPublisher.create(config);
+    var extractor = new MetadataExtractor(config);
     var handler = new RowProcessor(config.getSink(), publisher, extractor);
-    String databasePath = config.getSink().databasePath();
-    log.info("Building database with path '{}'", databasePath);
 
     final SpannerTailer tailer =
         new SpannerTailer(config, database, handler, lastProcessedTimestamp);

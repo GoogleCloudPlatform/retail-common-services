@@ -45,6 +45,13 @@ dependencies {
   implementation(Config.Libs.bigquery)
   // implementation(Config.Libs.rocksdb)
   implementation("com.google.api.grpc:proto-google-cloud-spanner-v1:1.55.1")
+  // implementation(Config.Libs.spanner)
+  // BOM needed for cloud-spanner
+  //implementation(platform("com.google.cloud:libraries-bom:24.1.0"))
+  //implementation("com.google.cloud:google-cloud-spanner")
+  implementation("com.google.cloud:google-cloud-spanner:6.17.3")
+
+
 
   // AutoValue
   compileOnly("com.google.auto.value:auto-value-annotations:1.6.2")

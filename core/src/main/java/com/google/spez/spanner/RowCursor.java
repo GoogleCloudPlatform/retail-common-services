@@ -16,10 +16,13 @@
 
 package com.google.spez.spanner;
 
+import com.google.cloud.Timestamp;
 import com.google.spez.spanner.Row;
 
 public interface RowCursor {
   String getString(String columnName);
+
+  Timestamp getTimestamp(String columnName);
 
   Row getCurrentRow();
 

@@ -16,6 +16,7 @@
 
 package com.google.spez.spanner.internal;
 
+import com.google.cloud.Timestamp;
 import com.google.spez.spanner.Row;
 import com.google.spez.spanner.RowCursor;
 
@@ -31,6 +32,12 @@ public class BothanRowCursor implements RowCursor {
   public String getString(String columnName) {
     return cursor.getString(columnName);
   }
+
+  @Override
+  public Timestamp getTimestamp(String columnName) {
+    return cursor.getTimestamp(columnName);
+  }
+
 
   @Override
   public Row getCurrentRow() {

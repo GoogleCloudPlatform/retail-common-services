@@ -19,9 +19,9 @@ package com.google.spez.core;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.spannerclient.Settings;
 import com.google.spez.common.AuthConfig;
 import com.google.spez.common.StackdriverConfig;
+import com.google.spez.spanner.Settings;
 import com.typesafe.config.Config;
 import java.util.List;
 import java.util.Map;
@@ -198,6 +198,10 @@ public class SpezConfig {
     public String tablePath() {
       return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
     }
+
+    public boolean useCustomClient() {
+      return true;
+    }
   }
 
   public static class LptsConfig {
@@ -276,6 +280,10 @@ public class SpezConfig {
     /** tablePath getter. */
     public String tablePath() {
       return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
+    }
+
+    public boolean useCustomClient() {
+      return true;
     }
   }
 

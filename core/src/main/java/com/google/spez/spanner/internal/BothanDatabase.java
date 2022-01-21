@@ -21,13 +21,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spannerclient.Query;
-import com.google.spannerclient.QueryOptions;
-import com.google.spannerclient.Settings;
 import com.google.spannerclient.Spanner;
 import com.google.spez.common.Inexcusables;
 import com.google.spez.spanner.Database;
+import com.google.spez.spanner.QueryOptions;
 import com.google.spez.spanner.Row;
 import com.google.spez.spanner.RowCursor;
+import com.google.spez.spanner.Settings;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 
@@ -37,6 +37,18 @@ public class BothanDatabase implements Database {
 
   private BothanDatabase(com.google.spannerclient.Database database) {
     this.database = database;
+  }
+
+  private static com.google.spannerclient.Settings convert(Settings settings) {
+    return com.google.spannerclient.Settings.newBuilder()
+      .setCredentials(settings.credentials())
+      .setDatabase(settings.database())
+      .setInstance(settings.instance())
+      .setPoolSize(settings.poolSize())
+      .setProjectId(settings.projectId())
+      .setScheduler(settings.scheduler())
+      .setStalenessCheck(settings.stalenessCheck())
+      .build();
   }
 
   /**
@@ -49,7 +61,7 @@ public class BothanDatabase implements Database {
   public static ListenableFuture<Database> openDatabaseAsync(
       Settings settings, ListeningExecutorService service) {
     ListenableFuture<com.google.spannerclient.Database> dbFuture =
-        Spanner.openDatabaseAsync(settings);
+        Spanner.openDatabaseAsync(convert(settings));
     return Futures.transform(dbFuture, BothanDatabase::new, service);
   }
 
@@ -58,10 +70,9 @@ public class BothanDatabase implements Database {
         openDatabaseAsync(settings, MoreExecutors.newDirectExecutorService()));
   }
 
-  @Override
-  public ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service) {
+  private ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service) {
     ListenableFuture<com.google.spannerclient.RowCursor> executeFuture =
-        Spanner.executeAsync(QueryOptions.DEFAULT(), database, Query.create(query));
+        Spanner.executeAsync(com.google.spannerclient.QueryOptions.DEFAULT(), database, Query.create(query));
     return Futures.transform(executeFuture, BothanRowCursor::new, service);
   }
 
@@ -69,6 +80,15 @@ public class BothanDatabase implements Database {
   public RowCursor execute(String query) {
     return Inexcusables.getInexcusably(
         executeAsync(query, MoreExecutors.newDirectExecutorService()));
+  }
+
+  private static com.google.spannerclient.QueryOptions convert(QueryOptions options) {
+    return com.google.spannerclient.QueryOptions.newBuilder()
+      .setMaxStaleness(options.maxStaleness())
+      .setReadOnly(options.readOnly())
+      .setStale(options.stale())
+      .setStrong(options.strong())
+      .build();
   }
 
   @Override

@@ -30,6 +30,23 @@ import org.slf4j.LoggerFactory;
 public class SpezApp {
   private static final Logger log = LoggerFactory.getLogger(SpezApp.class);
 
+  public static void setupLogScheduler(Runnable runnable) {
+    final ListeningScheduledExecutorService scheduler =
+      MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
+    var schedulerFuture =
+      scheduler.scheduleAtFixedRate(
+        runnable,
+        30,
+        30,
+        TimeUnit.SECONDS);
+    ListenableFutureErrorHandler.create(
+      scheduler,
+      schedulerFuture,
+      (throwable) -> {
+        log.error("logStats scheduled task error", throwable);
+      });
+  }
+
   /**
    * run a SpezApp with the given config.
    *
@@ -64,20 +81,9 @@ public class SpezApp {
     final SpannerTailer tailer =
         new SpannerTailer(config, database, handler, lastProcessedTimestamp);
     tailer.start();
-    var schedulerFuture =
-        scheduler.scheduleAtFixedRate(
-            () -> {
-              handler.logStats();
-              tailer.logStats();
-            },
-            30,
-            30,
-            TimeUnit.SECONDS);
-    ListenableFutureErrorHandler.create(
-        scheduler,
-        schedulerFuture,
-        (throwable) -> {
-          log.error("logStats scheduled task error", throwable);
-        });
+    setupLogScheduler(() -> {
+        handler.logStats();
+        tailer.logStats();
+      });
   }
 }

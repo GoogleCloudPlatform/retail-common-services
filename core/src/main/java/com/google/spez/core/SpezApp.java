@@ -49,33 +49,38 @@ public class SpezApp {
    * @throws ExecutionException task aborted exception.
    * @throws InterruptedException task interrupted exception.
    */
-  public static void run(SpezConfig config) throws ExecutionException, InterruptedException {
-    LoggerDumper.dump();
-    SpezMetrics.setupViews();
+  public static void run(SpezConfig config) {
+    try {
+      LoggerDumper.dump();
+      SpezMetrics.setupViews();
 
-    var lptsDatabase = DatabaseFactory.openLptsDatabase(config.getLpts());
-    log.info("Fetching last processed timestamp");
-    var lastProcessedTimestamp =
-        LastProcessedTimestamp.getLastProcessedTimestamp(
-            lptsDatabase, config.getSink(), config.getLpts());
+      var lptsDatabase = DatabaseFactory.openLptsDatabase(config.getLpts());
+      log.info("Fetching last processed timestamp");
+      var lastProcessedTimestamp =
+          LastProcessedTimestamp.getLastProcessedTimestamp(
+              lptsDatabase, config.getSink(), config.getLpts());
 
-    var database = DatabaseFactory.openSinkDatabase(config.getSink());
-    log.info("Retrieved last processed timestamp, parsing schema");
-    SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
-    SchemaSet schemaSet = spannerSchema.getSchema();
+      var database = DatabaseFactory.openSinkDatabase(config.getSink());
+      log.info("Retrieved last processed timestamp, parsing schema");
+      SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
+      SchemaSet schemaSet = spannerSchema.getSchema();
 
-    log.info("Successfully Processed the Table Schema. Starting the tailer now ...");
-    var publisher = EventPublisher.create(config);
-    var extractor = new MetadataExtractor(config);
-    var handler = new RowProcessor(config.getSink(), publisher, extractor);
+      log.info("Successfully Processed the Table Schema. Starting the tailer now ...");
+      var publisher = EventPublisher.create(config);
+      var extractor = new MetadataExtractor(config);
+      var handler = new RowProcessor(config.getSink(), publisher, extractor);
 
-    final SpannerTailer tailer =
-        new SpannerTailer(config, database, handler, lastProcessedTimestamp);
-    tailer.start();
-    setupLogScheduler(
-        () -> {
-          handler.logStats();
-          tailer.logStats();
-        });
+      final SpannerTailer tailer =
+          new SpannerTailer(config, database, handler, lastProcessedTimestamp);
+      tailer.start();
+      setupLogScheduler(
+          () -> {
+            handler.logStats();
+            tailer.logStats();
+          });
+    } catch (Exception ex) {
+      log.error("Unhandled exception", ex);
+      throw ex;
+    }
   }
 }

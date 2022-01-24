@@ -23,13 +23,17 @@ import com.typesafe.config.ConfigFactory;
 import io.opencensus.contrib.zpages.ZPageHandlers;
 
 class Main {
-  public static void main(String[] args) throws Exception {
-    SpezConfig config = SpezConfig.parse(ConfigFactory.load());
+  public static void main(String[] args) {
+    try {
+      SpezConfig config = SpezConfig.parse(ConfigFactory.load());
 
-    StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
+      StackdriverConfigurator.setupStackdriver(config.getStackdriver(), config.getAuth());
 
-    ZPageHandlers.startHttpServerAndRegisterAll(8887);
+      ZPageHandlers.startHttpServerAndRegisterAll(8887);
 
-    SpezApp.run(config);
+      SpezApp.run(config);
+    } catch (Exception ex) {
+      System.exit(-1);
+    }
   }
 }

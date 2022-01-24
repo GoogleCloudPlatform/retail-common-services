@@ -81,7 +81,14 @@ tasks.register<Jar>("spannerTailerService") {
   })
 }
 
-val project_id = System.getenv().getOrDefault("PROJECT_ID", "rcs-demo-prod")
+val project_id = System.getenv().get("PROJECT_ID")
+val sink_instance = System.getenv().get("SINK_INSTANCE")
+val sink_database = System.getenv().get("SINK_DATABASE")
+val sink_table = System.getenv().get("SINK_TABLE")
+val lpts_instance = System.getenv().get("LPTS_INSTANCE")
+val lpts_database = System.getenv().get("LPTS_DATABASE")
+val lpts_table = System.getenv().get("LPTS_TABLE")
+val default_log_level = System.getenv("DEFAULT_LOG_LEVEL")
 
 application {
   mainClassName = "com.google.spez.cdc.Main"
@@ -90,14 +97,14 @@ application {
     "-Dspez.project_id=$project_id",
     "-Dspez.auth.credentials=credentials.json",
     "-Dspez.pubsub.topic=spez-ledger-topic",
-    "-Dspez.sink.instance=example-event-sink-instance",
-    "-Dspez.sink.database=example-event-sink-database",
-    "-Dspez.sink.table=example",
+    "-Dspez.sink.instance=$sink_instance",
+    "-Dspez.sink.database=$sink_database",
+    "-Dspez.sink.table=$sink_table",
     "-Dspez.sink.uuid_column=uuid",
     "-Dspez.sink.timestamp_column=CommitTimestamp",
-    "-Dspez.lpts.instance=spez-lpts-instance",
-    "-Dspez.lpts.database=spez-lpts-database",
-    "-Dspez.lpts.table=lpts",
+    "-Dspez.lpts.instance=$lpts_instance",
+    "-Dspez.lpts.database=$lpts_database",
+    "-Dspez.lpts.table=$lpts_table",
     "-Dspez.loglevel.default=INFO",
     "-Dspez.loglevel.com.google.spez.core.EventPublisher=INFO",
     "-Djava.net.preferIPv4Stack=true",

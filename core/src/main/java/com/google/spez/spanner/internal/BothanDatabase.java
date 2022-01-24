@@ -41,14 +41,14 @@ public class BothanDatabase implements Database {
 
   private static com.google.spannerclient.Settings convert(Settings settings) {
     return com.google.spannerclient.Settings.newBuilder()
-      .setCredentials(settings.credentials())
-      .setDatabase(settings.database())
-      .setInstance(settings.instance())
-      .setPoolSize(settings.poolSize())
-      .setProjectId(settings.projectId())
-      .setScheduler(settings.scheduler())
-      .setStalenessCheck(settings.stalenessCheck())
-      .build();
+        .setCredentials(settings.credentials())
+        .setDatabase(settings.database())
+        .setInstance(settings.instance())
+        .setPoolSize(settings.poolSize())
+        .setProjectId(settings.projectId())
+        .setScheduler(settings.scheduler())
+        .setStalenessCheck(settings.stalenessCheck())
+        .build();
   }
 
   /**
@@ -72,7 +72,8 @@ public class BothanDatabase implements Database {
 
   private ListenableFuture<RowCursor> executeAsync(String query, ListeningExecutorService service) {
     ListenableFuture<com.google.spannerclient.RowCursor> executeFuture =
-        Spanner.executeAsync(com.google.spannerclient.QueryOptions.DEFAULT(), database, Query.create(query));
+        Spanner.executeAsync(
+            com.google.spannerclient.QueryOptions.DEFAULT(), database, Query.create(query));
     return Futures.transform(executeFuture, BothanRowCursor::new, service);
   }
 
@@ -84,16 +85,17 @@ public class BothanDatabase implements Database {
 
   private static com.google.spannerclient.QueryOptions convert(QueryOptions options) {
     return com.google.spannerclient.QueryOptions.newBuilder()
-      .setMaxStaleness(options.maxStaleness())
-      .setReadOnly(options.readOnly())
-      .setStale(options.stale())
-      .setStrong(options.strong())
-      .build();
+        .setMaxStaleness(options.maxStaleness())
+        .setReadOnly(options.readOnly())
+        .setStale(options.stale())
+        .setStrong(options.strong())
+        .build();
   }
 
   @Override
   public void executeStreaming(QueryOptions options, StreamObserver<Row> observer, String query) {
-    Spanner.executeStreaming(convert(options), database, new DelegatingStreamObserver(observer), Query.create(query));
+    Spanner.executeStreaming(
+        convert(options), database, new DelegatingStreamObserver(observer), Query.create(query));
   }
 
   @Override

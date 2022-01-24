@@ -32,19 +32,14 @@ public class SpezApp {
 
   public static void setupLogScheduler(Runnable runnable) {
     final ListeningScheduledExecutorService scheduler =
-      MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
-    var schedulerFuture =
-      scheduler.scheduleAtFixedRate(
-        runnable,
-        30,
-        30,
-        TimeUnit.SECONDS);
+        MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
+    var schedulerFuture = scheduler.scheduleAtFixedRate(runnable, 30, 30, TimeUnit.SECONDS);
     ListenableFutureErrorHandler.create(
-      scheduler,
-      schedulerFuture,
-      (throwable) -> {
-        log.error("logStats scheduled task error", throwable);
-      });
+        scheduler,
+        schedulerFuture,
+        (throwable) -> {
+          log.error("logStats scheduled task error", throwable);
+        });
   }
 
   /**
@@ -61,7 +56,8 @@ public class SpezApp {
     var lptsDatabase = DatabaseFactory.openLptsDatabase(config.getLpts());
     log.info("Fetching last processed timestamp");
     var lastProcessedTimestamp =
-      LastProcessedTimestamp.getLastProcessedTimestamp(lptsDatabase, config.getSink(), config.getLpts());
+        LastProcessedTimestamp.getLastProcessedTimestamp(
+            lptsDatabase, config.getSink(), config.getLpts());
 
     var database = DatabaseFactory.openSinkDatabase(config.getSink());
     log.info("Retrieved last processed timestamp, parsing schema");
@@ -76,9 +72,10 @@ public class SpezApp {
     final SpannerTailer tailer =
         new SpannerTailer(config, database, handler, lastProcessedTimestamp);
     tailer.start();
-    setupLogScheduler(() -> {
-        handler.logStats();
-        tailer.logStats();
-      });
+    setupLogScheduler(
+        () -> {
+          handler.logStats();
+          tailer.logStats();
+        });
   }
 }

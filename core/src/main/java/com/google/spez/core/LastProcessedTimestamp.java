@@ -64,8 +64,8 @@ public class LastProcessedTimestamp {
    * @param lpts config for where to find the last processed timestamp
    * @return the last processed timestamp as a string
    */
-  public static String getLastProcessedTimestamp(Database database,
-      SpezConfig.SinkConfig sink, SpezConfig.LptsConfig lpts) {
+  public static String getLastProcessedTimestamp(
+      Database database, SpezConfig.SinkConfig sink, SpezConfig.LptsConfig lpts) {
 
     String lptsQuery = buildQuery(sink, lpts);
 

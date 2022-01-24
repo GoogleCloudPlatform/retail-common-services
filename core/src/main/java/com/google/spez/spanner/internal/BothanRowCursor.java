@@ -38,7 +38,6 @@ public class BothanRowCursor implements RowCursor {
     return cursor.getTimestamp(columnName);
   }
 
-
   @Override
   public Row getCurrentRow() {
     return new BothanRow(cursor.getCurrentRow());

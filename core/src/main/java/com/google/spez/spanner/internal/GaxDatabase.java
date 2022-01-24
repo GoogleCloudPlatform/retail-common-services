@@ -23,18 +23,15 @@ import com.google.cloud.spanner.AsyncResultSet.ReadyCallback;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-import com.google.spez.core.SpannerTailer;
 import com.google.spez.spanner.Database;
 import com.google.spez.spanner.QueryOptions;
 import com.google.spez.spanner.Row;
 import com.google.spez.spanner.RowCursor;
 import com.google.spez.spanner.Settings;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerOptions;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -59,8 +56,10 @@ public class GaxDatabase implements Database {
    * @return a Database
    */
   public static Database openDatabase(Settings settings) {
-    Spanner spannerClient = SpannerOptions.newBuilder().setProjectId(settings.projectId()).build().getService();
-    DatabaseId databaseId = DatabaseId.of(settings.projectId(), settings.instance(), settings.database());
+    Spanner spannerClient =
+        SpannerOptions.newBuilder().setProjectId(settings.projectId()).build().getService();
+    DatabaseId databaseId =
+        DatabaseId.of(settings.projectId(), settings.instance(), settings.database());
     DatabaseClient databaseClient = spannerClient.getDatabaseClient(databaseId);
     return new GaxDatabase(databaseClient);
   }
@@ -72,9 +71,7 @@ public class GaxDatabase implements Database {
   }
 
   private AsyncResultSet executeAsync(String query) {
-    return client
-      .singleUse()
-      .executeQueryAsync(Statement.of(query));
+    return client.singleUse().executeQueryAsync(Statement.of(query));
   }
 
   private ReadyCallback buildCallback(StreamObserver<Row> observer) {
@@ -84,17 +81,17 @@ public class GaxDatabase implements Database {
         try {
           while (true) {
             switch (resultSet.tryNext()) {
-              // OK: There is a row ready.
+                // OK: There is a row ready.
               case OK:
                 observer.onNext(new GaxRow(resultSet));
                 break;
 
-              // DONE: There are no more rows in the result set.
+                // DONE: There are no more rows in the result set.
               case DONE:
                 observer.onCompleted();
                 return CallbackResponse.DONE;
 
-              // NOT_READY: There are currently no more rows in the buffer.
+                // NOT_READY: There are currently no more rows in the buffer.
               case NOT_READY:
                 return CallbackResponse.CONTINUE;
 
@@ -129,6 +126,5 @@ public class GaxDatabase implements Database {
   }
 
   @Override
-  public void close() throws IOException {
-  }
+  public void close() throws IOException {}
 }

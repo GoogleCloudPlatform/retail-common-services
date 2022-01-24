@@ -79,7 +79,8 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
             projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", credentials);
     var database = DatabaseFactory.openLptsDatabase(lpts);
     var throwable =
-        catchThrowable(() -> LastProcessedTimestamp.getLastProcessedTimestamp(database, sink, lpts));
+        catchThrowable(
+            () -> LastProcessedTimestamp.getLastProcessedTimestamp(database, sink, lpts));
     assertThat(throwable)
         .isInstanceOf(RuntimeException.class)
         .hasMessage("LastProcessedTimestamp was unavailable");

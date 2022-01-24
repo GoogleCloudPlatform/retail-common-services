@@ -19,7 +19,6 @@ package com.google.spez.spanner.internal;
 import com.google.cloud.Timestamp;
 import com.google.spez.spanner.Row;
 import com.google.spez.spanner.RowCursor;
-import com.google.cloud.spanner.ResultSet;
 
 public class GaxRowCursor implements RowCursor {
   private final com.google.cloud.spanner.ResultSet cursor;

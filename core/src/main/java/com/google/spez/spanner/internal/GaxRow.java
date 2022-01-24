@@ -20,8 +20,6 @@ import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
-import com.google.cloud.spanner.Struct;
-import com.google.cloud.spanner.Value;
 import com.google.spanner.v1.StructType;
 import com.google.spanner.v1.StructType.Field;
 import com.google.spanner.v1.Type;
@@ -32,6 +30,7 @@ import java.util.List;
 
 public class GaxRow implements Row {
   private final ResultSet resultSet;
+
   public GaxRow(ResultSet resultSet) {
     this.resultSet = resultSet;
   }
@@ -51,23 +50,26 @@ public class GaxRow implements Row {
     return resultSet.getString(columnName);
   }
 
-  private List<StructType.Field> convert(List<com.google.cloud.spanner.Type.StructField> structFields) {
+  private List<StructType.Field> convert(
+      List<com.google.cloud.spanner.Type.StructField> structFields) {
     var result = new ArrayList<Field>();
     for (var structField : structFields) {
-      result.add(StructType.Field.newBuilder()
-          .setName(structField.getName())
-          .setType(convert(structField.getType()))
-          .build());
+      result.add(
+          StructType.Field.newBuilder()
+              .setName(structField.getName())
+              .setType(convert(structField.getType()))
+              .build());
     }
     return result;
   }
 
   private Type convert(com.google.cloud.spanner.Type type) {
-    switch(type.getCode()) {
+    switch (type.getCode()) {
       case ARRAY:
-        return Type.newBuilder().setCode(TypeCode.ARRAY)
-          .setArrayElementType(convert(type.getArrayElementType()))
-          .build();
+        return Type.newBuilder()
+            .setCode(TypeCode.ARRAY)
+            .setArrayElementType(convert(type.getArrayElementType()))
+            .build();
       case BOOL:
         return Type.newBuilder().setCode(TypeCode.BOOL).build();
       case BYTES:
@@ -85,14 +87,18 @@ public class GaxRow implements Row {
       case STRING:
         return Type.newBuilder().setCode(TypeCode.STRING).build();
       case STRUCT:
-        return Type.newBuilder().setCode(TypeCode.STRUCT)
-          .setStructType(StructType.newBuilder().addAllFields(convert(type.getStructFields())).build()).build();
+        return Type.newBuilder()
+            .setCode(TypeCode.STRUCT)
+            .setStructType(
+                StructType.newBuilder().addAllFields(convert(type.getStructFields())).build())
+            .build();
       case TIMESTAMP:
         return Type.newBuilder().setCode(TypeCode.TIMESTAMP).build();
       default:
         return Type.newBuilder().setCode(TypeCode.TYPE_CODE_UNSPECIFIED).build();
     }
   }
+
   @Override
   public Type getColumnType(String columnName) {
     return convert(resultSet.getColumnType(columnName));
@@ -175,5 +181,4 @@ public class GaxRow implements Row {
   public Type getType() {
     return convert(resultSet.getCurrentRowAsStruct().getType());
   }
-
 }

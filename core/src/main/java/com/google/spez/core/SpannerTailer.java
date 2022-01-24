@@ -145,8 +145,8 @@ public class SpannerTailer {
               .build(); // TODO(pdex): move to sinkConfig
       var observer = new RowStreamObserver(records, then, pollingSpan);
       var query =
-              buildLptsTableQuery(
-                  sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp);
+          buildLptsTableQuery(
+              sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp);
 
       database.executeStreaming(options, observer, query);
     } catch (Exception e) {

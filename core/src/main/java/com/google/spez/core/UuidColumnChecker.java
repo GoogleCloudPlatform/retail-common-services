@@ -24,7 +24,7 @@ class UuidColumnChecker {
   private boolean tableExists = false;
   private boolean columnExists = false;
   private boolean columnIsPrimaryKey = false;
-  private boolean columnIsInt64 = false;
+  private boolean columnIsStringMax = false;
 
   public UuidColumnChecker(SpezConfig.SinkConfig config) {
     this.config = config;
@@ -37,21 +37,21 @@ class UuidColumnChecker {
       if (rc.getString("INDEX_TYPE").equals("PRIMARY_KEY")) {
         columnIsPrimaryKey = true;
       }
-      if (rc.getString("SPANNER_TYPE").equals("INT64")) {
-        columnIsInt64 = true;
+      if (rc.getString("SPANNER_TYPE").equals("STRING(MAX)")) {
+        columnIsStringMax = true;
       }
     }
   }
 
   public void throwIfInvalid() {
-    if (tableExists && columnExists && columnIsPrimaryKey && columnIsInt64) {
+    if (tableExists && columnExists && columnIsPrimaryKey && columnIsStringMax) {
       return;
     }
 
     String tableDescription = (tableExists ? "it does" : "it doesn't");
     String columnDescription = (columnExists ? "it does" : "it doesn't");
     String pkDescription = (columnIsPrimaryKey ? "it is" : "it is not");
-    String typeDescription = (columnIsInt64 ? "it is" : "it is not");
+    String typeDescription = (columnIsStringMax ? "it is" : "it is not");
     throw new IllegalStateException(
         "Spanner table '"
             + config.tablePath()
@@ -63,7 +63,7 @@ class UuidColumnChecker {
             + columnDescription
             + ") which is a PRIMARY_KEY ("
             + pkDescription
-            + ") and is of type INT64 ("
+            + ") and is of type STRING(MAX) ("
             + typeDescription
             + ")");
   }

@@ -89,6 +89,8 @@ val lpts_instance = System.getenv().get("LPTS_INSTANCE")
 val lpts_database = System.getenv().get("LPTS_DATABASE")
 val lpts_table = System.getenv().get("LPTS_TABLE")
 val default_log_level = System.getenv("DEFAULT_LOG_LEVEL")
+val timestamp_column = System.getenv("TIMESTAMP_COLUMN")
+val uuid_column = System.getenv("UUID_COLUMN")
 
 application {
   mainClassName = "com.google.spez.cdc.Main"
@@ -100,12 +102,12 @@ application {
     "-Dspez.sink.instance=$sink_instance",
     "-Dspez.sink.database=$sink_database",
     "-Dspez.sink.table=$sink_table",
-    "-Dspez.sink.uuid_column=uuid",
-    "-Dspez.sink.timestamp_column=CommitTimestamp",
+    "-Dspez.sink.uuid_column=$uuid_column",
+    "-Dspez.sink.timestamp_column=$timestamp_column",
     "-Dspez.lpts.instance=$lpts_instance",
     "-Dspez.lpts.database=$lpts_database",
     "-Dspez.lpts.table=$lpts_table",
-    "-Dspez.loglevel.default=INFO",
+    "-Dspez.loglevel.default=$default_log_level",
     "-Dspez.loglevel.com.google.spez.core.EventPublisher=INFO",
     "-Djava.net.preferIPv4Stack=true",
     "-Dio.netty.allocator.type=pooled",

@@ -41,7 +41,7 @@ public class MetadataExtractor {
   public Map<String, String> extract(Row row) {
     Map<String, String> metadata = Maps.newHashMap(base);
 
-    String uuid = Long.toString(row.getLong(config.getSink().getUuidColumn()));
+    String uuid = row.getString(config.getSink().getUuidColumn());
     String commitTimestamp = row.getTimestamp(config.getSink().getTimestampColumn()).toString();
 
     metadata.put(config.SINK_UUID_KEY, uuid);

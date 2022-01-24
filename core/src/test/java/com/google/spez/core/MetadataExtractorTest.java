@@ -35,14 +35,22 @@ class MetadataExtractorTest implements WithAssertions {
     var pubsub = new SpezConfig.PubSubConfig(null, "ledger-topic", 30);
     var sink =
         new SpezConfig.SinkConfig(
-            null, "sink-instance", "sink-database", "sink-table", "uuid", "timestamp", 30, null);
+            null,
+            "sink-instance",
+            "sink-database",
+            "sink-table",
+            "uuid",
+            "timestamp",
+            30,
+            false,
+            null);
     var config = new SpezConfig(null, pubsub, sink, null, null);
     var extractor = new MetadataExtractor(config);
     var fields =
         ImmutableList.of(
             StructType.Field.newBuilder()
                 .setName("uuid")
-                .setType(Type.newBuilder().setCode(TypeCode.INT64).build())
+                .setType(Type.newBuilder().setCode(TypeCode.STRING).build())
                 .build(),
             StructType.Field.newBuilder()
                 .setName("timestamp")

@@ -73,10 +73,11 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
             "SingerId",
             "timestamp",
             30,
+            false,
             credentials);
     var lpts = // NOPMD
         new SpezConfig.LptsConfig(
-            projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", credentials);
+            projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", false, credentials);
     var database = DatabaseFactory.openLptsDatabase(lpts);
     var throwable =
         catchThrowable(
@@ -129,10 +130,11 @@ public class LastProcessedTimestampTest extends SpannerIntegrationTest implement
             "SingerId",
             "timestamp",
             30,
+            false,
             credentials);
     var lpts =
         new SpezConfig.LptsConfig(
-            projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", credentials);
+            projectId, INSTANCE_ID, database.getId().getDatabase(), "lpts", false, credentials);
     var database = DatabaseFactory.openLptsDatabase(lpts);
     var timestamp = LastProcessedTimestamp.getLastProcessedTimestamp(database, sink, lpts);
     assertThat(timestamp).isEqualTo("1970-01-01T00:00:00Z");

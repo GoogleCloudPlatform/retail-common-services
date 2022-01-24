@@ -70,6 +70,7 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
             "SingerId",
             TIMESTAMP,
             30,
+            false,
             GoogleCredentials.getApplicationDefault());
     var database = BothanDatabase.openDatabase(sinkConfig.getSettings());
     SpannerSchema spannerSchema = new SpannerSchema(database, sinkConfig);

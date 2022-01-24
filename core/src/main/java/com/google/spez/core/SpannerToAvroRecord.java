@@ -18,7 +18,7 @@ package com.google.spez.core;
 
 import com.google.protobuf.ByteString;
 import com.google.spanner.v1.Type;
-import com.google.spez.core.internal.Row;
+import com.google.spez.spanner.Row;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufOutputStream;

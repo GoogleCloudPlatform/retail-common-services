@@ -19,9 +19,9 @@ package com.google.spez.core;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.spannerclient.Settings;
 import com.google.spez.common.AuthConfig;
 import com.google.spez.common.StackdriverConfig;
+import com.google.spez.spanner.Settings;
 import com.typesafe.config.Config;
 import java.util.List;
 import java.util.Map;
@@ -45,11 +45,13 @@ public class SpezConfig {
   public static final String PUBSUB_TOPIC_KEY = "spez.pubsub.topic";
   public static final String PUBSUB_BUFFER_TIMEOUT_KEY = "spez.pubsub.buffer_timeout";
   public static final String SINK_PROJECT_ID_KEY = "spez.sink.project_id";
+  public static final String SINK_CUSTOM_CLIENT_KEY = "spez.sink.use_custom_client";
   public static final String SINK_INSTANCE_KEY = "spez.sink.instance";
   public static final String SINK_DATABASE_KEY = "spez.sink.database";
   public static final String SINK_TABLE_KEY = "spez.sink.table";
   public static final String SINK_UUID_COLUMN_KEY = "spez.sink.uuid_column";
   public static final String SINK_TIMESTAMP_COLUMN_KEY = "spez.sink.timestamp_column";
+  public static final String LPTS_CUSTOM_CLIENT_KEY = "spez.lpts.use_custom_client";
   public static final String LPTS_PROJECT_ID_KEY = "spez.lpts.project_id";
   public static final String LPTS_INSTANCE_KEY = "spez.lpts.instance";
   public static final String LPTS_DATABASE_KEY = "spez.lpts.database";
@@ -102,6 +104,7 @@ public class SpezConfig {
     private final String uuidColumn;
     private final String timestampColumn;
     private final int pollRate;
+    private final boolean useCustomClient;
     private final GoogleCredentials credentials;
 
     /** SinkConfig value object constructor. */
@@ -113,6 +116,7 @@ public class SpezConfig {
         String uuidColumn,
         String timestampColumn,
         int pollRate,
+        boolean useCustomClient,
         GoogleCredentials credentials) {
       this.projectId = projectId;
       this.instance = instance;
@@ -121,6 +125,7 @@ public class SpezConfig {
       this.uuidColumn = uuidColumn;
       this.timestampColumn = timestampColumn;
       this.pollRate = pollRate;
+      this.useCustomClient = useCustomClient;
       this.credentials = credentials;
     }
 
@@ -134,6 +139,7 @@ public class SpezConfig {
           config.getString(SINK_UUID_COLUMN_KEY),
           config.getString(SINK_TIMESTAMP_COLUMN_KEY),
           config.getInt(SINK_POLL_RATE_KEY),
+          config.getBoolean(SINK_CUSTOM_CLIENT_KEY),
           credentials);
     }
 
@@ -198,6 +204,10 @@ public class SpezConfig {
     public String tablePath() {
       return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
     }
+
+    public boolean useCustomClient() {
+      return useCustomClient;
+    }
   }
 
   public static class LptsConfig {
@@ -205,6 +215,7 @@ public class SpezConfig {
     private final String instance;
     private final String database;
     private final String table;
+    private final boolean useCustomClient;
     private final GoogleCredentials credentials;
 
     /** LptsConfig value object constructor. */
@@ -213,11 +224,13 @@ public class SpezConfig {
         String instance,
         String database,
         String table,
+        boolean useCustomClient,
         GoogleCredentials credentials) {
       this.projectId = projectId;
       this.instance = instance;
       this.database = database;
       this.table = table;
+      this.useCustomClient = useCustomClient;
       this.credentials = credentials;
     }
 
@@ -228,6 +241,7 @@ public class SpezConfig {
           config.getString(LPTS_INSTANCE_KEY),
           config.getString(LPTS_DATABASE_KEY),
           config.getString(LPTS_TABLE_KEY),
+          config.getBoolean(LPTS_CUSTOM_CLIENT_KEY),
           credentials);
     }
 
@@ -276,6 +290,10 @@ public class SpezConfig {
     /** tablePath getter. */
     public String tablePath() {
       return new StringBuilder().append(databasePath()).append("/tables/").append(table).toString();
+    }
+
+    public boolean useCustomClient() {
+      return useCustomClient;
     }
   }
 
@@ -329,6 +347,7 @@ public class SpezConfig {
             PUBSUB_PROJECT_ID_KEY,
             PUBSUB_TOPIC_KEY,
             PUBSUB_BUFFER_TIMEOUT_KEY,
+            SINK_CUSTOM_CLIENT_KEY,
             SINK_PROJECT_ID_KEY,
             SINK_INSTANCE_KEY,
             SINK_DATABASE_KEY,
@@ -336,6 +355,7 @@ public class SpezConfig {
             SINK_UUID_COLUMN_KEY,
             SINK_TIMESTAMP_COLUMN_KEY,
             SINK_POLL_RATE_KEY,
+            LPTS_CUSTOM_CLIENT_KEY,
             LPTS_PROJECT_ID_KEY,
             LPTS_INSTANCE_KEY,
             LPTS_DATABASE_KEY,

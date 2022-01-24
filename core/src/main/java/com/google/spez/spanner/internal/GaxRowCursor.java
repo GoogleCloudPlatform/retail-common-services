@@ -14,21 +14,37 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner.internal;
+
+import com.google.cloud.Timestamp;
+import com.google.spez.spanner.Row;
+import com.google.spez.spanner.RowCursor;
+import com.google.cloud.spanner.ResultSet;
 
 public class GaxRowCursor implements RowCursor {
+  private final com.google.cloud.spanner.ResultSet cursor;
+
+  public GaxRowCursor(com.google.cloud.spanner.ResultSet cursor) {
+    this.cursor = cursor;
+  }
+
   @Override
   public String getString(String columnName) {
-    return null;
+    return cursor.getString(columnName);
+  }
+
+  @Override
+  public Timestamp getTimestamp(String columnName) {
+    return cursor.getTimestamp(columnName);
   }
 
   @Override
   public Row getCurrentRow() {
-    return null;
+    return new GaxRow(cursor);
   }
 
   @Override
   public boolean next() {
-    return false;
+    return cursor.next();
   }
 }

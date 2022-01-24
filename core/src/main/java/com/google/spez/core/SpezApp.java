@@ -20,7 +20,7 @@ import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.LoggerDumper;
-import com.google.spez.core.internal.BothanDatabase;
+import com.google.spez.spanner.DatabaseFactory;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +29,23 @@ import org.slf4j.LoggerFactory;
 
 public class SpezApp {
   private static final Logger log = LoggerFactory.getLogger(SpezApp.class);
+
+  public static void setupLogScheduler(Runnable runnable) {
+    final ListeningScheduledExecutorService scheduler =
+      MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
+    var schedulerFuture =
+      scheduler.scheduleAtFixedRate(
+        runnable,
+        30,
+        30,
+        TimeUnit.SECONDS);
+    ListenableFutureErrorHandler.create(
+      scheduler,
+      schedulerFuture,
+      (throwable) -> {
+        log.error("logStats scheduled task error", throwable);
+      });
+  }
 
   /**
    * run a SpezApp with the given config.
@@ -41,41 +58,27 @@ public class SpezApp {
     LoggerDumper.dump();
     SpezMetrics.setupViews();
 
-    var publisher = EventPublisher.create(config);
-    final ListeningScheduledExecutorService scheduler =
-        MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(1));
-    var extractor = new MetadataExtractor(config);
-
-    var database = BothanDatabase.openDatabase(config.getSink().getSettings());
-
+    var lptsDatabase = DatabaseFactory.openLptsDatabase(config.getLpts());
     log.info("Fetching last processed timestamp");
     var lastProcessedTimestamp =
-        LastProcessedTimestamp.getLastProcessedTimestamp(config.getSink(), config.getLpts());
+      LastProcessedTimestamp.getLastProcessedTimestamp(lptsDatabase, config.getSink(), config.getLpts());
+
+    var database = DatabaseFactory.openSinkDatabase(config.getSink());
     log.info("Retrieved last processed timestamp, parsing schema");
     SpannerSchema spannerSchema = new SpannerSchema(database, config.getSink());
     SchemaSet schemaSet = spannerSchema.getSchema();
+
     log.info("Successfully Processed the Table Schema. Starting the tailer now ...");
+    var publisher = EventPublisher.create(config);
+    var extractor = new MetadataExtractor(config);
     var handler = new RowProcessor(config.getSink(), publisher, extractor);
-    String databasePath = config.getSink().databasePath();
-    log.info("Building database with path '{}'", databasePath);
 
     final SpannerTailer tailer =
         new SpannerTailer(config, database, handler, lastProcessedTimestamp);
     tailer.start();
-    var schedulerFuture =
-        scheduler.scheduleAtFixedRate(
-            () -> {
-              handler.logStats();
-              tailer.logStats();
-            },
-            30,
-            30,
-            TimeUnit.SECONDS);
-    ListenableFutureErrorHandler.create(
-        scheduler,
-        schedulerFuture,
-        (throwable) -> {
-          log.error("logStats scheduled task error", throwable);
-        });
+    setupLogScheduler(() -> {
+        handler.logStats();
+        tailer.logStats();
+      });
   }
 }

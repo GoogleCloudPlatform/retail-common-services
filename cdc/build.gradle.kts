@@ -29,16 +29,10 @@ dependencies {
   implementation(Config.Libs.logback_core)
 
   implementation(Config.Libs.groovy) // For logback
-  // implementation(Config.Libs.protobuf)
   implementation(Config.Libs.grpc_core)
-  // implementation(Config.Libs.grpc_protobuf)
-  // implementation(Config.Libs.grpc_stub)
-  // implementation(Config.Libs.grpc_netty)
   implementation(Config.Libs.guava)
   // implementation(Config.Libs.spanner)
   implementation(Config.Libs.pubsub)
-  // implementation(Config.Libs.storage)
-  // implementation(Config.Libs.rocksdb)
   implementation("io.opencensus:opencensus-exporter-trace-stackdriver:0.28.3")
   implementation("io.opencensus:opencensus-contrib-zpages:0.28.3")
 

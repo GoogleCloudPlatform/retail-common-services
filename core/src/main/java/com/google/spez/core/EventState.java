@@ -17,7 +17,7 @@
 package com.google.spez.core;
 
 import com.google.protobuf.ByteString;
-import com.google.spez.core.internal.Row;
+import com.google.spez.spanner.Row;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Span;
 import java.util.HashMap;

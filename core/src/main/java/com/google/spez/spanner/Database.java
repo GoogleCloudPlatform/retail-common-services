@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner;
 
-public interface RowCursor {
-  String getString(String columnName);
+import io.grpc.stub.StreamObserver;
+import java.io.Closeable;
 
-  Row getCurrentRow();
+public interface Database extends Closeable {
+  void executeStreaming(QueryOptions options, StreamObserver<Row> handler, String query);
 
-  boolean next();
+  RowCursor execute(String query);
 }

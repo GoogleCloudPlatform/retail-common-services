@@ -21,12 +21,11 @@ import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
-import com.google.spannerclient.Query;
-import com.google.spannerclient.QueryOptions;
 import com.google.spez.common.ListenableFutureErrorHandler;
 import com.google.spez.common.UsefulExecutors;
-import com.google.spez.core.internal.Database;
-import com.google.spez.core.internal.Row;
+import com.google.spez.spanner.Database;
+import com.google.spez.spanner.QueryOptions;
+import com.google.spez.spanner.Row;
 import io.grpc.stub.StreamObserver;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Span;
@@ -146,9 +145,8 @@ public class SpannerTailer {
               .build(); // TODO(pdex): move to sinkConfig
       var observer = new RowStreamObserver(records, then, pollingSpan);
       var query =
-          Query.create(
               buildLptsTableQuery(
-                  sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp));
+                  sinkConfig.getTable(), sinkConfig.getTimestampColumn(), lastProcessedTimestamp);
 
       database.executeStreaming(options, observer, query);
     } catch (Exception e) {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.spez.core.internal;
+package com.google.spez.spanner;
 
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;

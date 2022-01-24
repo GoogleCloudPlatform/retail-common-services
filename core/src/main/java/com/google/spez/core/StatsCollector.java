@@ -114,6 +114,7 @@ public class StatsCollector {
     return this;
   }
 
+  //TODO(pdex): consider removing this stat since GaxRow won't easily give up size information
   public StatsCollector addRowSize(long rowSize) {
     measureMap.put(SpezMetrics.RowSize.MEASURE, rowSize);
     return this;

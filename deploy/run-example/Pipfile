@@ -1,0 +1,19 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+google-cloud-spanner = "*"
+google-cloud-pubsub = "*"
+google-cloud-trace = "*"
+avro-python3 = "*"
+opencensus = "==0.8.0"
+opencensus-ext-stackdriver = "==0.8.0"
+google-cloud-monitoring = "==2.0.1"
+proto-plus = "==1.11.0"
+
+[requires]
+python_version = "3.7"

@@ -23,8 +23,10 @@ echo "Pulling from github"
 
 docker pull "${GH_REPO}:${GH_TAG}"
 docker tag "${GH_REPO}:${GH_TAG}" "${GCR_REPO}:${GCR_TAG}"
+docker tag "${GCR_REPO}:${GCR_TAG}" "${GCR_REPO}:latest"
 
 # push to gcr
 echo "Pushing to gcr"
 
 docker push "${GCR_REPO}:${GCR_TAG}"
+docker push "${GCR_REPO}:latest"

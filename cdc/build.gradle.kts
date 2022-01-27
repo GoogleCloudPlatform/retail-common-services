@@ -1,5 +1,7 @@
 import net.ltgt.gradle.errorprone.CheckSeverity
 import net.ltgt.gradle.errorprone.errorprone
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
 
 plugins {
   application
@@ -59,6 +61,10 @@ tasks.withType<JavaCompile>().configureEach {
       option("NullAway:AnnotatedPackages", "com.uber")
     }
   }
+}
+
+tasks.withType<ShadowJar>() {
+  mergeServiceFiles()
 }
 
 val project_id = System.getenv().get("PROJECT_ID")

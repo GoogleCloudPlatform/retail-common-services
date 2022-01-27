@@ -18,27 +18,31 @@
 
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
+from google.api_core import retry
 from google.cloud import pubsub_v1
 from google.cloud import spanner
 from google.cloud.spanner_v1 import COMMIT_TIMESTAMP
 import io
 import logging
 import sys
+import uuid
 
 # Instantiate a client.
 spanner_client = spanner.Client()
 
 # Your Cloud Spanner instance ID.
-sink_instance_id = 'example-event-sink-instance'
+sink_instance_id = 'event-sink-instance'
 
 # Get a Cloud Spanner instance by ID.
 sink_instance = spanner_client.instance(sink_instance_id)
 
 # Your Cloud Spanner database ID.
-sink_database_id = 'example-event-sink-database'
+sink_database_id = 'event-sink-database'
 
+# You Table info
 sink_table_name = 'example'
 uuid_column = 'uuid'
+uuid_value = uuid.uuid4().hex
 
 ledger_topic = 'spez-ledger-topic'
 
@@ -48,7 +52,7 @@ sink_database = sink_instance.database(sink_database_id)
 def insert_row(transaction, uuid):
   values=[uuid, COMMIT_TIMESTAMP]
   transaction.insert(
-    table_name,
+    sink_table_name,
     columns=[uuid_column, 'CommitTimestamp'],
     values=[values],
   )
@@ -80,15 +84,16 @@ def setup_subscriber(project_id):
 
   subscriber = pubsub_v1.SubscriberClient()
   topic_name = f'projects/{project_id}/topics/{ledger_topic}'
-  subscription_name = f'projects/{project_id}/subscriptions/{ledger_subscription}'
+  subscription_path = subscriber.subscription_path(project_id, ledger_subscription)
   try:
-    existing = subscriber.get_subscription(subscription_name)
+    existing = subscriber.get_subscription(subscription=subscription_path)
   except:
-    subscriber.create_subscription(name=subscription_name, topic=topic_name)
-  return subscription_name, subscriber
+    subscriber.create_subscription(name=subscription_path, topic=topic_name)
+  return subscription_path, subscriber
 
 
-def callback(message):
+def validate_message(message):
+  valid = False
   payload = []
   try:
     reader = DataFileReader(io.BytesIO(message.data), DatumReader())
@@ -96,24 +101,46 @@ def callback(message):
     reader.close()
   except:
     logging.exception("got exception")
-  logging.debug("message %s data %s payload %s", message, message.data, payload)
-  message.ack()
+  logging.debug(f"message {message} data {message.data} payload {payload}")
+  for m in payload:
+    this_uuid = m[uuid_column]
+    if this_uuid == uuid_value:
+      logging.info(f"Received uuid {this_uuid} Spez is working correctly")
+      valid = True
+    else:
+      logging.warn("Received uuid {this_uuid} this may happen if you have stale data or multiple writers, waiting for more messages...")
+  return valid
 
 
 def wait_for_message(project_id):
-  subscription_name, subscriber = setup_subscriber(project_id)
-  future = subscriber.subscribe(subscription_name, callback)
-  future.result()
+  subscription_path, subscriber = setup_subscriber(project_id)
+  with subscriber:
+    msg_not_found = True
+    while msg_not_found:
+      response = subscriber.pull(
+        request={"subscription": subscription_path, "max_messages": 10},
+        retry=retry.Retry(deadline=300),
+      )
+
+      ack_ids = []
+      for received_message in response.received_messages:
+        logging.debug(f"Received: {received_message.message.data}.")
+        ack_ids.append(received_message.ack_id)
+        if msg_not_found and validate_message(received_message.message):
+          msg_not_found = False
+        # Acknowledges the received messages so they will not be sent again.
+        subscriber.acknowledge(
+          request={"subscription": subscription_path, "ack_ids": ack_ids}
+        )
 
 
 def main(project_id):
-  logging.basicConfig(level=logging.DEBUG)
-  logging.debug('Reseting LPTS timestamp for %s/%s/%s', sink_instance_id, sink_database_id, sink_table_name)
+  logging.basicConfig(level=logging.INFO)
+  logging.info('Reseting LPTS timestamp for %s/%s/%s', sink_instance_id, sink_database_id, sink_table_name)
   reset_lpts(sink_instance_id, sink_database_id, sink_table_name)
-  uuid = '000000001'
-  logging.debug('Storing single event with uuid %s', uuid)
-  sink_database.run_in_transaction(insert_row, uuid)
-  logging.debug('Waiting for event to appear on pubsub')
+  logging.info('Storing single event with uuid %s', uuid_value)
+  sink_database.run_in_transaction(insert_row, uuid_value)
+  logging.info('Waiting for event to appear on pubsub')
   wait_for_message(project_id)
 
 

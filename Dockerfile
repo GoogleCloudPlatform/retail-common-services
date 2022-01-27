@@ -24,8 +24,8 @@ FROM build-env as app-build
 ADD . /app
 WORKDIR /app
 USER root
-RUN ./gradlew clean :cdc:spannerTailerService && \
-  mv cdc/build/libs/Main-fat-*.jar Main.jar
+RUN ./gradlew clean :cdc:shadowJar && \
+  mv cdc/build/libs/*.jar Main.jar
 
 FROM gcr.io/distroless/java:${DISTROLESS_JAVA_VERSION} as prod
 COPY --from=app-build /app/Main.jar /app/Main.jar

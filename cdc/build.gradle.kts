@@ -7,6 +7,7 @@ plugins {
   eclipse
   java
   id("net.ltgt.errorprone") version "0.8.1"
+  id("com.github.johnrengelman.shadow") version "6.1.0"
   // id("com.google.cloud.artifactregistry.gradle-plugin") version "2.1.0"
 }
 
@@ -58,27 +59,6 @@ tasks.withType<JavaCompile>().configureEach {
       option("NullAway:AnnotatedPackages", "com.uber")
     }
   }
-}
-
-tasks.register<Jar>("spannerTailerService") {
-  archiveClassifier.set("uber")
-  manifest {
-    attributes(
-      mapOf(
-        "Implementation-Title" to "Spanner Tailer Service",
-        "Implementation-Version" to "version",
-        "Main-Class" to "com.google.spez.cdc.Main"
-      )
-    )
-  }
-  baseName = "Main"
-  appendix = "fat"
-
-  from(sourceSets.main.get().output)
-  dependsOn(configurations.runtimeClasspath)
-  from({
-    configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
-  })
 }
 
 val project_id = System.getenv().get("PROJECT_ID")

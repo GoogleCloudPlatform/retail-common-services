@@ -38,6 +38,7 @@ dependencies {
   implementation(Config.Libs.grpc_protobuf)
   implementation(Config.Libs.grpc_stub)
   implementation(Config.Libs.grpc_netty)
+  implementation(Config.Libs.grpc_native)
   implementation(Config.Libs.guava)
   // implementation(Config.Libs.spanner)
   implementation(Config.Libs.pubsub)

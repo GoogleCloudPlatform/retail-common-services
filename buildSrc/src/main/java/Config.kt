@@ -17,9 +17,9 @@
 object Config {
   object Version {
     val protobuf_version = "3.8.0"
-    val grpc_version = "1.25.0"
-    val netty_version = "4.1.37.Final"
-    val netty_boring_ssl_version = "2.0.25.Final"
+    val grpc_version = "1.42.1"
+    val netty_version = "4.1.63.Final"
+    val netty_boring_ssl_version = "2.0.38.Final"
     val slf4j_version = "1.7.25"
     val type_safe_config_version = "1.3.1"
     val logback_version = "1.1.7"
@@ -33,7 +33,6 @@ object Config {
     val storage_version = "1.88.0"
     val bigquery_version = "1.88.0"
     val gcp_core_version = "1.91.3"
-    val grpc_native_version = "2.0.27.Final"
     val junit_version = "5.5.2"
   }
 
@@ -52,7 +51,7 @@ object Config {
     val grpc_stub = "io.grpc:grpc-stub:".plus(Version.grpc_version)
     val grpc_netty = "io.grpc:grpc-netty:".plus(Version.grpc_version)
     val grpc_auth = "io.grpc:grpc-auth:".plus(Version.grpc_version)
-    val grpc_native = "io.netty:netty-tcnative-boringssl-static:".plus(Version.grpc_native_version)
+    val grpc_native = "io.netty:netty-tcnative-boringssl-static:".plus(Version.netty_boring_ssl_version)
 
     // Google
     val guava = "com.google.guava:guava:".plus(Version.guava_version)

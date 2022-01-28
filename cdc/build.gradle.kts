@@ -33,6 +33,8 @@ dependencies {
 
   implementation(Config.Libs.groovy) // For logback
   implementation(Config.Libs.grpc_core)
+  implementation(Config.Libs.grpc_netty)
+  implementation(Config.Libs.grpc_native)
   implementation(Config.Libs.guava)
   // implementation(Config.Libs.spanner)
   implementation(Config.Libs.pubsub)

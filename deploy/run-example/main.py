@@ -108,7 +108,7 @@ def validate_message(message):
       logging.info(f"Received uuid {this_uuid} Spez is working correctly")
       valid = True
     else:
-      logging.warn("Received uuid {this_uuid} this may happen if you have stale data or multiple writers, waiting for more messages...")
+      logging.warning("Received uuid {this_uuid} this may happen if you have stale data or multiple writers, waiting for more messages...")
   return valid
 
 

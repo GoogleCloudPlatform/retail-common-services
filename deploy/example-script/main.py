@@ -27,27 +27,31 @@ import logging
 import sys
 import uuid
 
-# Instantiate a client.
-spanner_client = spanner.Client()
 
 # Your Cloud Spanner instance ID.
 sink_instance_id = 'event-sink-instance'
 
-# Get a Cloud Spanner instance by ID.
-sink_instance = spanner_client.instance(sink_instance_id)
-
 # Your Cloud Spanner database ID.
 sink_database_id = 'event-sink-database'
 
-# You Table info
+# Your Table info
 sink_table_name = 'example'
 uuid_column = 'uuid'
 uuid_value = uuid.uuid4().hex
 
+# Your topic
 ledger_topic = 'spez-ledger-topic'
 
-# Get a Cloud Spanner database by ID.
-sink_database = sink_instance.database(sink_database_id)
+
+def setup_sink_database(project_id):
+  # Instantiate a client.
+  spanner_client = spanner.Client(project=project_id)
+  # Get a Cloud Spanner instance by ID.
+  sink_instance = spanner_client.instance(sink_instance_id)
+  # Get a Cloud Spanner database by ID.
+  sink_database = sink_instance.database(sink_database_id)
+  return sink_database
+
 
 def insert_row(transaction, uuid):
   values=[uuid, COMMIT_TIMESTAMP]
@@ -138,7 +142,8 @@ def main(project_id):
   logging.basicConfig(level=logging.INFO)
   #logging.info('Reseting LPTS timestamp for %s/%s/%s', sink_instance_id, sink_database_id, sink_table_name)
   #reset_lpts(sink_instance_id, sink_database_id, sink_table_name)
-  logging.info(f'Storing single event with uuid {uuid_value} to {sink_instance_id}/{sink_database_id}/{sink_table_name}')
+  sink_database = setup_sink_database(project_id)
+  logging.info(f'Storing single event with uuid {uuid_value} to {project_id}/{sink_instance_id}/{sink_database_id}/{sink_table_name}')
   sink_database.run_in_transaction(insert_row, uuid_value)
   logging.info('Waiting for event to appear on pubsub')
   wait_for_message(project_id)

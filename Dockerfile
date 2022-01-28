@@ -25,11 +25,9 @@ ADD . /app
 WORKDIR /app
 USER root
 RUN ./gradlew clean :cdc:shadowJar && \
-  mv cdc/build/libs/*.jar Main.jar
+  mv cdc/build/libs/cdc-*-all.jar Main.jar
 
 FROM gcr.io/distroless/java:${DISTROLESS_JAVA_VERSION} as prod
 COPY --from=app-build /app/Main.jar /app/Main.jar
-ENV JVM_HEAP_SIZE=12g
-ENV JAVA_TOOL_OPTIONS="-Xmx${JVM_HEAP_SIZE}"
 WORKDIR /app
 ENTRYPOINT ["java"]

@@ -136,8 +136,8 @@ def wait_for_message(project_id):
 
 def main(project_id):
   logging.basicConfig(level=logging.INFO)
-  logging.info('Reseting LPTS timestamp for %s/%s/%s', sink_instance_id, sink_database_id, sink_table_name)
-  reset_lpts(sink_instance_id, sink_database_id, sink_table_name)
+  #logging.info('Reseting LPTS timestamp for %s/%s/%s', sink_instance_id, sink_database_id, sink_table_name)
+  #reset_lpts(sink_instance_id, sink_database_id, sink_table_name)
   logging.info('Storing single event with uuid %s', uuid_value)
   sink_database.run_in_transaction(insert_row, uuid_value)
   logging.info('Waiting for event to appear on pubsub')

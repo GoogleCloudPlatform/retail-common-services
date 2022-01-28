@@ -55,6 +55,10 @@ resource "kubernetes_service" "spez-tailer-service" {
 }
 
 resource "kubernetes_deployment" "spez-tailer-deployment" {
+  depends_on = [
+    google_spanner_database.event-sink-database
+  ]
+
   metadata {
     name = "spez-tailer-deployment-${var.sink_table}"
   }

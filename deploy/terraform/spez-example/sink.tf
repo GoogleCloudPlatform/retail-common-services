@@ -29,6 +29,10 @@ locals {
       CommitTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true)
     ) primary key (uuid)
   EOT
+  setup_lpts = <<-EOT
+    echo "Configuring LPTS entry";
+    gcloud spanner databases execute-sql spez-lpts-database --instance=spez-lpts-instance --sql="INSERT INTO lpts (instance, database, table, CommitTimestamp, LastProcessedTimestamp) VALUES('${var.sink_instance}', '${var.sink_database}', '${var.sink_table}', PENDING_COMMIT_TIMESTAMP(), '1970-01-01T00:00:00.000000Z');" || echo "Already configured"
+  EOT
 }
 
 resource "google_spanner_database" "event-sink-database" {
@@ -39,4 +43,7 @@ resource "google_spanner_database" "event-sink-database" {
   ddl = [
     local.example_ddl
   ]
+  provisioner "local-exec" {
+    command = local.setup_lpts
+  }
 }

@@ -39,6 +39,35 @@ Afterwards the following will be provisioned:
 * `example` spanner table for receiving events
 
 ```sh
-./rcs-example-setup.sh {{project-id}}
+./rcs-example-setup.sh {{project-id}} latest
 ```
 
+## Run the python example
+
+This will build and run a Docker container with a python script to demonstrate
+the following:
+
+* Inserting a single event into the `example` spanner table
+* Waiting for the inserted event to be propagated to the `spez-ledger-topic`
+
+```sh
+./run-example-script.sh {{project-id}}
+```
+
+## Teardown the RCS example tailer
+
+Now that we've successfully demonstrated the RCS example we can clean up the
+cloud resources.
+
+```sh
+./rcs-example-teardown.sh {{project-id}}
+```
+
+## Teardown the RCS core components
+
+If you have no further use for the RCS core components you may clean them up as
+well.
+
+```
+./rcs-core-teardown.sh {{project-id}}
+```

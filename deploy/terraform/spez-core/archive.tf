@@ -22,6 +22,7 @@ resource "google_storage_bucket" "spez-event-archive" {
   name     = join("-", ["spez", var.project, "event-archive"])
   location = var.region
   uniform_bucket_level_access = true
+  force_destroy = true
 }
 
 resource "google_service_account" "spez-archive-function-sa" {

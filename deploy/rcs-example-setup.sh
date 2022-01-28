@@ -25,3 +25,5 @@ terraform plan -var project=$PROJECT_ID -var "tailer_image=gcr.io/${PROJECT_ID}/
 if [ "$DRYRUN" = "" ]; then
     terraform apply -auto-approve tf.plan
 fi
+rm -f tf.plan
+popd

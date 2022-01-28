@@ -29,3 +29,5 @@ terraform plan -var project=$PROJECT_ID -out=tf.plan
 if [ "$DRYRUN" = "" ]; then
     terraform apply -auto-approve tf.plan
 fi
+rm -f tf-services.plan tf.plan
+popd

@@ -22,5 +22,6 @@ pushd terraform/spez-example
 
 terraform plan -destroy -var project=$PROJECT_ID -out=tf.plan
 terraform apply -auto-approve tf.plan
+rm -f tf.plan
 
 popd

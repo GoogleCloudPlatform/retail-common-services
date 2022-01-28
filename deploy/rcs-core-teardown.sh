@@ -22,6 +22,7 @@ pushd terraform/spez-core
 
 terraform plan -destroy -var project=$PROJECT_ID -out=tf.plan
 terraform apply -auto-approve tf.plan
+rm -f tf.plan
 
 popd
 rm build/*.zip

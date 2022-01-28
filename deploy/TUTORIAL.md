@@ -68,6 +68,6 @@ cloud resources.
 If you have no further use for the RCS core components you may clean them up as
 well.
 
-```
+```sh
 ./rcs-core-teardown.sh {{project-id}}
 ```

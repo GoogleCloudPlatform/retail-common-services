@@ -84,7 +84,7 @@ def reset_lpts(sink_instance, sink_database, sink_table):
 
 def setup_subscriber(project_id):
   ledger_topic = 'spez-ledger-topic'
-  ledger_subscription = 'listen'
+  ledger_subscription = 'example-script'
 
   subscriber = pubsub_v1.SubscriberClient()
   topic_name = f'projects/{project_id}/topics/{ledger_topic}'
@@ -136,6 +136,7 @@ def wait_for_message(project_id):
         subscriber.acknowledge(
           request={"subscription": subscription_path, "ack_ids": ack_ids}
         )
+  subscriber.delete_subscription(subscription=subscription_path)
 
 
 def main(project_id):

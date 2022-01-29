@@ -136,7 +136,7 @@ def wait_for_message(project_id):
         subscriber.acknowledge(
           request={"subscription": subscription_path, "ack_ids": ack_ids}
         )
-  subscriber.delete_subscription(subscription=subscription_path)
+    subscriber.delete_subscription(subscription=subscription_path)
 
 
 def main(project_id):

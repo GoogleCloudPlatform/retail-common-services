@@ -23,7 +23,7 @@ resource "google_spanner_instance" "event-sink-instance" {
 }
 
 locals {
-  example_ddl = <<-EOT
+  sink_ddl = <<-EOT
     CREATE TABLE ${var.sink_table} (
       uuid STRING(MAX) NOT NULL,
       CommitTimestamp TIMESTAMP NOT NULL OPTIONS (allow_commit_timestamp=true)
@@ -41,7 +41,7 @@ resource "google_spanner_database" "event-sink-database" {
   deletion_protection = false
 
   ddl = [
-    local.example_ddl
+    local.sink_ddl
   ]
   provisioner "local-exec" {
     command = local.setup_lpts

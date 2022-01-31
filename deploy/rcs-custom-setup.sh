@@ -1,7 +1,8 @@
 #!/bin/bash -eux
 
-PROJECT_ID=$1
-IMAGE_TAG=$2
+CUSTOM_DIR=$1
+PROJECT_ID=$2
+IMAGE_TAG=$3
 IPV6_HACK=true
 DRYRUN=${DRYRUN:-}
 USE_GH_IMAGE=true
@@ -14,6 +15,11 @@ function tailer-image() {
   else
     echo "gcr.io/${project_id}/spanner-event-exporter:${image_tag}"
   fi
+}
+
+function tf-bucket() {
+  local project_id=$1
+  echo "$project_id-rcs-tf"
 }
 
 set +x
@@ -30,7 +36,9 @@ if [ "$IPV6_HACK" = "true" ]; then
 fi
 set -x
 
-pushd terraform/spez-example
+pushd terraform/$CUSTOM_DIR
+
+terraform init -backend-config="bucket=$(tf-bucket $PROJECT_ID)"
 
 terraform plan -var project=$PROJECT_ID -var "tailer_image=$(tailer-image ${PROJECT_ID} ${IMAGE_TAG})" -out=tf.plan
 if [ "$DRYRUN" = "" ]; then

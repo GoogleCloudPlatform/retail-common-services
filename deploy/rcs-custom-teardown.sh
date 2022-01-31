@@ -1,20 +1,9 @@
 #!/bin/bash -eux
 
-PROJECT_ID=$1
-IMAGE_TAG=$2
+CUSTOM_DIR=$1
+PROJECT_ID=$2
 IPV6_HACK=true
 DRYRUN=${DRYRUN:-}
-USE_GH_IMAGE=true
-
-function tailer-image() {
-  local project_id=$1
-  local image_tag=$2
-  if [[ "$USE_GH_IMAGE" = "true" ]]; then
-    echo "ghcr.io/googlecloudplatform/retail-common-services/spanner-event-exporter:${image_tag}"
-  else
-    echo "gcr.io/${project_id}/spanner-event-exporter:${image_tag}"
-  fi
-}
 
 set +x
 if [ "$IPV6_HACK" = "true" ]; then
@@ -30,11 +19,10 @@ if [ "$IPV6_HACK" = "true" ]; then
 fi
 set -x
 
-pushd terraform/spez-example
+pushd terraform/$CUSTOM_DIR
 
-terraform plan -var project=$PROJECT_ID -var "tailer_image=$(tailer-image ${PROJECT_ID} ${IMAGE_TAG})" -out=tf.plan
-if [ "$DRYRUN" = "" ]; then
-    terraform apply -auto-approve tf.plan
-fi
+terraform plan -destroy -var project=$PROJECT_ID -out=tf.plan
+terraform apply -auto-approve tf.plan
 rm -f tf.plan
+
 popd

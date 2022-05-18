@@ -25,6 +25,7 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.spez.spanner.Database;
@@ -39,6 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 
 public class GaxDatabase implements Database {
   private static final Logger log = LoggerFactory.getLogger(GaxDatabase.class);
@@ -56,8 +58,16 @@ public class GaxDatabase implements Database {
    * @return a Database
    */
   public static Database openDatabase(Settings settings) {
+    SessionPoolOptions sessionPoolOptions =
+        SessionPoolOptions.newBuilder()
+            .setRemoveInactiveSessionAfter(Duration.ofSeconds(15))
+            .build();
     Spanner spannerClient =
-        SpannerOptions.newBuilder().setProjectId(settings.projectId()).build().getService();
+        SpannerOptions.newBuilder()
+            .setProjectId(settings.projectId())
+            .setSessionPoolOption(sessionPoolOptions)
+            .build()
+            .getService();
     DatabaseId databaseId =
         DatabaseId.of(settings.projectId(), settings.instance(), settings.database());
     DatabaseClient databaseClient = spannerClient.getDatabaseClient(databaseId);

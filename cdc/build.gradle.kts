@@ -32,11 +32,7 @@ dependencies {
   implementation(Config.Libs.logback_core)
 
   implementation(Config.Libs.groovy) // For logback
-  implementation(Config.Libs.grpc_core)
-  implementation(Config.Libs.grpc_netty)
-  implementation(Config.Libs.grpc_native)
   implementation(Config.Libs.guava)
-  // implementation(Config.Libs.spanner)
   implementation(Config.Libs.pubsub)
   implementation("io.opencensus:opencensus-exporter-trace-stackdriver:0.28.3")
   implementation("io.opencensus:opencensus-contrib-zpages:0.28.3")
@@ -100,9 +96,7 @@ application {
     "-Djava.net.preferIPv4Stack=true",
     "-Dio.netty.allocator.type=pooled",
     "-XX:+UnlockExperimentalVMOptions",
-    "-XX:+UseZGC",
     "-XX:ConcGCThreads=4",
-    "-XX:+UseTransparentHugePages",
     "-XX:+UseNUMA",
     "-XX:+UseStringDeduplication",
     "-XX:+HeapDumpOnOutOfMemoryError",

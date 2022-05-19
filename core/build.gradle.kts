@@ -28,7 +28,6 @@ repositories {
 
 dependencies {
   implementation(project(":common"))
-  implementation("com.google.spannerclient:spannerclient:0.1.6")
   implementation(Config.Libs.typesafe_config)
   implementation(Config.Libs.slf4j)
   // implementation(Config.Libs.logback_classic)
@@ -47,6 +46,8 @@ dependencies {
   // implementation(Config.Libs.rocksdb)
   implementation("com.google.api.grpc:proto-google-cloud-spanner-v1:1.55.1")
   // implementation(Config.Libs.spanner)
+  // custom spannerclient implementation
+  implementation("com.google.spannerclient:spannerclient:0.1.8")
   // BOM needed for cloud-spanner
   implementation(platform("com.google.cloud:libraries-bom:25.3.0"))
   //implementation("com.google.cloud:google-cloud-spanner")

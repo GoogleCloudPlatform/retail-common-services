@@ -62,9 +62,6 @@ resource "google_storage_bucket_object" "gcs-archive-source" {
   metadata = {
     package = "retail-common-services"
   }
-  labels = {
-    goog-packaged-solution = "retail-common-services"
-  }
 }
 
 resource "google_cloudfunctions_function" "spez-archive-function" {

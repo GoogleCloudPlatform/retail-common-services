@@ -50,9 +50,15 @@ resource "google_container_cluster" "primary" {
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
+    labels = {
+      goog-packaged-solution = "retail-common-services"
+    }
   }
   timeouts {
     create = "30m"
     update = "40m"
+  }
+  resource_labels = {
+    goog-packaged-solution = "retail-common-services"
   }
 }

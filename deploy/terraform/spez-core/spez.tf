@@ -38,6 +38,9 @@ resource "google_pubsub_topic" "spez-ledger-topic" {
   message_storage_policy {
     allowed_persistence_regions = [var.region]
   }
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 # </ledger>
 
@@ -50,5 +53,8 @@ resource "google_storage_bucket" "spez-function-source" {
   location = var.region
   uniform_bucket_level_access = true
   force_destroy = true
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 # </source bucket>

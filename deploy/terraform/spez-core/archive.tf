@@ -23,6 +23,9 @@ resource "google_storage_bucket" "spez-event-archive" {
   location = var.region
   uniform_bucket_level_access = true
   force_destroy = true
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 
 resource "google_service_account" "spez-archive-function-sa" {
@@ -59,6 +62,9 @@ resource "google_storage_bucket_object" "gcs-archive-source" {
   metadata = {
     package = "retail-common-services"
   }
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 
 resource "google_cloudfunctions_function" "spez-archive-function" {
@@ -82,6 +88,7 @@ resource "google_cloudfunctions_function" "spez-archive-function" {
   source_archive_object = google_storage_bucket_object.gcs-archive-source.name
   labels = {
     package = "retail-common-services"
+    goog-packaged-solution = "retail-common-services"
   }
 }
 # </archive function>

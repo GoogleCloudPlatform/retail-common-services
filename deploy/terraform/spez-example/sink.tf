@@ -20,6 +20,9 @@ resource "google_spanner_instance" "event-sink-instance" {
 
   display_name = "event-sink-instance"
   num_nodes    = 1
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 
 locals {

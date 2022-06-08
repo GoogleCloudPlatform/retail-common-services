@@ -24,6 +24,9 @@ resource "google_spanner_instance" "spez-lpts-instance" {
 
   display_name = "spez-lpts-instance"
   num_nodes    = 1
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 
 resource "google_spanner_database" "spez-lpts-database" {
@@ -72,6 +75,9 @@ resource "google_storage_bucket_object" "gcs-lpts-source" {
   name   = "lpts_source.zip"
   bucket = google_storage_bucket.spez-function-source.name
   source = data.archive_file.local_lpts_source.output_path
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 
 resource "google_cloudfunctions_function" "spez-lpts-function" {
@@ -96,5 +102,8 @@ resource "google_cloudfunctions_function" "spez-lpts-function" {
   service_account_email = google_service_account.spez-lpts-function-sa.email
   source_archive_bucket = google_storage_bucket.spez-function-source.name
   source_archive_object = google_storage_bucket_object.gcs-lpts-source.name
+  labels = {
+    goog-packaged-solution = "retail-common-services"
+  }
 }
 # </lpts function>

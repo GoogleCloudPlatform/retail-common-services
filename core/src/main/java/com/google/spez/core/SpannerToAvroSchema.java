@@ -235,10 +235,10 @@ public class SpannerToAvroSchema {
     if (log.isDebugEnabled()) {
       final Set<String> keySet = spannerSchema.keySet();
       for (String k : keySet) {
-        log.info("-------------------------- ColName: " + k + " Type: " + spannerSchema.get(k));
+        log.debug("-------------------------- ColName: " + k + " Type: " + spannerSchema.get(k));
       }
 
-      log.info("--------------------------- " + avroSchema.toString());
+      log.debug("--------------------------- " + avroSchema.toString());
     }
 
     return SchemaSet.create(avroSchema, ImmutableMap.copyOf(spannerSchema));

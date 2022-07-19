@@ -16,11 +16,13 @@
 
 package com.google.spez.core;
 
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import com.google.spez.spanner.Row;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Span;
-import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -67,15 +69,16 @@ public class EventState {
         statsCollector.addQueuedForPublishingDuration(duration);
         break;
       case MessagePublishRequested:
-        statsCollector.addMessagePublishedDuration(duration);
+        statsCollector.addMessagePublishRequestedDuration(duration);
         break;
       case MessagePublished:
         statsCollector.addMessagePublishedDuration(duration);
         break;
       case MessageRetrying:
-        statsCollector.addMessagePublishedDuration(duration);
+        // DO Nothing here, we'll count the duration from Requested to Published.
         break;
       case MessageRetryCountExceeded:
+        // Overload Published for failure case.
         statsCollector.addMessagePublishedDuration(duration);
         break;
       case Unknown:
@@ -93,7 +96,7 @@ public class EventState {
   ByteString message;
   private String uuid;
   private int retryCount = 0;
-  private ArrayList<Throwable> errors = new ArrayList<>();
+  private Deque<Throwable> errors = new ArrayDeque<>();
 
   public EventState(Span pollingSpan, StatsCollector statsCollector) {
     this.stage = WorkStage.Unknown;
@@ -156,13 +159,22 @@ public class EventState {
   }
 
   public void messageRetrying(Throwable throwable) {
-    errors.add(throwable);
+    errors.addLast(throwable);
     transitionStage(WorkStage.MessageRetrying);
     retryCount += 1;
   }
 
-  public void messageRetryCountExceeded() {
+  public void messageRetryCountExceeded(SettableFuture<String> future) {
     transitionStage(WorkStage.MessageRetryCountExceeded);
+    Throwable error = errors.getLast();
+    String message =
+        String.format("Failed to publish message uuid %s after %d retries", uuid, retryCount);
+    if (error != null) {
+      // TODO(pdex): maybe make our own exception that can take a list of throwables?
+      future.setException(new RuntimeException(message, error));
+    } else {
+      future.setException(new RuntimeException(message));
+    }
   }
 
   public void error(Throwable throwable) {

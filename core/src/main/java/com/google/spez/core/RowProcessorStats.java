@@ -52,15 +52,13 @@ public class RowProcessorStats {
     long count = records.get();
     long err = errors.get();
     long pub = published.get();
-    log.info(
+    log.debug(
         "Processed {} records [errors: {} / published: {}] over the past {}",
         formatter.format(count),
         err,
         pub,
         d);
-    // log.info("lastProcessedTimestamp: {}", lastProcessedTimestamp.get());
-    // log.info("forkJoinPool {}", workStealingPool);
-    log.info(
+    log.debug(
         "Memory: {}free / {}tot / {}max",
         formatter.format(runtime.freeMemory()),
         formatter.format(runtime.totalMemory()),

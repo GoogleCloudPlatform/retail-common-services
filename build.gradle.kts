@@ -3,6 +3,10 @@ import net.researchgate.release.GitAdapter
 buildscript {
   repositories {
     maven("https://plugins.gradle.org/m2/")
+    mavenCentral()
+  }
+  dependencies {
+    classpath("org.owasp:dependency-check-gradle:7.1.1")
   }
 }
 
@@ -51,6 +55,7 @@ subprojects {
   apply(plugin = "pmd")
   apply(plugin = "com.github.spotbugs")
   apply(plugin = "com.diffplug.spotless")
+  apply(plugin = "org.owasp.dependencycheck")
   tasks.named<Test>("test") {
     reports.junitXml.isEnabled = true
   }

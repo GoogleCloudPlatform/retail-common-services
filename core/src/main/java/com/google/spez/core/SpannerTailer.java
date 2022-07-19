@@ -143,7 +143,7 @@ public class SpannerTailer {
       pollingSpan.putAttribute(
           "tableName", AttributeValue.stringAttributeValue(sinkConfig.getTable()));
       pollingSpan.addAnnotation("Start polling");
-      log.info("Polling for records newer than {}", lastProcessedTimestamp);
+      log.debug("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
       var options =

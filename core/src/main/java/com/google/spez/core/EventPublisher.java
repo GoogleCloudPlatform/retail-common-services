@@ -130,7 +130,7 @@ public class EventPublisher {
    */
   private static final int MAX_PUBLISH_SIZE = 950;
 
-  private static final int MAX_RETRY_COUNT = 3;
+  private static final int MAX_RETRY_COUNT = 3; // TODO(xjdr): Maybe make this a config?
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
   private final LinkedTransferQueue<BufferPayload> failures = new LinkedTransferQueue<>();
@@ -236,7 +236,6 @@ public class EventPublisher {
     return future;
   }
 
-  @SuppressWarnings("MustBeClosedChecker")
   private void addRetryToBuffer(BufferPayload payload) {
     buffer.add(payload);
     bufferSize.incrementAndGet();
@@ -277,7 +276,7 @@ public class EventPublisher {
       failures.drainTo(fsink, MAX_PUBLISH_SIZE);
       for (var payload : fsink) {
         if (payload.eventState.getRetryCount() >= MAX_RETRY_COUNT) {
-          payload.eventState.messageRetryCountExceeded();
+          payload.eventState.messageRetryCountExceeded(payload.future);
         } else {
           addRetryToBuffer(payload);
         }

@@ -20,6 +20,7 @@ import com.google.protobuf.ByteString;
 import com.google.spez.spanner.Row;
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.Span;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -37,7 +38,8 @@ public class EventState {
     QueuedForPublishing,
     MessagePublishRequested,
     MessagePublished,
-    MessageFailed
+    MessageRetry,
+    MessageRetryCountExceeded
   }
 
   private void initialStage(WorkStage newStage) {
@@ -70,7 +72,10 @@ public class EventState {
       case MessagePublished:
         statsCollector.addMessagePublishedDuration(duration);
         break;
-      case MessageFailed:
+      case MessageRetry:
+        statsCollector.addMessagePublishedDuration(duration);
+        break;
+      case MessageRetryCountExceeded:
         statsCollector.addMessagePublishedDuration(duration);
         break;
       case Unknown:
@@ -88,6 +93,7 @@ public class EventState {
   ByteString message;
   private String uuid;
   private int retryCount = 0;
+  private ArrayList<Throwable> errors = new ArrayList<>();
 
   public EventState(Span pollingSpan, StatsCollector statsCollector) {
     this.stage = WorkStage.Unknown;
@@ -149,9 +155,14 @@ public class EventState {
     statsCollector.collect();
   }
 
-  public void messageFailed() {
-    transitionStage(WorkStage.MessageFailed);
+  public void messageRetry(Throwable throwable) {
+    errors.add(throwable);
+    transitionStage(WorkStage.MessageRetry);
     retryCount += 1;
+  }
+
+  public void messageRetryCountExceeded() {
+    transitionStage(WorkStage.MessageRetryCountExceeded);
   }
 
   public void error(Throwable throwable) {

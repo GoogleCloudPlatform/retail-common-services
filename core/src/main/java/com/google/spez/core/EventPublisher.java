@@ -73,7 +73,8 @@ public class EventPublisher {
     final String tableName;
     LinkedTransferQueue<BufferPayload> failures;
 
-    PublishCallback(List<BufferPayload> sink, String tableName, LinkedTransferQueue<BufferPayload> failures) {
+    PublishCallback(
+        List<BufferPayload> sink, String tableName, LinkedTransferQueue<BufferPayload> failures) {
       this.sink = sink;
       this.tableName = tableName;
       this.failures = failures;
@@ -114,7 +115,7 @@ public class EventPublisher {
       log.error("Published failed for {} messages", sink.size(), t);
       for (var payload : sink) {
         payload.future.setException(t);
-        payload.eventState.messageFailed();
+        payload.eventState.messageRetry(t);
         failures.add(payload);
       }
     }
@@ -128,6 +129,7 @@ public class EventPublisher {
    * experience with PubSub grumpiness.
    */
   private static final int MAX_PUBLISH_SIZE = 950;
+
   private static final int MAX_RETRY_COUNT = 3;
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
@@ -234,6 +236,12 @@ public class EventPublisher {
     return future;
   }
 
+  @SuppressWarnings("MustBeClosedChecker")
+  private void addRetryToBuffer(BufferPayload payload) {
+    buffer.add(payload);
+    bufferSize.incrementAndGet();
+  }
+
   @VisibleForTesting
   void publishBuffer() {
     ArrayList<BufferPayload> sink = new ArrayList<>();
@@ -266,12 +274,12 @@ public class EventPublisher {
 
     if (!failures.isEmpty()) {
       ArrayList<BufferPayload> fsink = new ArrayList<>();
-      int numberDrained = buffer.drainTo(fsink, MAX_PUBLISH_SIZE);
+      failures.drainTo(fsink, MAX_PUBLISH_SIZE);
       for (var payload : fsink) {
-        if (payload.eventState.getRetryCount() >= MAX_RETRIES) {
-          // TODO(xjdr): Throw an error?
+        if (payload.eventState.getRetryCount() >= MAX_RETRY_COUNT) {
+          payload.eventState.messageRetryCountExceeded();
         } else {
-          addToBuffer(payload.message, payload.eventState);
+          addRetryToBuffer(payload);
         }
       }
     }

@@ -118,8 +118,8 @@ public class SpannerTailer {
         .append("'")
         .append(" ORDER BY ")
         .append(timestampColumn)
-        // .append(" ASC")
-        .append(" DESC")
+        .append(" ASC")
+        // .append(" DESC")
         .append(" LIMIT")
         // TODO(xjdr): Move this to config
         .append(" ")

@@ -115,7 +115,7 @@ public class EventPublisher {
       log.error("Published failed for {} messages", sink.size(), t);
       for (var payload : sink) {
         payload.future.setException(t);
-        payload.eventState.messageRetry(t);
+        payload.eventState.messageRetrying(t);
         failures.add(payload);
       }
     }

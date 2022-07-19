@@ -38,7 +38,7 @@ public class EventState {
     QueuedForPublishing,
     MessagePublishRequested,
     MessagePublished,
-    MessageRetry,
+    MessageRetrying,
     MessageRetryCountExceeded
   }
 
@@ -72,7 +72,7 @@ public class EventState {
       case MessagePublished:
         statsCollector.addMessagePublishedDuration(duration);
         break;
-      case MessageRetry:
+      case MessageRetrying:
         statsCollector.addMessagePublishedDuration(duration);
         break;
       case MessageRetryCountExceeded:
@@ -155,9 +155,9 @@ public class EventState {
     statsCollector.collect();
   }
 
-  public void messageRetry(Throwable throwable) {
+  public void messageRetrying(Throwable throwable) {
     errors.add(throwable);
-    transitionStage(WorkStage.MessageRetry);
+    transitionStage(WorkStage.MessageRetrying);
     retryCount += 1;
   }
 

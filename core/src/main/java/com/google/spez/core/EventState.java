@@ -99,6 +99,10 @@ public class EventState {
     return row;
   }
 
+  public int getRetryCount() {
+    return retryCount;
+  }
+
   public Span getPollingSpan() {
     return pollingSpan;
   }

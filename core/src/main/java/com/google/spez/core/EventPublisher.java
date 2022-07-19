@@ -73,8 +73,7 @@ public class EventPublisher {
     final String tableName;
     LinkedTransferQueue<BufferPayload> failures;
 
-    PublishCallback(
-        List<BufferPayload> sink, String tableName, LinkedTransferQueue<BufferPayload> failures) {
+    PublishCallback(List<BufferPayload> sink, String tableName, LinkedTransferQueue<BufferPayload> failures) {
       this.sink = sink;
       this.tableName = tableName;
       this.failures = failures;
@@ -129,6 +128,7 @@ public class EventPublisher {
    * experience with PubSub grumpiness.
    */
   private static final int MAX_PUBLISH_SIZE = 950;
+  private static final int MAX_RETRY_COUNT = 3;
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
   private final LinkedTransferQueue<BufferPayload> failures = new LinkedTransferQueue<>();
@@ -262,6 +262,18 @@ public class EventPublisher {
     if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
       // We have enough messages for another batch, fire off in the same thread.
       publishBuffer();
+    }
+
+    if (!failures.isEmpty()) {
+      ArrayList<BufferPayload> fsink = new ArrayList<>();
+      int numberDrained = buffer.drainTo(fsink, MAX_PUBLISH_SIZE);
+      for (var payload : fsink) {
+        if (payload.eventState.getRetryCount() >= MAX_RETRIES) {
+          // TODO(xjdr): Throw an error?
+        } else {
+          addToBuffer(payload.message, payload.eventState);
+        }
+      }
     }
   }
 

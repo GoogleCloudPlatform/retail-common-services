@@ -105,6 +105,8 @@ public class SpannerTailer {
   @VisibleForTesting
   static String buildLptsTableQuery(
       String tableName, String timestampColumn, String lastProcessedTimestamp) {
+    // WARNING: This makes the assumption that each timestamp is unique. If that is not the case
+    // this query could result in dropped events.
     return new StringBuilder()
         .append("SELECT * FROM ")
         .append(tableName)
@@ -116,7 +118,14 @@ public class SpannerTailer {
         .append("'")
         .append(" ORDER BY ")
         .append(timestampColumn)
-        .append(" ASC")
+        // .append(" ASC")
+        .append(" DESC")
+        .append(" LIMIT")
+        // TODO(xjdr): Move this to config
+        .append(" ")
+        // 950 is the pub/sub magic number times how many pub/sub reqs you want per poll
+        .append(String.valueOf(950 * 12))
+        .append(" ")
         .toString();
   }
 

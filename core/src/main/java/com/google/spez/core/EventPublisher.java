@@ -71,10 +71,13 @@ public class EventPublisher {
   public static class PublishCallback implements FutureCallback<PublishResponse> {
     final List<BufferPayload> sink;
     final String tableName;
+    LinkedTransferQueue<BufferPayload> failures;
 
-    PublishCallback(List<BufferPayload> sink, String tableName) {
+    PublishCallback(
+        List<BufferPayload> sink, String tableName, LinkedTransferQueue<BufferPayload> failures) {
       this.sink = sink;
       this.tableName = tableName;
+      this.failures = failures;
     }
 
     @Override
@@ -112,6 +115,8 @@ public class EventPublisher {
       log.error("Published failed for {} messages", sink.size(), t);
       for (var payload : sink) {
         payload.future.setException(t);
+        payload.eventState.messageFailed();
+        failures.add(payload);
       }
     }
   }
@@ -126,6 +131,7 @@ public class EventPublisher {
   private static final int MAX_PUBLISH_SIZE = 950;
 
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
+  private final LinkedTransferQueue<BufferPayload> failures = new LinkedTransferQueue<>();
   @VisibleForTesting final AtomicLong bufferSize = new AtomicLong(0);
 
   private final String tableName;
@@ -252,7 +258,7 @@ public class EventPublisher {
     log.debug("{} messages drained and published", numberDrained);
     bufferSize.getAndAdd(-1 * numberDrained);
 
-    Futures.addCallback(future, new PublishCallback(sink, tableName), scheduler);
+    Futures.addCallback(future, new PublishCallback(sink, tableName, failures), scheduler);
     if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
       // We have enough messages for another batch, fire off in the same thread.
       publishBuffer();

@@ -36,7 +36,8 @@ public class EventState {
     ConvertedToMessage,
     QueuedForPublishing,
     MessagePublishRequested,
-    MessagePublished
+    MessagePublished,
+    MessageFailed
   }
 
   private void initialStage(WorkStage newStage) {
@@ -69,6 +70,9 @@ public class EventState {
       case MessagePublished:
         statsCollector.addMessagePublishedDuration(duration);
         break;
+      case MessageFailed:
+        statsCollector.addMessagePublishedDuration(duration);
+        break;
       case Unknown:
       default:
         break;
@@ -83,6 +87,7 @@ public class EventState {
   private Row row;
   ByteString message;
   private String uuid;
+  private int retryCount = 0;
 
   public EventState(Span pollingSpan, StatsCollector statsCollector) {
     this.stage = WorkStage.Unknown;
@@ -138,6 +143,11 @@ public class EventState {
     statsCollector.attachPublishId(publishId);
     statsCollector.incrementPublished();
     statsCollector.collect();
+  }
+
+  public void messageFailed() {
+    transitionStage(WorkStage.MessageFailed);
+    retryCount += 1;
   }
 
   public void error(Throwable throwable) {

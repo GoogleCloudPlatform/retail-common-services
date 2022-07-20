@@ -120,7 +120,7 @@ public class SpannerTailer {
         .append(timestampColumn)
         .append(" ASC")
         // .append(" DESC")
-	/*
+        /*
         .append(" LIMIT")
         // TODO(xjdr): Move this to config
         .append(" ")
@@ -205,10 +205,14 @@ public class SpannerTailer {
               StatsCollector.newForTable(sinkConfig.getTable()).attachSpan(pollingSpan));
       eventState.rowRead(row);
       results.add(handler.convertAndPublish(eventState));
-      String newLastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
+      String newLastProcessedTimestamp =
+          row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
       if (lastProcessedTimestamp.equals(newLastProcessedTimestamp)) {
         duplicateCounts.incrementAndGet();
-	log.debug("Detected duplicate timestamp value {} in column {}", newLastProcessedTimestamp, sinkConfig.getTimestampColumn());
+        log.debug(
+            "Detected duplicate timestamp value {} in column {}",
+            newLastProcessedTimestamp,
+            sinkConfig.getTimestampColumn());
       }
       lastProcessedTimestamp = newLastProcessedTimestamp;
     }
@@ -226,7 +230,10 @@ public class SpannerTailer {
       log.debug("SpannerTailer completed!");
       long duplicates = duplicateCounts.get();
       if (duplicates > 0) {
-        log.error("Detected {} duplicate timestamp values out of {} records, cannot guarantee that all messages have been processed.", duplicates, records.get());
+        log.error(
+            "Detected {} duplicate timestamp values out of {} records, cannot guarantee that all messages have been processed.",
+            duplicates,
+            records.get());
       }
       log.warn(
           "Processed {} records in {} seconds for last processed timestamp {}",

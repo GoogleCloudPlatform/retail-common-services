@@ -38,8 +38,6 @@ public class SpannerTailerTest implements WithAssertions {
     assertThat(query)
         .isEqualTo(
             "SELECT * FROM sink_table WHERE timestamp"
-                + " > '2019-08-08T20:30:39.802644Z' ORDER BY timestamp ASC LIMIT "
-                + String.valueOf(950 * 12)
-                + " ");
+                + " > '2019-08-08T20:30:39.802644Z' ORDER BY timestamp ASC");
   }
 }

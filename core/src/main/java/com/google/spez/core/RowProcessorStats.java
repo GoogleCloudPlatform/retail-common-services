@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RowProcessorStats {
-  private static final Logger log = LoggerFactory.getLogger(RowProcessor.class);
+  private static final Logger log = LoggerFactory.getLogger(RowProcessorStats.class);
 
   private final Instant then = Instant.now();
   private final AtomicLong records = new AtomicLong(0);

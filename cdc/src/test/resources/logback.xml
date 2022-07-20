@@ -1,0 +1,87 @@
+<configuration>
+  <!-- Recommendation: place status listeners towards the the top of the configuration file -->
+  <statusListener class="ch.qos.logback.core.status.OnConsoleStatusListener" />
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+      <pattern>%-4relative [%thread] %-5level %logger{30} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <variable name="log_level_default" value="ERROR" />
+  <variable name="log_level_cdc" value="DEBUG" />
+  <variable name="log_level_core" value="DEBUG" />
+  <variable name="log_level_netty" value="ERROR" />
+  <variable name="log_level_spannerclient" value="ERROR" />
+  <!--
+log_level_default = getLoglevel("spez.loglevel.default", INFO)
+log_level_cdc = getLoglevel("spez.loglevel.cdc", log_level_default)
+log_level_core = getLoglevel("spez.loglevel.core", log_level_default)
+log_level_netty = getLoglevel("spez.loglevel.netty", log_level_default)
+	  log_level_spannerclient = getLoglevel("spez.loglevel.spannerclient", log_level_default)
+  -->
+
+  <logger name="com" level="${log_level_default}"/>
+  <logger name="com.google" level="${log_level_default}"/>
+  <logger name="com.google.spannerclient" level="${log_level_spannerclient}"/>
+  <logger name="com.google.spannerclient.Database" level="${log_level_spannerclient}"/>
+  <logger name="com.google.spannerclient.GrpcClient" level="OFF"/>
+  <logger name="com.google.spannerclient.Spanner" level="OFF"/>
+  <logger name="com.google.spannerclient.Util" level="${log_level_spannerclient}"/>
+  <logger name="com.google.spez" level="${log_level_default}"/>
+  <logger name="com.google.spez.cdc" level="${log_level_cdc}"/>
+  <logger name="com.google.spez.cdc.Main" level="${log_level_cdc}"/>
+  <logger name="com.google.spez.core" level="${log_level_core}"/>
+  <logger name="com.google.spez.core.EventPublisher" level="ERROR"/>
+  <logger name="com.google.spez.core.RowProcessor" level="ERROR"/>
+  <logger name="com.google.spez.core.RowProcessorStats" level="DEBUG"/>
+  <logger name="com.google.spez.core.SpannerTailer" level="${log_level_core}"/>
+  <logger name="com.google.spez.core.Spez" level="${log_level_core}"/>
+  <logger name="com.google.spez.core.SpezMetrics" level="ERROR"/>
+  <logger name="com.google.spez.core.SpannerToAvroRecord" level="ERROR"/>
+  <logger name="com.google.spez.core.SpannerToAvroSchema" level="ERROR"/>
+  <logger name="io" level="${log_level_default}"/>
+  <logger name="io.netty" level="${log_level_netty}"/>
+  <logger name="io.netty.buffer" level="${log_level_netty}"/>
+  <logger name="io.netty.buffer.AbstractByteBuf" level="${log_level_netty}"/>
+  <logger name="io.netty.buffer.ByteBufUtil" level="${log_level_netty}"/>
+  <logger name="io.netty.buffer.PoolThreadCache" level="${log_level_netty}"/>
+  <logger name="io.netty.buffer.PooledByteBufAllocator" level="${log_level_netty}"/>
+  <logger name="io.netty.channel" level="${log_level_netty}"/>
+  <logger name="io.netty.channel.DefaultChannelPipeline" level="OFF"/>
+  <logger name="io.netty.channel.MultithreadEventLoopGroup" level="${log_level_netty}"/>
+  <logger name="io.netty.channel.nio" level="${log_level_netty}"/>
+  <logger name="io.netty.channel.nio.NioEventLoop" level="${log_level_netty}"/>
+  <logger name="io.netty.handler" level="${log_level_netty}"/>
+  <logger name="io.netty.handler.ssl" level="${log_level_netty}"/>
+  <logger name="io.netty.handler.ssl.CipherSuiteConverter" level="OFF"/>
+  <logger name="io.netty.handler.ssl.OpenSsl" level="${log_level_netty}"/>
+  <logger name="io.netty.handler.ssl.OpenSslX509TrustManagerWrapper" level="${log_level_netty}"/>
+  <logger name="io.netty.handler.ssl.ReferenceCountedOpenSslClientContext" level="${log_level_netty}"/>
+  <logger name="io.netty.handler.ssl.ReferenceCountedOpenSslContext" level="${log_level_netty}"/>
+  <logger name="io.netty.util" level="${log_level_netty}"/>
+  <logger name="io.netty.util.Recycler" level="${log_level_netty}"/>
+  <logger name="io.netty.util.ResourceLeakDetector" level="${log_level_netty}"/>
+  <logger name="io.netty.util.ResourceLeakDetectorFactory" level="${log_level_netty}"/>
+  <logger name="io.netty.util.concurrent" level="${log_level_netty}"/>
+  <logger name="io.netty.util.concurrent.AbstractEventExecutor" level="${log_level_netty}"/>
+  <logger name="io.netty.util.concurrent.DefaultPromise" level="${log_level_netty}"/>
+  <logger name="io.netty.util.concurrent.DefaultPromise.rejectedExecution" level="${log_level_netty}"/>
+  <logger name="io.netty.util.concurrent.GlobalEventExecutor" level="${log_level_netty}"/>
+  <logger name="io.netty.util.concurrent.SingleThreadEventExecutor" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal.CleanerJava9" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal.InternalThreadLocalMap" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal.NativeLibraryLoader" level="OFF"/>
+  <logger name="io.netty.util.internal.PlatformDependent" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal.PlatformDependent0" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal.SystemPropertyUtil" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal.logging" level="${log_level_netty}"/>
+  <logger name="io.netty.util.internal.logging.InternalLoggerFactory" level="${log_level_netty}"/>
+
+  <root level="DEBUG">
+    <appender-ref ref="STDOUT" />
+  </root>
+</configuration>

@@ -24,7 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class RowProcessorStats {
-  private static final Logger log = LoggerFactory.getLogger(RowProcessor.class);
+  private static final Logger log = LoggerFactory.getLogger(RowProcessorStats.class);
 
   private final Instant then = Instant.now();
   private final AtomicLong records = new AtomicLong(0);
@@ -52,15 +52,13 @@ public class RowProcessorStats {
     long count = records.get();
     long err = errors.get();
     long pub = published.get();
-    log.info(
+    log.debug(
         "Processed {} records [errors: {} / published: {}] over the past {}",
         formatter.format(count),
         err,
         pub,
         d);
-    // log.info("lastProcessedTimestamp: {}", lastProcessedTimestamp.get());
-    // log.info("forkJoinPool {}", workStealingPool);
-    log.info(
+    log.debug(
         "Memory: {}free / {}tot / {}max",
         formatter.format(runtime.freeMemory()),
         formatter.format(runtime.totalMemory()),

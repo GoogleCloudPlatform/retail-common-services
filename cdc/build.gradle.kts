@@ -75,6 +75,7 @@ val lpts_table = System.getenv().get("LPTS_TABLE")
 val default_log_level = System.getenv("DEFAULT_LOG_LEVEL")
 val timestamp_column = System.getenv("TIMESTAMP_COLUMN")
 val uuid_column = System.getenv("UUID_COLUMN")
+val jmx_port = System.getenv("JMX_PORT")
 
 application {
   mainClassName = "com.google.spez.cdc.Main"
@@ -93,6 +94,7 @@ application {
     "-Dspez.lpts.table=$lpts_table",
     "-Dspez.loglevel.default=$default_log_level",
     "-Dspez.loglevel.com.google.spez.core.EventPublisher=INFO",
+    "-Dlogback.configurationFile=${rootProject.projectDir}/cdc/src/test/resources/logback.xml",
     "-Djava.net.preferIPv4Stack=true",
     "-Dio.netty.allocator.type=pooled",
     "-XX:+UnlockExperimentalVMOptions",
@@ -101,8 +103,8 @@ application {
     "-XX:+UseStringDeduplication",
     "-XX:+HeapDumpOnOutOfMemoryError",
     "-Dcom.sun.management.jmxremote",
-    "-Dcom.sun.management.jmxremote.port=9010",
-    "-Dcom.sun.management.jmxremote.rmi.port=9010",
+    "-Dcom.sun.management.jmxremote.port=${jmx_port}",
+    "-Dcom.sun.management.jmxremote.rmi.port=${jmx_port}",
     "-Dcom.sun.management.jmxremote.local.only=false",
     "-Dcom.sun.management.jmxremote.authenticate=false",
     "-Dcom.sun.management.jmxremote.ssl=false",

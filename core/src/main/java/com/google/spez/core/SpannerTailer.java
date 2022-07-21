@@ -105,6 +105,8 @@ public class SpannerTailer {
   @VisibleForTesting
   static String buildLptsTableQuery(
       String tableName, String timestampColumn, String lastProcessedTimestamp) {
+    // WARNING: This makes the assumption that each timestamp is unique. If that is not the case
+    // this query could result in dropped events.
     return new StringBuilder()
         .append("SELECT * FROM ")
         .append(tableName)
@@ -117,6 +119,14 @@ public class SpannerTailer {
         .append(" ORDER BY ")
         .append(timestampColumn)
         .append(" ASC")
+        // .append(" DESC")
+        /*
+        .append(" LIMIT")
+        // TODO(xjdr): Move this to config
+        .append(" ")
+        // 950 is the pub/sub magic number times how many pub/sub reqs you want per poll
+        .append(String.valueOf(25_000))
+        */
         .toString();
   }
 
@@ -134,7 +144,7 @@ public class SpannerTailer {
       pollingSpan.putAttribute(
           "tableName", AttributeValue.stringAttributeValue(sinkConfig.getTable()));
       pollingSpan.addAnnotation("Start polling");
-      log.info("Polling for records newer than {}", lastProcessedTimestamp);
+      log.debug("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
       var options =
@@ -174,6 +184,7 @@ public class SpannerTailer {
 
   private class RowStreamObserver implements StreamObserver<Row> {
     private final AtomicLong records;
+    private final AtomicLong duplicateCounts = new AtomicLong(0);
     private final Instant then;
     private final Span pollingSpan;
     private final List<ListenableFuture<String>> results = Lists.newArrayList();
@@ -187,14 +198,23 @@ public class SpannerTailer {
     @Override
     public void onNext(Row row) {
       long count = records.incrementAndGet();
-      log.debug("onNext count = {}", count);
+      log.trace("onNext count = {}", count);
       var eventState =
           new EventState(
               pollingSpan,
               StatsCollector.newForTable(sinkConfig.getTable()).attachSpan(pollingSpan));
       eventState.rowRead(row);
       results.add(handler.convertAndPublish(eventState));
-      lastProcessedTimestamp = row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
+      String newLastProcessedTimestamp =
+          row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
+      if (lastProcessedTimestamp.equals(newLastProcessedTimestamp)) {
+        duplicateCounts.incrementAndGet();
+        log.debug(
+            "Detected duplicate timestamp value {} in column {}",
+            newLastProcessedTimestamp,
+            sinkConfig.getTimestampColumn());
+      }
+      lastProcessedTimestamp = newLastProcessedTimestamp;
     }
 
     @Override
@@ -208,6 +228,13 @@ public class SpannerTailer {
       Instant now = Instant.now();
       Duration duration = Duration.between(then, now);
       log.debug("SpannerTailer completed!");
+      long duplicates = duplicateCounts.get();
+      if (duplicates > 0) {
+        log.error(
+            "Detected {} duplicate timestamp values out of {} records, cannot guarantee that all messages have been processed.",
+            duplicates,
+            records.get());
+      }
       log.warn(
           "Processed {} records in {} seconds for last processed timestamp {}",
           records.get(),

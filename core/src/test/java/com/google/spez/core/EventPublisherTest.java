@@ -163,7 +163,7 @@ public class EventPublisherTest implements WithAssertions {
             .build();
     SettableFuture<String> future = SettableFuture.create();
     var sink = List.of(new EventPublisher.BufferPayload(message, future, eventState));
-    var callback = new EventPublisher.PublishCallback(sink, "");
+    var callback = new EventPublisher.PublishCallback(sink, "", null);
 
     Mockito.when(response.getMessageIdsCount()).thenReturn(sink.size());
     Mockito.when(response.getMessageIds(0)).thenReturn("published-message-id");

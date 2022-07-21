@@ -71,6 +71,7 @@ class RowProcessorTest implements WithAssertions {
             "sink-database",
             "sink_table",
             "uuid",
+            "STRING(MAX)",
             "timestamp",
             30,
             false,

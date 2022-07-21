@@ -68,6 +68,7 @@ class SpannerSchemaTest extends SpannerIntegrationTest implements WithAssertions
             database.getId().getDatabase(),
             "Singers",
             "SingerId",
+            "STRING(MAX)",
             TIMESTAMP,
             30,
             false,

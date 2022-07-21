@@ -40,6 +40,7 @@ class MetadataExtractorTest implements WithAssertions {
             "sink-database",
             "sink-table",
             "uuid",
+            "STRING(MAX)",
             "timestamp",
             30,
             false,

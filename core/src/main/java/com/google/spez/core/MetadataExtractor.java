@@ -41,7 +41,14 @@ public class MetadataExtractor {
   public Map<String, String> extract(Row row) {
     Map<String, String> metadata = Maps.newHashMap(base);
 
-    String uuid = row.getString(config.getSink().getUuidColumn());
+    String uuid;
+    String type = config.getSink().getUuidColumnType();
+    // Spez currently only supports UUIDs of type STRING(MAX) or INT64
+    if (type.equals("INT64")) {
+      uuid = String.valueOf(row.getLong(config.getSink().getUuidColumn()));
+    } else {
+      uuid = row.getString(config.getSink().getUuidColumn());
+    }
     String commitTimestamp = row.getTimestamp(config.getSink().getTimestampColumn()).toString();
 
     metadata.put(config.SINK_UUID_KEY, uuid);

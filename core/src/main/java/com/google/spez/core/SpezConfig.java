@@ -50,6 +50,7 @@ public class SpezConfig {
   public static final String SINK_DATABASE_KEY = "spez.sink.database";
   public static final String SINK_TABLE_KEY = "spez.sink.table";
   public static final String SINK_UUID_COLUMN_KEY = "spez.sink.uuid_column";
+  public static final String SINK_UUID_COLUMN_TYPE_KEY = "spez.sink.uuid_column_type";
   public static final String SINK_TIMESTAMP_COLUMN_KEY = "spez.sink.timestamp_column";
   public static final String LPTS_CUSTOM_CLIENT_KEY = "spez.lpts.use_custom_client";
   public static final String LPTS_PROJECT_ID_KEY = "spez.lpts.project_id";
@@ -102,6 +103,7 @@ public class SpezConfig {
     private final String database;
     private final String table;
     private final String uuidColumn;
+    private final String uuidColumnType;
     private final String timestampColumn;
     private final int pollRate;
     private final boolean useCustomClient;
@@ -114,6 +116,7 @@ public class SpezConfig {
         String database,
         String table,
         String uuidColumn,
+        String uuidColumnType,
         String timestampColumn,
         int pollRate,
         boolean useCustomClient,
@@ -123,6 +126,7 @@ public class SpezConfig {
       this.database = database;
       this.table = table;
       this.uuidColumn = uuidColumn;
+      this.uuidColumnType = uuidColumnType;
       this.timestampColumn = timestampColumn;
       this.pollRate = pollRate;
       this.useCustomClient = useCustomClient;
@@ -137,6 +141,7 @@ public class SpezConfig {
           config.getString(SINK_DATABASE_KEY),
           config.getString(SINK_TABLE_KEY),
           config.getString(SINK_UUID_COLUMN_KEY),
+          config.getString(SINK_UUID_COLUMN_TYPE_KEY),
           config.getString(SINK_TIMESTAMP_COLUMN_KEY),
           config.getInt(SINK_POLL_RATE_KEY),
           config.getBoolean(SINK_CUSTOM_CLIENT_KEY),
@@ -176,6 +181,11 @@ public class SpezConfig {
     /** uuidColumn getter. */
     public String getUuidColumn() {
       return uuidColumn;
+    }
+
+    /** uuidColumnType getter. */
+    public String getUuidColumnType() {
+      return uuidColumnType;
     }
 
     /** timestampColumn getter. */

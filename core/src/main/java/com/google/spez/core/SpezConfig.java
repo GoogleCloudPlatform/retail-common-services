@@ -23,8 +23,10 @@ import com.google.spez.common.AuthConfig;
 import com.google.spez.common.StackdriverConfig;
 import com.google.spez.spanner.Settings;
 import com.typesafe.config.Config;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.Manifest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -327,6 +329,26 @@ public class SpezConfig {
     this.lpts = lpts;
   }
 
+  public static String gitDescribe() {
+    try {
+      var resources = SpezConfig.class.getClassLoader().getResources("META-INF/MANIFEST.MF");
+      while (resources.hasMoreElements()) {
+        var manifest = new Manifest(resources.nextElement().openStream());
+        var attributes = manifest.getMainAttributes();
+	var mainClass = attributes.getValue("Main-Class");
+        if (mainClass != null && mainClass.equals("com.google.spez.cdc.Main")) {
+          var describe = attributes.getValue("git-describe");
+	  if (describe != null) {
+            return describe;
+	  }
+        }
+      }
+    } catch (IOException ex) {
+      // ignore
+    }
+    return "UNKNOWN";
+  }
+
   /** SpezConfig log helper. */
   public static void logParsedValues(Config config, List<String> configKeys) {
     log.info("=============================================");
@@ -338,6 +360,7 @@ public class SpezConfig {
         log.info("{}={}", key, config.getString(key));
       }
     }
+    log.info("git-describe={}", gitDescribe());
     log.info("=============================================");
   }
 

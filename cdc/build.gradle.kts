@@ -11,6 +11,7 @@ plugins {
   id("net.ltgt.errorprone") version "0.8.1"
   id("com.github.johnrengelman.shadow") version "6.1.0"
   // id("com.google.cloud.artifactregistry.gradle-plugin") version "2.1.0"
+  id("com.palantir.git-version") version "0.15.0"
 }
 
 repositories {
@@ -65,6 +66,14 @@ tasks.withType<ShadowJar>() {
   mergeServiceFiles()
 }
 
+val gitVersion: groovy.lang.Closure<String> by extra
+
+tasks.jar {
+  manifest {
+    attributes(mapOf("git-describe" to gitVersion()))
+  }
+}
+
 val project_id = System.getenv().get("PROJECT_ID")
 val sink_instance = System.getenv().get("SINK_INSTANCE")
 val sink_database = System.getenv().get("SINK_DATABASE")
@@ -75,6 +84,7 @@ val lpts_table = System.getenv().get("LPTS_TABLE")
 val default_log_level = System.getenv("DEFAULT_LOG_LEVEL")
 val timestamp_column = System.getenv("TIMESTAMP_COLUMN")
 val uuid_column = System.getenv("UUID_COLUMN")
+val uuid_column_type = System.getenv("UUID_COLUMN_TYPE")
 val jmx_port = System.getenv("JMX_PORT")
 
 application {
@@ -88,6 +98,7 @@ application {
     "-Dspez.sink.database=$sink_database",
     "-Dspez.sink.table=$sink_table",
     "-Dspez.sink.uuid_column=$uuid_column",
+    "-Dspez.sink.uuid_column_type=$uuid_column_type",
     "-Dspez.sink.timestamp_column=$timestamp_column",
     "-Dspez.lpts.instance=$lpts_instance",
     "-Dspez.lpts.database=$lpts_database",

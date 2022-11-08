@@ -105,14 +105,14 @@ public class EventPublisher {
         }
         if (log.isDebugEnabled()) {
           String uuid = payload.message.getAttributesMap().get(SpezConfig.SINK_UUID_KEY);
-          log.debug("Published message uuid {}, set future to '{}'", uuid, result);
+          log.trace("Published message uuid {}, set future to '{}'", uuid, result);
         }
       }
     }
 
     @Override
     public void onFailure(Throwable t) {
-      log.error("Published failed for {} messages", sink.size(), t);
+      log.error("Published failed for {} messages - queueing retries", sink.size(), t);
       for (var payload : sink) {
         // payload.future.setException(t);
         payload.eventState.messageRetrying(t);
@@ -173,7 +173,7 @@ public class EventPublisher {
     if (runPublishBuffer != null) {
       this.runPublishBuffer = runPublishBuffer;
     } else {
-      this.runPublishBuffer = this::publishBuffer;
+      this.runPublishBuffer = this::publishBufferTimeout;
     }
     this.publishBufferSize = publishSize;
     this.publishBufferTime = publishTime;
@@ -243,6 +243,26 @@ public class EventPublisher {
 
   @VisibleForTesting
   void publishBuffer() {
+    publishBuffer("testing", false);
+  }
+
+  void publishBufferTimeout() {
+    publishBuffer(String.format("Scheduler timeout %d ms exceeded", publishBufferTime), true);
+  }
+
+  void publishBufferThreshold(long size) {
+    publishBuffer(String.format("Buffer size %d greater than %d", size, publishBufferSize), false);
+  }
+
+  void publishBuffer(String reason, boolean timeout) {
+    if (!timeout) {
+      long size = bufferSize.get();
+      if (size < publishBufferSize) {
+        log.trace(
+            "Buffer size {} too small for non-timeout publish attempt reason: {}", size, reason);
+        return;
+      }
+    }
     ArrayList<BufferPayload> sink = new ArrayList<>();
     int numberDrained = buffer.drainTo(sink, MAX_PUBLISH_SIZE);
     ArrayList<PubsubMessage> messages = new ArrayList<>(numberDrained); // NOPMD
@@ -262,13 +282,19 @@ public class EventPublisher {
                 .addAllMessages(messages)
                 .build());
 
-    log.debug("{} messages drained and published", numberDrained);
+    if (timeout) {
+      log.trace("{} messages drained and published for reason: {}", numberDrained, reason);
+    } else {
+      log.trace("{} messages drained and published for reason: {}", numberDrained, reason);
+    }
     bufferSize.getAndAdd(-1 * numberDrained);
 
     Futures.addCallback(future, new PublishCallback(sink, tableName, failures), scheduler);
-    if (bufferSize.get() >= MAX_PUBLISH_SIZE) {
+    long triggerSize = bufferSize.get();
+    if (triggerSize >= MAX_PUBLISH_SIZE) {
       // We have enough messages for another batch, fire off in the same thread.
-      publishBuffer();
+      log.trace("Triggering additional publishBuffer for size {}", triggerSize);
+      publishBuffer(reason + ": triggered additional publish", false);
     }
 
     if (!failures.isEmpty()) {
@@ -288,15 +314,15 @@ public class EventPublisher {
     long size = bufferSize.get();
     eventState.queuedForPublishing(size);
     if (size >= publishBufferSize) {
-      log.debug("publish buffer size {}", size);
-      UsefulExecutors.submit(
-          scheduler,
-          runPublishBuffer,
-          (throwable) -> {
-            log.error("Error while calling this::publishBuffer", throwable);
-          });
+      log.trace("publish buffer size {}", size);
+        UsefulExecutors.submit(
+            scheduler,
+            () -> publishBufferThreshold(size),
+            (throwable) -> {
+              log.error("Error while calling this::publishBuffer", throwable);
+            });
     } else {
-      log.debug("didn't publish buffer size {}", size);
+      log.trace("didn't publish buffer size {}", size);
     }
   }
 
@@ -320,7 +346,7 @@ public class EventPublisher {
 
     String uuid = attrMap.get(SpezConfig.SINK_UUID_KEY);
     eventState.uuid(uuid);
-    log.debug("Received message uuid {}", uuid);
+    log.trace("Received message uuid {}", uuid);
     if (attrMap.size() > 0) {
       attrMap
           .entrySet()
@@ -331,7 +357,6 @@ public class EventPublisher {
     }
 
     ListenableFuture<String> future = addToBuffer(builder.build(), eventState);
-
     maybePublish(eventState);
     return future;
   }

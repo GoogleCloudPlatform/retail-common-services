@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,6 +136,7 @@ public class EventPublisher {
   private final LinkedTransferQueue<BufferPayload> buffer = new LinkedTransferQueue<>();
   private final LinkedTransferQueue<BufferPayload> failures = new LinkedTransferQueue<>();
   @VisibleForTesting final AtomicLong bufferSize = new AtomicLong(0);
+  private final AtomicBoolean publishSubmitted = new AtomicBoolean(false);
 
   private final String tableName;
   private final ListeningScheduledExecutorService scheduler;
@@ -247,6 +249,7 @@ public class EventPublisher {
   }
 
   void publishBufferTimeout() {
+    publishSubmitted.set(true);
     publishBuffer(String.format("Scheduler timeout %d ms exceeded", publishBufferTime), true);
   }
 
@@ -260,6 +263,7 @@ public class EventPublisher {
       if (size < publishBufferSize) {
         log.trace(
             "Buffer size {} too small for non-timeout publish attempt reason: {}", size, reason);
+        publishSubmitted.set(false);
         return;
       }
     }
@@ -296,6 +300,7 @@ public class EventPublisher {
       log.trace("Triggering additional publishBuffer for size {}", triggerSize);
       publishBuffer(reason + ": triggered additional publish", false);
     }
+    publishSubmitted.set(false);
 
     if (!failures.isEmpty()) {
       ArrayList<BufferPayload> fsink = new ArrayList<>();
@@ -315,12 +320,17 @@ public class EventPublisher {
     eventState.queuedForPublishing(size);
     if (size >= publishBufferSize) {
       log.trace("publish buffer size {}", size);
+      if (!publishSubmitted.get()) {
+        publishSubmitted.set(true);
         UsefulExecutors.submit(
             scheduler,
             () -> publishBufferThreshold(size),
             (throwable) -> {
               log.error("Error while calling this::publishBuffer", throwable);
             });
+      } else {
+        log.trace("skipped submit publish for buffer size {}", size);
+      }
     } else {
       log.trace("didn't publish buffer size {}", size);
     }

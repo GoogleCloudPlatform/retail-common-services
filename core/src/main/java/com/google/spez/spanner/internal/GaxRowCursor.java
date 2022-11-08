@@ -39,7 +39,7 @@ public class GaxRowCursor implements RowCursor {
 
   @Override
   public Row getCurrentRow() {
-    return new GaxRow(cursor);
+    return new GaxRow(cursor.getCurrentRowAsStruct());
   }
 
   @Override

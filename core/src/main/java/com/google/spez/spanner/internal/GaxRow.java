@@ -19,7 +19,7 @@ package com.google.spez.spanner.internal;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
-import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Struct;
 import com.google.spanner.v1.StructType;
 import com.google.spanner.v1.StructType.Field;
 import com.google.spanner.v1.Type;
@@ -29,25 +29,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GaxRow implements Row {
-  private final ResultSet resultSet;
+  private final Struct rowAsStruct;
 
-  public GaxRow(ResultSet resultSet) {
-    this.resultSet = resultSet;
+  public GaxRow(Struct rowAsStruct) {
+    this.rowAsStruct = rowAsStruct;
   }
 
   @Override
   public boolean isNull(String columnName) {
-    return resultSet.isNull(columnName);
+    return rowAsStruct.isNull(columnName);
   }
 
   @Override
   public String getString(int columnIndex) {
-    return resultSet.getString(columnIndex);
+    return rowAsStruct.getString(columnIndex);
   }
 
   @Override
   public String getString(String columnName) {
-    return resultSet.getString(columnName);
+    return rowAsStruct.getString(columnName);
   }
 
   private List<StructType.Field> convert(
@@ -101,67 +101,67 @@ public class GaxRow implements Row {
 
   @Override
   public Type getColumnType(String columnName) {
-    return convert(resultSet.getColumnType(columnName));
+    return convert(rowAsStruct.getColumnType(columnName));
   }
 
   @Override
   public List<Boolean> getBooleanList(String columnName) {
-    return resultSet.getBooleanList(columnName);
+    return rowAsStruct.getBooleanList(columnName);
   }
 
   @Override
   public List<ByteArray> getBytesList(String columnName) {
-    return resultSet.getBytesList(columnName);
+    return rowAsStruct.getBytesList(columnName);
   }
 
   @Override
   public List<String> getStringList(String columnName) {
-    return resultSet.getStringList(columnName);
+    return rowAsStruct.getStringList(columnName);
   }
 
   @Override
   public List<Double> getDoubleList(String columnName) {
-    return resultSet.getDoubleList(columnName);
+    return rowAsStruct.getDoubleList(columnName);
   }
 
   @Override
   public List<Long> getLongList(String columnName) {
-    return resultSet.getLongList(columnName);
+    return rowAsStruct.getLongList(columnName);
   }
 
   @Override
   public boolean getBoolean(String columnName) {
-    return resultSet.getBoolean(columnName);
+    return rowAsStruct.getBoolean(columnName);
   }
 
   @Override
   public ByteArray getBytes(String columnName) {
-    return resultSet.getBytes(columnName);
+    return rowAsStruct.getBytes(columnName);
   }
 
   @Override
   public Date getDate(String columnName) {
-    return resultSet.getDate(columnName);
+    return rowAsStruct.getDate(columnName);
   }
 
   @Override
   public List<Date> getDateList(String columnName) {
-    return resultSet.getDateList(columnName);
+    return rowAsStruct.getDateList(columnName);
   }
 
   @Override
   public double getDouble(String columnName) {
-    return resultSet.getDouble(columnName);
+    return rowAsStruct.getDouble(columnName);
   }
 
   @Override
   public long getLong(String columnName) {
-    return resultSet.getLong(columnName);
+    return rowAsStruct.getLong(columnName);
   }
 
   @Override
   public Timestamp getTimestamp(String columnName) {
-    return resultSet.getTimestamp(columnName);
+    return rowAsStruct.getTimestamp(columnName);
   }
 
   @Override
@@ -174,11 +174,11 @@ public class GaxRow implements Row {
 
   @Override
   public List<Timestamp> getTimestampList(String columnName) {
-    return resultSet.getTimestampList(columnName);
+    return rowAsStruct.getTimestampList(columnName);
   }
 
   @Override
   public Type getType() {
-    return convert(resultSet.getCurrentRowAsStruct().getType());
+    return convert(rowAsStruct.getType());
   }
 }

@@ -93,7 +93,7 @@ public class GaxDatabase implements Database {
             switch (resultSet.tryNext()) {
                 // OK: There is a row ready.
               case OK:
-                observer.onNext(new GaxRow(resultSet));
+                observer.onNext(new GaxRow(resultSet.getCurrentRowAsStruct()));
                 break;
 
                 // DONE: There are no more rows in the result set.

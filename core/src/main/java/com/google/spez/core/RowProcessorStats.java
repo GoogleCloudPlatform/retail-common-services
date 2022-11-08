@@ -30,6 +30,10 @@ public class RowProcessorStats {
   private final AtomicLong records = new AtomicLong(0);
   private final AtomicLong errors = new AtomicLong(0);
   private final AtomicLong published = new AtomicLong(0);
+  private long previouslyQueued = 0;
+  private long previouslyPublished = 0;
+  private long previouslyErrors = 0;
+  private Instant lastLog = then;
   private final Runtime runtime = Runtime.getRuntime();
   private final NumberFormat formatter = NumberFormat.getInstance();
 
@@ -58,6 +62,33 @@ public class RowProcessorStats {
         err,
         pub,
         d);
+    long queuedNow = count - previouslyQueued;
+    long publishedNow = pub - previouslyPublished;
+    long errorsNow = err - previouslyErrors;
+    Duration logDuration = Duration.between(lastLog, now);
+    Long inSeconds = logDuration.getSeconds();
+    double recordsPerSecond = publishedNow / inSeconds.doubleValue();
+    double queuedPerSecond = queuedNow / inSeconds.doubleValue();
+    double errorsPerSecond = errorsNow / inSeconds.doubleValue();
+    log.debug(
+        "Queued {} records over the past {} rate: {} records/sec",
+        formatter.format(queuedNow),
+        logDuration,
+        queuedPerSecond);
+    log.debug(
+        "Published {} records over the past {} rate: {} records/sec",
+        formatter.format(publishedNow),
+        logDuration,
+        recordsPerSecond);
+    log.debug(
+        "Encountered errors with {} records over the past {} rate: {} errors/sec",
+        formatter.format(errorsNow),
+        logDuration,
+        errorsPerSecond);
+    previouslyQueued = count;
+    previouslyPublished = pub;
+    previouslyErrors = err;
+    lastLog = now;
     log.debug(
         "Memory: {}free / {}tot / {}max",
         formatter.format(runtime.freeMemory()),

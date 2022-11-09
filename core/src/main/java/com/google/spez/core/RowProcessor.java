@@ -23,8 +23,9 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.spez.spanner.Row;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import io.opencensus.trace.Span;
+import java.text.NumberFormat;
+import java.util.concurrent.ForkJoinPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,14 +38,13 @@ public class RowProcessor {
     if (useDirectExecutor) {
       listeningPool = MoreExecutors.newDirectExecutorService();
     } else {
-      ExecutorService threadPool =
-          Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
       listeningPool = MoreExecutors.listeningDecorator(threadPool);
     }
     return listeningPool;
   }
 
   private final ListeningExecutorService listeningPool;
+  private final ForkJoinPool threadPool = new ForkJoinPool();
   private final RowProcessorStats stats = new RowProcessorStats();
 
   private final SpezConfig.SinkConfig sinkConfig;
@@ -61,10 +61,11 @@ public class RowProcessor {
    */
   public RowProcessor(
       SpezConfig.SinkConfig sinkConfig, EventPublisher publisher, MetadataExtractor extractor) {
-    this.listeningPool = buildThreadPool(true);
+    this.listeningPool = buildThreadPool(false);
     this.sinkConfig = sinkConfig;
     this.publisher = publisher;
     this.extractor = extractor;
+    log.info("availableProcessors(): {}", Runtime.getRuntime().availableProcessors());
   }
 
   /**
@@ -76,13 +77,13 @@ public class RowProcessor {
   @VisibleForTesting
   public ListenableFuture<String> convertAndPublishTask(EventState eventState) {
     Row row = eventState.getRow();
-    stats.incRecords();
 
     var tableName = sinkConfig.getTable();
     var avroNamespace = "avroNamespace"; // TODO(pdex): move to config
     var schema = SpannerToAvroSchema.buildSchema(tableName, avroNamespace, row);
     var maybeAvroRecord = SpannerToAvroRecord.makeRecord(schema, row);
     if (maybeAvroRecord.isEmpty()) {
+      // TODO(pdex): this should be an error set on the future inside of the eventState
       throw new RuntimeException("Empty avro record");
     }
     var avroRecord = maybeAvroRecord.get();
@@ -90,6 +91,7 @@ public class RowProcessor {
 
     var metadata = extractor.extract(row);
     var publishFuture = publisher.publish(avroRecord, metadata, eventState);
+    stats.incRecords();
     Futures.addCallback(
         publishFuture,
         new FutureCallback<String>() {
@@ -118,19 +120,48 @@ public class RowProcessor {
     return publishFuture;
   }
 
+  private void processRow(Row row, Span pollingSpan) {
+    EventState eventState = null;
+    try {
+      eventState =
+          new EventState(
+              pollingSpan,
+              StatsCollector.newForTable(sinkConfig.getTable()).attachSpan(pollingSpan));
+      eventState.rowRead(row);
+      // TODO(pdex): remove this call and fix the state machine.
+      eventState.queued();
+      // TODO(pdex): address this unchecked future
+      convertAndPublishTask(eventState);
+    } catch (Exception ex) {
+      log.error("processRow", ex);
+      stats.incErrors();
+      if (eventState != null) {
+        eventState.error(ex);
+      }
+    }
+  }
+
+  private final NumberFormat formatter = NumberFormat.getInstance();
+
   /**
    * Convert row to avro record and publish to pubsub topic.
    *
-   * @param eventState to publish
-   * @return timestamp of the row published
+   * @param row to publish
+   * @param pollingSpan covers the duration of this polling iteration
    */
   @SuppressWarnings("FutureReturnValueIgnored")
-  public ListenableFuture<String> convertAndPublish(EventState eventState) {
-    eventState.queued();
-    ListenableFuture<ListenableFuture<String>> future =
-        listeningPool.submit(() -> convertAndPublishTask(eventState));
-
-    return Futures.transformAsync(future, (ListenableFuture<String> f) -> f, listeningPool);
+  public void queueRow(Row row, Span pollingSpan) {
+    var nanosThen = System.nanoTime();
+    var forkJoinStats = threadPool.toString();
+    threadPool.submit(() -> processRow(row, pollingSpan)); // ignore future value
+    var nanosNow = System.nanoTime();
+    long duration = nanosNow - nanosThen;
+    if (duration > 10_000_000) {
+      log.trace(
+          "row took {} ns to return from listeningPool.submit() stats: {}",
+          formatter.format(duration),
+          forkJoinStats);
+    }
   }
 
   /** log stats. */

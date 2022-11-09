@@ -18,7 +18,6 @@ package com.google.spez.core;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.spez.common.ListenableFutureErrorHandler;
@@ -199,17 +198,12 @@ public class SpannerTailer {
     public void onNext(Row row) {
       long count = records.incrementAndGet();
       log.trace("onNext count = {}", count);
-      var eventState =
-          new EventState(
-              pollingSpan,
-              StatsCollector.newForTable(sinkConfig.getTable()).attachSpan(pollingSpan));
-      eventState.rowRead(row);
-      results.add(handler.convertAndPublish(eventState));
       String newLastProcessedTimestamp =
           row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
+      handler.queueRow(row, pollingSpan);
       if (lastProcessedTimestamp.equals(newLastProcessedTimestamp)) {
         duplicateCounts.incrementAndGet();
-        log.debug(
+        log.trace(
             "Detected duplicate timestamp value {} in column {}",
             newLastProcessedTimestamp,
             sinkConfig.getTimestampColumn());
@@ -241,14 +235,6 @@ public class SpannerTailer {
           duration.toNanos() / 1000000000.0,
           lastProcessedTimestamp);
       running.decrementAndGet();
-      Futures.whenAllComplete(results)
-          .call(
-              () -> {
-                pollingSpan.addAnnotation("End polling");
-                pollingSpan.end();
-                return null;
-              },
-              scheduler);
     }
   }
 }

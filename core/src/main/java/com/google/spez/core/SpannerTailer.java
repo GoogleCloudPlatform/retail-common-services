@@ -17,7 +17,10 @@
 package com.google.spez.core;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.spez.common.ListenableFutureErrorHandler;
@@ -115,17 +118,6 @@ public class SpannerTailer {
         .append(" > '")
         .append(lastProcessedTimestamp)
         .append("'")
-        .append(" ORDER BY ")
-        .append(timestampColumn)
-        .append(" ASC")
-        // .append(" DESC")
-        /*
-        .append(" LIMIT")
-        // TODO(xjdr): Move this to config
-        .append(" ")
-        // 950 is the pub/sub magic number times how many pub/sub reqs you want per poll
-        .append(String.valueOf(25_000))
-        */
         .toString();
   }
 
@@ -188,6 +180,8 @@ public class SpannerTailer {
     private final Span pollingSpan;
     private final List<ListenableFuture<String>> results = Lists.newArrayList();
     private boolean firstResult = true;
+    private BloomFilter<String> timestampsSeen =
+        BloomFilter.create(Funnels.stringFunnel(Charsets.UTF_16), 100_000_000, 0.01);
     private long onNextDuration = 0;
 
     public RowStreamObserver(AtomicLong records, Instant then, Span pollingSpan) {
@@ -211,14 +205,17 @@ public class SpannerTailer {
       String newLastProcessedTimestamp =
           row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
       handler.queueRow(row, pollingSpan);
-      if (lastProcessedTimestamp.equals(newLastProcessedTimestamp)) {
+      if (timestampsSeen.mightContain(newLastProcessedTimestamp)) {
         duplicateCounts.incrementAndGet();
         log.trace(
             "Detected duplicate timestamp value {} in column {}",
             newLastProcessedTimestamp,
             sinkConfig.getTimestampColumn());
       }
-      lastProcessedTimestamp = newLastProcessedTimestamp;
+      timestampsSeen.put(newLastProcessedTimestamp);
+      if (lastProcessedTimestamp.compareTo(newLastProcessedTimestamp) < 0) {
+        lastProcessedTimestamp = newLastProcessedTimestamp;
+      }
       if (log.isTraceEnabled()) {
         var nanosNow = System.nanoTime();
         long duration = nanosNow - nanosThen;

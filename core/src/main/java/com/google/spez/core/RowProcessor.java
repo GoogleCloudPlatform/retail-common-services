@@ -154,13 +154,15 @@ public class RowProcessor {
     var nanosThen = System.nanoTime();
     var forkJoinStats = threadPool.toString();
     threadPool.submit(() -> processRow(row, pollingSpan)); // ignore future value
-    var nanosNow = System.nanoTime();
-    long duration = nanosNow - nanosThen;
-    if (duration > 10_000_000) {
-      log.trace(
-          "row took {} ns to return from listeningPool.submit() stats: {}",
-          formatter.format(duration),
-          forkJoinStats);
+    if (log.isTraceEnabled()) {
+      var nanosNow = System.nanoTime();
+      long duration = nanosNow - nanosThen;
+      if (duration > 10_000_000) {
+        log.trace(
+            "row took {} ns to return from threadPool.submit() stats: {}",
+            formatter.format(duration),
+            forkJoinStats);
+      }
     }
   }
 

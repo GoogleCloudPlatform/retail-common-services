@@ -136,7 +136,7 @@ public class SpannerTailer {
       running.decrementAndGet();
       return;
     }
-    log.debug("POLLER ACTIVE");
+    log.trace("POLLER ACTIVE");
     try {
       StatsCollector.newForTable(sinkConfig.getTable()).incrementTablePolled().collect();
       var pollingSpan = SpezTracing.initialPollingSpan();
@@ -187,6 +187,8 @@ public class SpannerTailer {
     private final Instant then;
     private final Span pollingSpan;
     private final List<ListenableFuture<String>> results = Lists.newArrayList();
+    private boolean firstResult = true;
+    private long onNextDuration = 0;
 
     public RowStreamObserver(AtomicLong records, Instant then, Span pollingSpan) {
       this.records = records;
@@ -197,7 +199,15 @@ public class SpannerTailer {
     @Override
     public void onNext(Row row) {
       long count = records.incrementAndGet();
+      var nanosThen = System.nanoTime();
       log.trace("onNext count = {}", count);
+      if (firstResult) {
+        firstResult = false;
+        Instant now = Instant.now();
+        Duration duration = Duration.between(then, now);
+        log.debug("Query took {} seconds", duration.toNanos() / 1000000000.0);
+      }
+
       String newLastProcessedTimestamp =
           row.getTimestamp(sinkConfig.getTimestampColumn()).toString();
       handler.queueRow(row, pollingSpan);
@@ -209,6 +219,15 @@ public class SpannerTailer {
             sinkConfig.getTimestampColumn());
       }
       lastProcessedTimestamp = newLastProcessedTimestamp;
+      if (log.isTraceEnabled()) {
+        var nanosNow = System.nanoTime();
+        long duration = nanosNow - nanosThen;
+        onNextDuration += duration;
+        if (count % 100_000 == 0) {
+          log.debug("onNext avg duration = {} ns", onNextDuration / 100_000.0);
+          onNextDuration = 0;
+        }
+      }
     }
 
     @Override

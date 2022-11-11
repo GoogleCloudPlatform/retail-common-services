@@ -135,7 +135,7 @@ public class SpannerTailer {
       pollingSpan.putAttribute(
           "tableName", AttributeValue.stringAttributeValue(sinkConfig.getTable()));
       pollingSpan.addAnnotation("Start polling");
-      log.debug("Polling for records newer than {}", lastProcessedTimestamp);
+      log.info("Polling for records newer than {}", lastProcessedTimestamp);
       Instant then = Instant.now();
       AtomicLong records = new AtomicLong(0);
       var options =
@@ -237,7 +237,6 @@ public class SpannerTailer {
     public void onCompleted() {
       Instant now = Instant.now();
       Duration duration = Duration.between(then, now);
-      log.debug("SpannerTailer completed!");
       long duplicates = duplicateCounts.get();
       if (duplicates > 0) {
         log.error(
@@ -245,8 +244,8 @@ public class SpannerTailer {
             duplicates,
             records.get());
       }
-      log.warn(
-          "Processed {} records in {} seconds for last processed timestamp {}",
+      log.info(
+          "SpannerTailer completed - processed {} records in {} seconds for last processed timestamp {}",
           records.get(),
           duration.toNanos() / 1000000000.0,
           lastProcessedTimestamp);

@@ -22,10 +22,8 @@ object Config {
     val netty_boring_ssl_version = "2.0.38.Final"
     val slf4j_version = "1.7.25"
     val type_safe_config_version = "1.3.1"
-    val logback_version = "1.2.11"
-    val logback_appender_version = "1.4.2"
-    val logstash_encoder_version = "5.0"
-    val groovy_version = "2.4.1"
+    val logback_version = "1.4.4"
+    val logback_appender_version = "1.4.4"
     val rocks_version = "6.0.1"
     val guava_version = "28.0.1-jre"
     val spanner_version = "1.26.0"
@@ -43,7 +41,6 @@ object Config {
     val logback_classic = "ch.qos.logback:logback-classic:".plus(Version.logback_version)
     val logback_core = "ch.qos.logback:logback-core:".plus(Version.logback_version)
     val protobuf = "com.google.protobuf:protobuf-java:".plus(Version.protobuf_version)
-    val groovy = "org.codehaus.groovy:groovy-all:".plus(Version.groovy_version)
 
     // gRPC
     val grpc_core = "io.grpc:grpc-core:".plus(Version.grpc_version)

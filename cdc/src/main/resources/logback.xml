@@ -10,7 +10,54 @@
     </encoder>
   </appender>
 
-  <root level="info">
+  <variable name="default" value="${spez.loglevel.default:-INFO}" />
+  <variable name="cdc" value="${spez.loglevel.cdc:-INFO}" />
+  <variable name="core" value="${spez.loglevel.core:-INFO}" />
+  <variable name="netty" value="${spez.loglevel.netty:-INFO}" />
+  <variable name="spannerclient" value="${spez.loglevel.spannerclient:-INFO}" />
+
+  <logger name="com.google.spannerclient.Database" level="${spez.loglevel.spannerclient.Database:-${spannerclient}}"/>
+  <logger name="com.google.spannerclient.GrpcClient" level="${spez.loglevel.spannerclient.GrpcClient:-OFF}"/>
+  <logger name="com.google.spannerclient.Spanner" level="${spez.loglevel.spannerclient.Spanner:-OFF}"/>
+  <logger name="com.google.spannerclient.Util" level="${spez.loglevel.spannerclient.Util:-${spannerclient}}"/>
+  <logger name="com.google.spez.cdc.Main" level="${spez.loglevel.cdc.Main:-${cdc}}"/>
+  <logger name="com.google.spez.core.EventPublisher" level="${spez.loglevel.cdc.EventPublisher:-${core}}"/>
+  <logger name="com.google.spez.core.RowProcessor" level="${spez.loglevel.cdc.RowProcessor:-${core}}"/>
+  <logger name="com.google.spez.core.RowProcessorStats" level="${spez.loglevel.cdc.RowProcessorStats:-${core}}"/>
+  <logger name="com.google.spez.core.SpannerTailer" level="${spez.loglevel.cdc.SpannerTailer:-${core}}"/>
+  <logger name="com.google.spez.core.Spez" level="${spez.loglevel.cdc.Spez:-${core}}"/>
+  <logger name="com.google.spez.core.SpezMetrics" level="${spez.loglevel.cdc.SpezMetrics:-${core}}"/>
+  <logger name="com.google.spez.core.SpannerToAvroRecord" level="${spez.loglevel.cdc.SpannerToAvroRecord:-${core}}"/>
+  <logger name="com.google.spez.core.SpannerToAvroSchema" level="${spez.loglevel.cdc.SpannerToAvroSchema:-${core}}"/>
+  <logger name="io.netty.buffer.AbstractByteBuf" level="${spez.loglevel.netty.AbstractByteBuf:-${netty}}"/>
+  <logger name="io.netty.buffer.ByteBufUtil" level="${spez.loglevel.netty.ByteBufUtil:-${netty}}"/>
+  <logger name="io.netty.buffer.PoolThreadCache" level="${spez.loglevel.netty.PoolThreadCache:-${netty}}"/>
+  <logger name="io.netty.buffer.PooledByteBufAllocator" level="${spez.loglevel.netty.PooledByteBufAllocator:-${netty}}"/>
+  <logger name="io.netty.channel.DefaultChannelPipeline" level="${spez.loglevel.netty.DefaultChannelPipeline:-OFF}"/>
+  <logger name="io.netty.channel.MultithreadEventLoopGroup" level="${spez.loglevel.netty.MultithreadEventLoopGroup:-${netty}}"/>
+  <logger name="io.netty.channel.nio.NioEventLoop" level="${spez.loglevel.netty.NioEventLoop:-${netty}}"/>
+  <logger name="io.netty.handler.ssl.CipherSuiteConverter" level="${spez.loglevel.netty.CipherSuiteConverter:-OFF}"/>
+  <logger name="io.netty.handler.ssl.OpenSsl" level="${spez.loglevel.netty.OpenSsl:-${netty}}"/>
+  <logger name="io.netty.handler.ssl.OpenSslX509TrustManagerWrapper" level="${spez.loglevel.netty.OpenSslX509TrustManagerWrapper:-${netty}}"/>
+  <logger name="io.netty.handler.ssl.ReferenceCountedOpenSslClientContext" level="${spez.loglevel.netty.ReferenceCountedOpenSslClientContext:-${netty}}"/>
+  <logger name="io.netty.handler.ssl.ReferenceCountedOpenSslContext" level="${spez.loglevel.netty.ReferenceCountedOpenSslContext:-${netty}}"/>
+  <logger name="io.netty.util.Recycler" level="${spez.loglevel.netty.Recycler:-${netty}}"/>
+  <logger name="io.netty.util.ResourceLeakDetector" level="${spez.loglevel.netty.ResourceLeakDetector:-${netty}}"/>
+  <logger name="io.netty.util.ResourceLeakDetectorFactory" level="${spez.loglevel.netty.ResourceLeakDetectorFactory:-${netty}}"/>
+  <logger name="io.netty.util.concurrent.AbstractEventExecutor" level="${spez.loglevel.netty.AbstractEventExecutor:-${netty}}"/>
+  <logger name="io.netty.util.concurrent.DefaultPromise" level="${spez.loglevel.netty.DefaultPromise:-${netty}}"/>
+  <logger name="io.netty.util.concurrent.DefaultPromise.rejectedExecution" level="${spez.loglevel.netty.DefaultPromise.rejectedExecution:-${netty}}"/>
+  <logger name="io.netty.util.concurrent.GlobalEventExecutor" level="${spez.loglevel.netty.GlobalEventExecutor:-${netty}}"/>
+  <logger name="io.netty.util.concurrent.SingleThreadEventExecutor" level="${spez.loglevel.netty.SingleThreadEventExecutor:-${netty}}"/>
+  <logger name="io.netty.util.internal.CleanerJava9" level="${spez.loglevel.netty.CleanerJava9:-${netty}}"/>
+  <logger name="io.netty.util.internal.InternalThreadLocalMap" level="${spez.loglevel.netty.InternalThreadLocalMap:-${netty}}"/>
+  <logger name="io.netty.util.internal.NativeLibraryLoader" level="${spez.loglevel.netty.NativeLibraryLoader:-OFF}"/>
+  <logger name="io.netty.util.internal.PlatformDependent" level="${spez.loglevel.netty.PlatformDependent:-${netty}}"/>
+  <logger name="io.netty.util.internal.PlatformDependent0" level="${spez.loglevel.netty.PlatformDependent0:-${netty}}"/>
+  <logger name="io.netty.util.internal.SystemPropertyUtil" level="${spez.loglevel.netty.SystemPropertyUtil:-${netty}}"/>
+  <logger name="io.netty.util.internal.logging.InternalLoggerFactory" level="${spez.loglevel.netty.InternalLoggerFactory:-${netty}}"/>
+
+  <root level="${spez.loglevel.root:-INFO}">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>

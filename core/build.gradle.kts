@@ -72,7 +72,6 @@ dependencies {
   testImplementation("com.google.cloud:google-cloud-spanner:2.0.2")
   testImplementation(Config.Libs.logback_classic)
   testImplementation(Config.Libs.logback_core)
-  testImplementation(Config.Libs.groovy) // For logback
 }
 
 tasks.test {

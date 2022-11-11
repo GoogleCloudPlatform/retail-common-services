@@ -12,7 +12,6 @@ dependencies {
     implementation(Config.Libs.slf4j)
     implementation(Config.Libs.logback_classic)
     implementation(Config.Libs.logback_core)
-    implementation(Config.Libs.groovy) // For logback
     implementation(Config.Libs.guava)
     implementation(Config.Libs.typesafe_config)
     implementation("io.opencensus:opencensus-exporter-trace-logging:0.28.3")

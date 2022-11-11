@@ -32,7 +32,6 @@ dependencies {
   implementation(Config.Libs.logback_classic)
   implementation(Config.Libs.logback_core)
 
-  implementation(Config.Libs.groovy) // For logback
   implementation(Config.Libs.guava)
   implementation(Config.Libs.pubsub)
   implementation("io.opencensus:opencensus-exporter-trace-stackdriver:0.28.3")
@@ -104,8 +103,11 @@ application {
     "-Dspez.lpts.database=$lpts_database",
     "-Dspez.lpts.table=$lpts_table",
     "-Dspez.loglevel.default=$default_log_level",
-    "-Dspez.loglevel.com.google.spez.core.EventPublisher=INFO",
-    "-Dlogback.configurationFile=${rootProject.projectDir}/cdc/src/test/resources/logback.xml",
+    "-Dspez.loglevel.cdc=INFO",
+    "-Dspez.loglevel.core=INFO",
+    "-Dspez.loglevel.netty=INFO",
+    "-Dspez.loglevel.spannerclient=INFO",
+    "-Dlogback.configurationFile=${rootProject.projectDir}/cdc/src/main/resources/logback.xml",
     "-Djava.net.preferIPv4Stack=true",
     "-Dio.netty.allocator.type=pooled",
     "-XX:+UnlockExperimentalVMOptions",

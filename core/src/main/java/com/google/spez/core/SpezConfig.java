@@ -335,12 +335,12 @@ public class SpezConfig {
       while (resources.hasMoreElements()) {
         var manifest = new Manifest(resources.nextElement().openStream());
         var attributes = manifest.getMainAttributes();
-	var mainClass = attributes.getValue("Main-Class");
+        var mainClass = attributes.getValue("Main-Class");
         if (mainClass != null && mainClass.equals("com.google.spez.cdc.Main")) {
           var describe = attributes.getValue("git-describe");
-	  if (describe != null) {
+          if (describe != null) {
             return describe;
-	  }
+          }
         }
       }
     } catch (IOException ex) {

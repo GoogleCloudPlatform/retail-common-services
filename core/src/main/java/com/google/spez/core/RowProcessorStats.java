@@ -56,7 +56,7 @@ public class RowProcessorStats {
     long count = records.get();
     long err = errors.get();
     long pub = published.get();
-    log.debug(
+    log.info(
         "Processed {} records [errors: {} / published: {}] over the past {}",
         formatter.format(count),
         err,
@@ -70,17 +70,17 @@ public class RowProcessorStats {
     double recordsPerSecond = publishedNow / inSeconds.doubleValue();
     double queuedPerSecond = queuedNow / inSeconds.doubleValue();
     double errorsPerSecond = errorsNow / inSeconds.doubleValue();
-    log.debug(
+    log.info(
         "Queued {} records over the past {} rate: {} records/sec",
         formatter.format(queuedNow),
         logDuration,
         queuedPerSecond);
-    log.debug(
+    log.info(
         "Published {} records over the past {} rate: {} records/sec",
         formatter.format(publishedNow),
         logDuration,
         recordsPerSecond);
-    log.debug(
+    log.info(
         "Encountered errors with {} records over the past {} rate: {} errors/sec",
         formatter.format(errorsNow),
         logDuration,
@@ -89,7 +89,7 @@ public class RowProcessorStats {
     previouslyPublished = pub;
     previouslyErrors = err;
     lastLog = now;
-    log.debug(
+    log.info(
         "Memory: {}free / {}tot / {}max",
         formatter.format(runtime.freeMemory()),
         formatter.format(runtime.totalMemory()),

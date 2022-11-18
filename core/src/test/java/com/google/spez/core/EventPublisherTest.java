@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.testing.TestingExecutors;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PublishResponse;
 import com.google.pubsub.v1.PubsubMessage;
@@ -110,25 +111,6 @@ public class EventPublisherTest implements WithAssertions {
 
   @Test
   @SuppressWarnings("unchecked")
-  public void publishBeforeDeadline(
-      @Mock StatsCollector statsCollector, @Mock ListenableFuture submitFuture) {
-    // Mockito.when(publisher.getTopicPath()).thenReturn("");
-    // buffer size 1 will publish
-    var eventState = new EventState(null, statsCollector);
-    EventPublisher eventPublisher = new EventPublisher("", scheduler, publisher, 1, 100);
-
-    Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
-    var event = ByteString.copyFromUtf8(EVENT);
-    var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);
-    var future = eventPublisher.publish(event, attributes, eventState);
-    assertThat(eventPublisher.bufferSize).hasValue(1);
-    assertThat(future).isNotNull();
-
-    Mockito.verify(scheduler, Mockito.times(1)).submit(eventPublisher.runPublishBuffer);
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
   public void publishBufferUpdatesBufferSize(
       @Mock StatsCollector statsCollector,
       @Mock ListenableFuture submitFuture,
@@ -136,9 +118,9 @@ public class EventPublisherTest implements WithAssertions {
     var eventState = new EventState(null, statsCollector);
     Mockito.when(publisher.getTopicPath()).thenReturn("");
     // buffer size 1 will publish
+    var scheduler = TestingExecutors.noOpScheduledExecutor();
     EventPublisher eventPublisher = new EventPublisher("", scheduler, publisher, 1, 100);
 
-    Mockito.when(scheduler.submit(eventPublisher.runPublishBuffer)).thenReturn(submitFuture);
     Mockito.when(publisher.publish(Mockito.any(), Mockito.any())).thenReturn(publishFuture);
     var event = ByteString.copyFromUtf8(EVENT);
     var attributes = Map.of(SpezConfig.SINK_UUID_KEY, UUID);

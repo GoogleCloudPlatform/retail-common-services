@@ -70,6 +70,7 @@ dependencies {
   testImplementation("org.mockito:mockito-junit-jupiter:3.5.2")
   testImplementation("org.assertj:assertj-core:3.16.1")
   testImplementation("com.google.cloud:google-cloud-spanner:2.0.2")
+  testImplementation("com.google.guava:guava-testlib:28.0-jre")
   testImplementation(Config.Libs.logback_classic)
   testImplementation(Config.Libs.logback_core)
 }

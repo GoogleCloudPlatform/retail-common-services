@@ -25,19 +25,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class SpannerTailerTest implements WithAssertions {
 
   /*
-   * SpannerTailer's last processed timestamp relies on records being processed IN ORDER
-   * from oldest to newest. If this test fails, it means you've broken an assumption
-   * that the entire system is built upon. Do not pass go, do not collect $200. You
-   * are going to have a very bad day.
+   * ORDER BY clauses cause spanner to return records slower than unordered.
+   * This seems silly but since we're going to get ALL of the records from
+   * spanner in a single polling query, we can guarantee that the largest
+   * timestamp value seen in polling query A will be less than the smallest
+   * timestamp value seen in polling query B.
    */
   @Test
-  public void shouldUseOrderByClause() {
+  public void shouldNotUseOrderByClause() {
     String query =
         SpannerTailer.buildLptsTableQuery("sink_table", "timestamp", "2019-08-08T20:30:39.802644Z");
     assertThat(query).isNotNull();
     assertThat(query)
-        .isEqualTo(
-            "SELECT * FROM sink_table WHERE timestamp"
-                + " > '2019-08-08T20:30:39.802644Z' ORDER BY timestamp ASC");
+        .isEqualTo("SELECT * FROM sink_table WHERE timestamp" + " > '2019-08-08T20:30:39.802644Z'");
   }
 }

@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package com.google.spez.spanner;
+package com.google.spez.pubsub;
 
-import io.grpc.stub.StreamObserver;
-import java.io.Closeable;
+import com.google.spez.core.SpezConfig;
+import com.google.spez.pubsub.internal.GaxConsumer;
 
-public interface Database extends Closeable {
-  void executeStreaming(QueryOptions options, StreamObserver<Row> handler, String query);
-
-  RowCursor execute(String query);
-
-  RowCursor executeMutate(String query);
+public class PubSubFactory {
+  public static PubSubConsumer createLedgerConsumer(
+      SpezConfig.PubSubConfig config, PubSubListener listener) {
+    return GaxConsumer.createConsumer(config, listener);
+  }
 }

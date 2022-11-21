@@ -93,6 +93,10 @@ public class SpezConfig {
       return topic;
     }
 
+    public String getUpdaterSubscriptionName() {
+      return topic + "-lpts-updater";
+    }
+
     /** bufferTimeout getter. */
     public int getBufferTimeout() {
       return bufferTimeout;

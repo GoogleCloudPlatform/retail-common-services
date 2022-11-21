@@ -83,6 +83,11 @@ public class BothanDatabase implements Database {
         executeAsync(query, MoreExecutors.newDirectExecutorService()));
   }
 
+  @Override
+  public RowCursor executeMutate(String query) {
+    return null;
+  }
+
   private static com.google.spannerclient.QueryOptions convert(QueryOptions options) {
     return com.google.spannerclient.QueryOptions.newBuilder()
         .setMaxStaleness(options.maxStaleness())

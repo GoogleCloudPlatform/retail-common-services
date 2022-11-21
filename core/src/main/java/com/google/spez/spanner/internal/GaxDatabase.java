@@ -80,6 +80,24 @@ public class GaxDatabase implements Database {
     return new GaxRowCursor(resultSet);
   }
 
+  @Override
+  public RowCursor executeMutate(String query) {
+    client
+        .readWriteTransaction()
+        .run(
+            transaction -> {
+              try (ResultSet resultSet = transaction.executeQuery(Statement.of(query))) {
+                while (resultSet.next()) {
+                  log.trace("update result {}", resultSet);
+                }
+                log.trace("Updated row(s) count: {}", resultSet.getStats().getRowCountExact());
+              }
+              return null;
+            });
+    return null;
+    // return new GaxRowCursor(resultSet);
+  }
+
   private AsyncResultSet executeAsync(String query) {
     return client.singleUse().executeQueryAsync(Statement.of(query));
   }

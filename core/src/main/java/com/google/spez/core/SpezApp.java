@@ -73,10 +73,13 @@ public class SpezApp {
       final SpannerTailer tailer =
           new SpannerTailer(config, database, handler, lastProcessedTimestamp);
       tailer.start();
+      final LptsUpdater lptsUpdater = LptsUpdater.create(config);
+      lptsUpdater.start();
       setupLogScheduler(
           () -> {
             handler.logStats();
             tailer.logStats();
+            lptsUpdater.logStats();
           });
     } catch (Exception ex) {
       log.error("Unhandled exception", ex);

@@ -14,15 +14,10 @@
  * limitations under the License.
  */
 
-package com.google.spez.spanner;
+package com.google.spez.pubsub;
 
-import io.grpc.stub.StreamObserver;
-import java.io.Closeable;
+public interface PubSubConsumer {
+  public void open();
 
-public interface Database extends Closeable {
-  void executeStreaming(QueryOptions options, StreamObserver<Row> handler, String query);
-
-  RowCursor execute(String query);
-
-  RowCursor executeMutate(String query);
+  public void close();
 }

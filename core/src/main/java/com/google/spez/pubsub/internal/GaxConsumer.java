@@ -65,7 +65,7 @@ public class GaxConsumer implements PubSubConsumer {
     var subscriptionName =
         ProjectSubscriptionName.of(config.getProjectId(), config.getUpdaterSubscriptionName());
     Subscriber subscriber = Subscriber.newBuilder(subscriptionName, receiver).build();
-    // System.out.printf("Listening for messages on %s:\n", subscriptionName.toString());
+    log.info("Listening for messages on {}", subscriptionName.toString());
     return subscriber;
   }
 

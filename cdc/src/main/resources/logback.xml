@@ -22,6 +22,7 @@
   <logger name="com.google.spannerclient.Util" level="${spez.loglevel.spannerclient.Util:-${spannerclient}}"/>
   <logger name="com.google.spez.cdc.Main" level="${spez.loglevel.cdc.Main:-${cdc}}"/>
   <logger name="com.google.spez.core.EventPublisher" level="${spez.loglevel.cdc.EventPublisher:-${core}}"/>
+  <logger name="com.google.spez.core.LptsUpdater" level="${spez.loglevel.cdc.LptsUpdater:-${core}}"/>
   <logger name="com.google.spez.core.RowProcessor" level="${spez.loglevel.cdc.RowProcessor:-${core}}"/>
   <logger name="com.google.spez.core.RowProcessorStats" level="${spez.loglevel.cdc.RowProcessorStats:-${core}}"/>
   <logger name="com.google.spez.core.SpannerTailer" level="${spez.loglevel.cdc.SpannerTailer:-${core}}"/>

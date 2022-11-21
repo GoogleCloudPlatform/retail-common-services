@@ -26,7 +26,11 @@ import com.google.spez.pubsub.PubSubFactory;
 import com.google.spez.pubsub.PubSubListener;
 import com.google.spez.spanner.Database;
 import com.google.spez.spanner.DatabaseFactory;
+import java.text.NumberFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,15 +75,28 @@ class LptsUpdater implements PubSubListener {
           .append(config.getSink().getDatabase())
           .append("' AND table = '")
           .append(config.getSink().getTable())
-          .append("'")
+          .append("' THEN RETURN *")
           .toString();
     }
 
     public void maybeUpdate() {
-      var timestamp = largestTimestamp.get();
-      if (lastTimestamp.compareTo(timestamp) < 0) {
-        lptsDatabase.execute(buildUpdateQuery(timestamp));
-        lastTimestamp = timestamp;
+      try {
+        var timestamp = largestTimestamp.get();
+        log.debug("Maybe Update? timestamp {}", timestamp);
+        if (timestamp.equals("")) {
+          return;
+        }
+        log.debug("Comparing lastTimestamp {} to timestamp {}", lastTimestamp, timestamp);
+        if (lastTimestamp.compareTo(timestamp) < 0) {
+          var query = buildUpdateQuery(timestamp);
+          log.debug("Updating lpts to timestamp {} with query {}", timestamp, query);
+          var result = lptsDatabase.executeMutate(buildUpdateQuery(timestamp));
+          // result.next();
+          // log.info("result {}", result.getCurrentRow());
+          lastTimestamp = timestamp;
+        }
+      } catch (Exception ex) {
+        log.error("Caught exception while updating lpts", ex);
       }
     }
   }
@@ -123,12 +140,15 @@ class LptsUpdater implements PubSubListener {
 
   @Override
   public void onMessage(PubsubMessage message) {
+    messages.incrementAndGet();
     // get the timestamp
     var timestamp = message.getAttributesMap().get(SpezConfig.SINK_TIMESTAMP_KEY);
+    // log.info("Got timestamp {}", timestamp);
     largestTimestamp.accumulateAndGet(
         timestamp,
         (String currentValue, String newValue) -> {
           if (currentValue.compareTo(newValue) < 0) {
+            log.debug("Updating atomic lpts to timestamp {}", newValue);
             return newValue;
           }
           return currentValue;
@@ -151,5 +171,30 @@ class LptsUpdater implements PubSubListener {
   public void stop() {
     consumer.close();
     spannerUpdater.close();
+  }
+
+  private final Instant then = Instant.now();
+  private final AtomicLong messages = new AtomicLong(0);
+  private long previousMessages = 0;
+  private Instant lastLog = then;
+  private final Runtime runtime = Runtime.getRuntime();
+  private final NumberFormat formatter = NumberFormat.getInstance();
+
+  public void logStats() {
+    var timestamp = largestTimestamp.get();
+    Instant now = Instant.now();
+    Duration d = Duration.between(then, now);
+    long messagesTotal = messages.get();
+    long messagesNow = messagesTotal - previousMessages;
+    Duration logDuration = Duration.between(lastLog, now);
+    Long inSeconds = logDuration.getSeconds();
+    double messagesPerSecond = messagesNow / inSeconds.doubleValue();
+    log.info(
+        "Processed {} pubsub messages over the past {} rate: {} records/sec. Largest timestamp seen: {}",
+        formatter.format(messagesNow),
+        logDuration,
+        messagesPerSecond,
+        timestamp);
+    previousMessages = messagesTotal;
   }
 }

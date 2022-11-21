@@ -24,10 +24,4 @@ public class PubSubFactory {
       SpezConfig.PubSubConfig config, PubSubListener listener) {
     return GaxConsumer.createConsumer(config, listener);
   }
-
-  /*
-  public static Database openSinkDatabase(SpezConfig.SinkConfig config) {
-    return openDatabase(config.useCustomClient(), config.getSettings(), config.databasePath());
-  }
-  */
 }

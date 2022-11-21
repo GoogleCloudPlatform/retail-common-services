@@ -23,4 +23,6 @@ public interface Database extends Closeable {
   void executeStreaming(QueryOptions options, StreamObserver<Row> handler, String query);
 
   RowCursor execute(String query);
+
+  RowCursor executeMutate(String query);
 }

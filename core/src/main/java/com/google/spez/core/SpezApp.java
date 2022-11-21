@@ -79,6 +79,7 @@ public class SpezApp {
           () -> {
             handler.logStats();
             tailer.logStats();
+            lptsUpdater.logStats();
           });
     } catch (Exception ex) {
       log.error("Unhandled exception", ex);
